@@ -11,11 +11,19 @@
   <main class="shell">
     <header class="masthead" aria-label="게임 제목">
       <div><span class="serial">PROJECT // 00</span><h1>EDEN</h1></div>
-      <p>FORBIDDEN CREATION PROTOCOL</p>
+      <p>BUILD 04 · PIXEL COMBAT</p>
     </header>
     <section class="frame">
-      <canvas id="game" width="480" height="270" aria-label="EDEN 게임 화면"></canvas>
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="EDEN 게임 화면"></canvas>
       <div id="boot" class="boot">SYSTEM CHECK…</div>
+    </section>
+    <section class="controls" aria-label="게임 조작 버튼">
+      <div class="control-flow"><button id="advance" data-key="enter" type="button">시작 / 이어하기</button><button data-key="arrowdown" type="button">메뉴 선택 ↓</button><button data-key="escape" type="button">일시정지</button><span id="control-status" role="status">시작 버튼을 눌러주세요.</span></div>
+      <div class="control-pad">
+        <button data-key="a" type="button" aria-label="왼쪽 이동">← 이동</button><button data-key="d" type="button" aria-label="오른쪽 이동">이동 →</button>
+        <button data-key=" " type="button">점프</button><button data-key="shift" type="button">회피</button><button data-key="j" type="button">공격 J</button><button data-key="k" type="button">강공격 K</button><button data-key="f" type="button">조사 F</button>
+        <button data-key="q" type="button">기술 Q</button><button data-key="w" type="button">기술 W</button><button data-key="e" type="button">기술 E</button><button data-key="r" type="button">기술 R</button>
+      </div>
     </section>
     <footer>
       <span>A / D 이동</span><span>SPACE 점프</span><span>SHIFT 회피</span>

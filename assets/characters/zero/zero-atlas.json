@@ -1,0 +1,37 @@
+{
+  "generator": "tools/build_zero_atlas.py",
+  "license": "Original project artwork",
+  "status": "development",
+  "size": [
+    2048,
+    2304
+  ],
+  "cell": [
+    256,
+    192
+  ],
+  "frames_per_state": 8,
+  "states": [
+    "idle",
+    "run",
+    "jump",
+    "dash",
+    "light1",
+    "light2",
+    "light3",
+    "heavy",
+    "rail",
+    "pile",
+    "crown",
+    "hit"
+  ],
+  "logical_cell": [
+    128,
+    96
+  ],
+  "anchor": [
+    33,
+    20
+  ],
+  "notes": "Empty hands; weapons deploy from mechanical lower legs."
+}

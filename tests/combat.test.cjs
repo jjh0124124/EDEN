@@ -6,11 +6,11 @@ const vm=require('node:vm');
 function game(){
   const events={}, storage=new Map();
   const ctx=new Proxy({}, {get:(o,k)=>k==='measureText'?s=>({width:s.length*6}):()=>{},set:()=>true});
-  const canvas={width:480,height:270,getContext:()=>ctx};
+  const canvas={width:480,height:270,getContext:()=>ctx,addEventListener(){},focus(){}};
   const world={console,Math,performance:{now:()=>0},requestAnimationFrame:()=>{},
-    addEventListener:(n,fn)=>{events[n]=fn;},document:{querySelector:s=>s==='#game'?canvas:{classList:{add(){}}}},
+    addEventListener:(n,fn)=>{(events[n]??=[]).push(fn);},document:{querySelectorAll:()=>[],querySelector:s=>s==='#game'?canvas:{classList:{add(){}}}},
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
-    EdenPresentation:{zero(){},boss(){},background(){},Soundtrack:class{tone(){}noise(){}tick(){}wake(){}}}};
+    EdenPresentation:{zero(){},drawZero(){},boss(){},background(){},Soundtrack:class{tone(){}noise(){}tick(){}wake(){}}}};
   world.window=world;
   const exports=`globalThis.testGame={player,Boss,BOSSES,startBoss,startExplore,update,updateCombat,finishBoss,load,save,keys,pressed,
     step(dt=.016){update(dt);pressed.clear();},
@@ -19,7 +19,7 @@ function game(){
     get boss(){return boss},get state(){return state},get hazards(){return hazards},get slashes(){return slashes},get room(){return room},get upgrade(){return upgrade},get paused(){return paused},get dialogue(){return dialogue},get checkpoint(){return checkpointStage},get archiveCount(){return archiveCount},
     setUpgrade(v){upgrade=v},resume(){paused=false},};`;
   const source=fs.readFileSync(__dirname+'/../src/game.js','utf8').replace('})();',exports+'\n})();');
-  vm.runInNewContext(source,world);return world.testGame;
+  vm.runInNewContext(source,world);world.testGame.dispatch=(type,event)=>{for(const fn of events[type]||[])fn({preventDefault(){},...event});};return world.testGame;
 }
 const frames=(g,n=60)=>{for(let i=0;i<n;i++)g.step(1/60);};
 
@@ -38,3 +38,7 @@ test('stationary evade still moves in facing direction',()=>{const g=game();g.en
 test('WARDEN guard reduces light hits and breaks under heavy pressure',()=>{const g=game();g.engage(2);g.boss.hurt(10);assert.equal(g.boss.maxHp-g.boss.hp,4);g.boss.inv=0;g.boss.hurt(22);g.boss.inv=0;g.boss.hurt(22);assert.ok(g.boss.guardBroken>0);g.boss.inv=0;const hp=g.boss.hp;g.boss.hurt(10);assert.equal(hp-g.boss.hp,10);});
 test('archive recovery is not duplicated after restarting the corridor',()=>{const g=game();g.startExplore();g.player.x=209;g.press('f');g.press('enter');g.press('enter');g.startExplore();g.player.x=209;g.press('f');assert.equal(g.archiveCount,1);assert.equal(g.load().records.length,1);});
 test('skills enforce both energy and cooldown',()=>{const g=game();g.engage();g.player.sp=23;g.player.skill(0);assert.equal(g.slashes.length,0);g.player.sp=100;g.player.skill(0);assert.equal(g.player.sp,76);const count=g.slashes.length;g.player.skill(0);assert.equal(g.slashes.length,count);assert.equal(g.player.sp,76);});
+test('Korean IME and shifted letters use physical key codes',()=>{const g=game();g.engage();const x=g.player.x;g.dispatch('keydown',{code:'KeyD',key:'ㅇ',isComposing:true});frames(g,30);assert.ok(g.player.x>x+25);g.dispatch('keyup',{code:'KeyD',key:'D'});assert.equal(g.keys.has('d'),false);g.dispatch('keydown',{code:'KeyA',key:'Process'});assert.ok(g.keys.has('a'));g.dispatch('keyup',{code:'KeyA',key:'ㅁ'});assert.equal(g.keys.has('a'),false);});
+test('arrow movement and two shift keys release independently',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'ArrowRight',key:'ArrowRight'});assert.ok(g.keys.has('d'));g.dispatch('keyup',{code:'ArrowRight',key:'ArrowRight'});assert.equal(g.keys.has('d'),false);g.dispatch('keydown',{code:'ShiftLeft',key:'Shift'});g.dispatch('keydown',{code:'ShiftRight',key:'Shift'});g.dispatch('keyup',{code:'ShiftLeft',key:'Shift'});assert.ok(g.keys.has('shift'));g.dispatch('keyup',{code:'ShiftRight',key:'Shift'});assert.equal(g.keys.has('shift'),false);});
+test('window blur clears held input and pauses gameplay',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'KeyD',key:'d'});g.dispatch('blur',{});assert.equal(g.keys.size,0);assert.equal(g.paused,true);});
+test('shin rail projectile waits for deployment and then hits',()=>{const g=game();g.engage();g.player.skill(1);frames(g,10);assert.equal(g.boss.hp,g.boss.maxHp);frames(g,80);assert.ok(g.boss.hp<g.boss.maxHp);assert.equal(g.player.weaponMode,'rail');});
