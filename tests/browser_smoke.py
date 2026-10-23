@@ -43,6 +43,25 @@ with sync_playwright() as p:
     assert page.evaluate('edenTest.paused') is True
     press('Escape')
     page.screenshot(path='/tmp/eden-explore-v2.png')
+    page.evaluate('edenTest.arena(0);edenTest.finish()')
+    page.wait_for_timeout(3000)
+    assert page.evaluate('edenTest.state') == 'reward'
+    page.reload(wait_until='networkidle')
+    press('Enter')
+    assert page.evaluate('edenTest.state') == 'reward'
+    press('d')
+    page.screenshot(path='/tmp/eden-reforge.png')
+    # Use actual touchscreen input at the third card, then the existing advance button.
+    box = page.locator('#game').bounding_box()
+    cdp = page.context.new_cdp_session(page)
+    cdp.send('Input.dispatchTouchEvent', {'type':'touchStart','touchPoints':[{'x':box['x']+390*box['width']/480,'y':box['y']+150*box['height']/270}]})
+    cdp.send('Input.dispatchTouchEvent', {'type':'touchEnd','touchPoints':[]})
+    page.locator('#advance').click()
+    page.wait_for_timeout(100)
+    assert page.evaluate('edenTest.state') == 'interlude'
+    assert page.evaluate('JSON.parse(localStorage.getItem("eden-save-v1")).augments[2]') == 1
+    press('Enter')
+    assert page.evaluate('edenTest.player.maxHp') == 125
     for i in range(7):
         page.evaluate('(i)=>edenTest.arena(i)',i)
         page.wait_for_timeout(200)

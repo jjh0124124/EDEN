@@ -62,6 +62,15 @@
   let particles=[], hazards=[], slashes=[], messages=[], damageNumbers=[], echoes=[];
   let hitstop=0, dialogue=null, dialogueStep=0, checkpointStage='explore', room=null, upgrade=0, archiveCount=0, defeatCount=0;
   let recoveredRecords=new Set();
+  let augments=[0,0,0], rewardChoice=0, chain=0, chainTimer=0, bestChain=0, battleSeconds=0;
+  const MODS=[
+    ['RAZOR / 절단 신경','기계 다리 출력 +12%','공격력에 영구 가산','#ef3956'],
+    ['FLUX / 순환 척추','SP 재생 +3 / 초','기술 재사용 속도 +15%','#77d6df'],
+    ['AEGIS / 골격 장갑','최대 체력 +20','피격 피해 8% 감소 (최대 40%)','#d6b77a']
+  ];
+  function chooseReward(){if(state!=='reward')return;augments[rewardChoice]++;checkpointStage='explore';state='interlude';save();audio.tone(220,.25,'triangle',.06,660);}
+  function rewardPointer(e){const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;if(y>=105&&y<=211){rewardChoice=clamp(Math.floor((x-18)/150),0,2);}else if(y>=228)chooseReward();}
+  canvas.addEventListener('pointerdown',e=>{if(state==='reward')rewardPointer(e);});
   const SKILLS=['LAHAT / 삼연 절단','RAIL / 척추 관통','PILE / 지각 파쇄','KETER / 명령 왕관'];
   const COMMS=[
     [['CONTROL','00, 신경 접속 확인. 수술 성당의 집도의가 명령을 거부했다.'],['ZERO','제 다리의 제조번호가 수술대에도 새겨져 있습니다.'],['CONTROL','관련 없는 정보다. 표적을 해체하라.']],
@@ -85,7 +94,7 @@
   const PATTERNS=[['절개 탄막','수직 봉합'],['K9 / 급속 포획','K9 / 재추적'],['격리 말뚝','봉쇄 사격'],['열익 방출','화형 산개'],['미래 고정','반사 예측'],['요격 드론','방주 방어망'],['관리자 탄막','영역 폐쇄','명령 삭제']];
   const TACTICS=['붉은 표식을 벗어나 주사기의 착탄을 피하세요.','돌진을 회피한 뒤 회복 동작을 노리세요.','정면 장갑에는 K 강 공격으로 과부하를 누적하세요.','포물선 화염의 착지 사이로 이동하세요.','예측 표식이 고정된 뒤 자리를 옮기세요.','추적 드론을 넓게 유도한 뒤 반대로 회피하세요.','탄막 · 말뚝 · 삭제 광선이 순환합니다.'];
   const saveKey='eden-save-v1';
-  const save = () => {try{localStorage.setItem(saveKey, JSON.stringify({boss:bossIndex, stage:checkpointStage, upgrade, archives:archiveCount, records:[...recoveredRecords], defeats:defeatCount, complete:state==='ending'}));}catch{message('저장 불가 — 브라우저 저장소를 확인하세요',3);} };
+  const save = () => {try{localStorage.setItem(saveKey, JSON.stringify({boss:bossIndex, stage:checkpointStage, upgrade, augments, archives:archiveCount, records:[...recoveredRecords], defeats:defeatCount, complete:state==='ending'}));}catch{message('저장 불가 — 브라우저 저장소를 확인하세요',3);} };
   const load = () => {try{const s=JSON.parse(localStorage.getItem(saveKey));return s&&Number.isInteger(s.boss)&&s.boss>=0&&s.boss<=7?s:null;}catch{return null;} };
   const clearSave = () => {try{localStorage.removeItem(saveKey);}catch{}};
 
@@ -95,10 +104,10 @@
   class Fighter {
     constructor(){ this.reset(); }
     reset(){ Object.assign(this,{x:65,y:FLOOR-60,w:19,h:60,vx:0,vy:0,face:1,hp:100,maxHp:100,sp:100,onGround:true,attack:0,attackKind:0,inv:0,dash:0,stun:0,combo:0,comboT:0,cool:[0,0,0,0]}); }
-    damage(n,dir){ if(this.inv>0||this.hp<=0||boss?.dead)return;this.hp-=n;this.vx=dir*95;this.vy=-90;this.inv=.55;this.stun=.18;shake=7;hitstop=.055;burst(this.x+9,this.y+20,RED,15,100);audio.noise(.16,.08);audio.tone(52,.17,'sawtooth',.06,20); if(this.hp<=0){this.hp=0;deathTimer=1.4;defeatCount++;} }
+    damage(n,dir){ if(this.inv>0||this.hp<=0||boss?.dead)return;this.hp-=Math.max(1,Math.round(n*(1-Math.min(.4,augments[2]*.08))));chain=0;chainTimer=0;this.vx=dir*95;this.vy=-90;this.inv=.55;this.stun=.18;shake=7;hitstop=.055;burst(this.x+9,this.y+20,RED,15,100);audio.noise(.16,.08);audio.tone(52,.17,'sawtooth',.06,20); if(this.hp<=0){this.hp=0;deathTimer=1.4;defeatCount++;} }
     update(dt){
       this.inv=Math.max(0,this.inv-dt);this.attack=Math.max(0,this.attack-dt);this.stun=Math.max(0,this.stun-dt);this.comboT-=dt;if(this.comboT<0)this.combo=0;
-      this.cool=this.cool.map(v=>Math.max(0,v-dt));this.sp=Math.min(100,this.sp+10*dt);
+      this.cool=this.cool.map(v=>Math.max(0,v-dt*(1+augments[1]*.15)));this.sp=Math.min(100,this.sp+(10+augments[1]*3)*dt);
       if(this.stun<=0&&this.hp>0){
         let move=(keys.has('d')?1:0)-(keys.has('a')?1:0); if(move)this.face=move;
         this.vx=this.dash>0?this.face*250:lerp(this.vx,move*92,clamp(dt*12,0,1));
@@ -129,7 +138,7 @@
     constructor(data){this.d=data;this.x=365;this.h=data.type==='surgeon'?100:72;this.y=FLOOR-this.h;this.w=42;this.hp=data.hp;this.maxHp=data.hp;this.phase=1;this.t=1.4;this.anim=0;this.inv=1;this.dead=false;this.dir=-1;this.tele=0;this.windup=0;this.move=0;this.hitFlash=0;this.deathAge=0;this.guardBroken=0;this.release=0;}
     hurt(n){if(this.inv>0||this.dead||player.hp<=0)return;
       if(this.d.type==='warden'&&this.guardBroken<=0&&this.dir*(player.x-this.x)>0){this.guard=(this.guard||0)+n*(n>=22?2.4:.5);n=Math.ceil(n*.4);if(this.guard>=90){this.guard=0;this.guardBroken=3;this.windup=0;this.t=3;message('ARMOR BREAK // 장갑 과부하',1.6);audio.noise(.4,.07);}}
-      const damage=Math.round(n*(1+upgrade*.08));this.hp-=damage;this.inv=.045;this.hitFlash=.1;hitstop=.035;damageNumbers.push({x:this.x+20,y:this.y,life:.65,text:damage});player.sp=Math.min(100,player.sp+2);burst(this.x+18,this.y+28,RED,8,85);shake=Math.min(8,shake+2);audio.noise(.06,.045);audio.tone(80,.08,'square',.035,35);
+      const damage=Math.round(n*(1+upgrade*.08+augments[0]*.12));chain++;chainTimer=2.4;bestChain=Math.max(bestChain,chain);this.hp-=damage;this.inv=.045;this.hitFlash=.1;hitstop=.035;damageNumbers.push({x:this.x+20,y:this.y,life:.65,text:damage});player.sp=Math.min(100,player.sp+2);burst(this.x+18,this.y+28,RED,8,85);shake=Math.min(8,shake+2);audio.noise(.06,.045);audio.tone(80,.08,'square',.035,35);
       if(this.hp<=0){this.hp=0;this.dead=true;this.inv=99;deathTimer=2.6;hazards=[];slashes=[];message('TARGET DISMANTLED // 코어 회수',2.4);burst(this.x+20,this.y+25,'#eee',55,180);audio.tone(38,1.1,'sawtooth',.06,16);return;}
       if(this.hp<=this.maxHp*.5&&this.phase===1){this.phase=2;this.inv=1.6;this.tele=1.6;this.windup=0;this.t=1.8;hazards=[];message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,45,150);audio.tone(38,.7,'sawtooth',.07,15);}
     }
@@ -156,13 +165,14 @@
   function message(text,life=1){messages.push({text,life,max:life});}
 
   function updateCombat(dt){
+    if(state==='combat'&&!boss.dead&&player.hp>0){battleSeconds+=dt;chainTimer=Math.max(0,chainTimer-dt);if(!chainTimer)chain=0;}
     if(!boss?.dead&&player.hp>0)player.update(dt);if(state==='combat')boss.update(dt);
     if(boss?.lunge&&!boss.dead){const l=boss.lunge;l.t+=dt;boss.x=lerp(l.from,l.to,clamp(l.t/.3,0,1));if(l.t>=.3)boss.lunge=null;}
-    for(const s of slashes){if(s.delay>0){s.delay-=dt;continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){boss.hurt(s.dmg);s.done=true;}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){drone.hp-=s.dmg;burst(drone.x,drone.y,RED,7);s.done=true;audio.noise(.08,.04);hitstop=.03;}}if(s.owner==='b'&&hit(box,player)){player.damage(s.dmg,s.dir);s.done=true;}}}
+    for(const s of slashes){if(s.delay>0){s.delay-=dt;continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){boss.hurt(s.dmg);s.done=true;}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));burst(drone.x,drone.y,RED,7);s.done=true;audio.noise(.08,.04);hitstop=.03;}}if(s.owner==='b'&&hit(box,player)){player.damage(s.dmg,s.dir);s.done=true;}}}
     slashes=slashes.filter(s=>s.life>0);
     for(const h of hazards){if(h.delay>0){h.delay-=dt;continue;}h.life-=dt;h.x+=(h.vx||0)*dt;h.y+=(h.vy||0)*dt;if(h.kind==='ember')h.vy+=250*dt;if(h.kind==='drone'){h.vy+=(player.y-h.y)*dt*2;h.vx+=(player.x-h.x)*dt*.3;}
       let box=h.kind==='pillar'?{x:h.x-9,y:FLOOR-62,w:18,h:62}:h.kind==='beam'?{x:h.x,y:h.y,w:h.w,h:h.h}:{x:h.x-(h.r||4),y:h.y-(h.r||4),w:(h.r||4)*2,h:(h.r||4)*2};
-      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player)){if(player.dash>0){player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){boss.hurt(h.dmg);h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=h.dmg;h.done=true;burst(d.x,d.y,RED,8);}}
+      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player)){if(player.dash>0){player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){boss.hurt(h.dmg);h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;burst(d.x,d.y,RED,8);}}
     }
     hazards=hazards.filter(h=>h.life>0&&!h.done&&h.x>-50&&h.x<W+50&&h.y<H+50);
     particles.forEach(p=>{p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.vx*=.97;});particles=particles.filter(p=>p.life>0);
@@ -172,9 +182,9 @@
     if(deathTimer>0){deathTimer-=dt;if(deathTimer<=0){if(player.hp<=0)state='gameover';else finishBoss();}}
   }
 
-  function finishBoss(){bossIndex++;upgrade++;checkpointStage='explore';hazards=[];slashes=[];particles=[];if(bossIndex>=BOSSES.length)state='ending';else state='interlude';save();}
-  function startBoss(i=bossIndex){bossIndex=i;player.reset();player.maxHp=player.hp=100+upgrade*5;boss=new Boss(BOSSES[i]);hazards=[];slashes=[];particles=[];messages=[];damageNumbers=[];echoes=[];deathTimer=0;paused=false;checkpointStage='boss';save();state='intro';time=0;}
-  function startExplore(){boss=null;player.reset();player.maxHp=player.hp=100+upgrade*5;hazards=[];slashes=[];particles=[];messages=[];damageNumbers=[];echoes=[];deathTimer=0;paused=false;state='explore';checkpointStage='explore';room={section:0,read:false,drones:[],seconds:0};enterSection();save();}
+  function finishBoss(){if(state==='reward'||state==='ending')return;bossIndex++;upgrade++;rewardChoice=0;checkpointStage=bossIndex>=BOSSES.length?'explore':'reward';hazards=[];slashes=[];particles=[];state=bossIndex>=BOSSES.length?'ending':'reward';save();}
+  function startBoss(i=bossIndex){bossIndex=i;player.reset();player.maxHp=player.hp=100+upgrade*5+augments[2]*20;chain=chainTimer=bestChain=battleSeconds=0;boss=new Boss(BOSSES[i]);hazards=[];slashes=[];particles=[];messages=[];damageNumbers=[];echoes=[];deathTimer=0;paused=false;checkpointStage='boss';save();state='intro';time=0;}
+  function startExplore(){boss=null;player.reset();player.maxHp=player.hp=100+upgrade*5+augments[2]*20;hazards=[];slashes=[];particles=[];messages=[];damageNumbers=[];echoes=[];deathTimer=0;paused=false;state='explore';checkpointStage='explore';room={section:0,read:false,drones:[],seconds:0};enterSection();save();}
   function enterSection(){player.x=25;room.seconds=0;room.read=false;hazards=[];slashes=[];room.drones=room.section===1?[{x:210,y:173,w:20,h:20,hp:38+bossIndex*3,t:2},{x:355,y:160,w:20,h:20,hp:38+bossIndex*3,t:3}]:[];message(['접속 회랑 // F: 기록 단말 조사','방어망 // 드론을 해체하고 전진','재기동 설비 // F: 교전 준비'][room.section],2.5);}
   function updateExplore(dt){
     room.seconds+=dt;updateCombat(dt);if(player.hp<=0)return;
@@ -184,7 +194,14 @@
     if(room.section===2&&player.x>380&&pressed.has('f'))startBoss();
   }
 
-  function drawBackground(zone=0){EdenPresentation.background(ctx,Math.min(6,zone),time);}
+  function drawBackground(zone=0){
+    EdenPresentation.background(ctx,Math.min(6,zone),time);
+    // Deterministic pixel weather: never creates collision objects or hides warnings.
+    ctx.save();ctx.globalAlpha=.24;ctx.fillStyle=['#a8c5d4','#81b5d1','#d8ba7a','#ff633a','#b2a0ef','#80d8c4','#ef6176'][zone%7];
+    for(let i=0;i<32;i++){const x=(i*79+time*(zone===1?34:5))%480,y=(i*47+time*(zone===3?-17:14)+5400)%220;ctx.fillRect(Math.floor(x),Math.floor(y),1,zone===1?6:2);}
+    for(let i=0;i<7;i++)ctx.fillRect(i*73,221,12+Math.floor(Math.sin(time*2+i)*5),1);
+    ctx.restore();
+  }
 
   function drawBoss(b){EdenPresentation.boss(ctx,b,time);}
 
@@ -281,6 +298,33 @@
   }
   function drawHUD(){statusHUD();}
 
+  function rewardScreen(){
+    drawBackground(Math.max(0,bossIndex-1));ctx.fillStyle='rgba(3,7,12,.93)';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=RED;ctx.font='7px monospace';ctx.fillText('SALVAGE // '+BOSSES[Math.max(0,bossIndex-1)].id+' // CORE '+upgrade,22,23);
+    ctx.fillStyle=PALE;ctx.font='22px sans-serif';ctx.fillText('적의 명령을, 나의 무기로.',20,52);
+    ctx.fillStyle='#93a5bb';ctx.font='8px sans-serif';ctx.fillText('회수 코어를 기계 다리에 이식합니다. 하나를 선택하세요.',22,75);
+    MODS.forEach((m,i)=>{
+      const x=18+i*150,selected=i===rewardChoice;ctx.fillStyle=selected?'#18232d':'#0a1019';ctx.fillRect(x,104,144,108);
+      ctx.strokeStyle=selected?m[3]:'#344151';ctx.strokeRect(x+.5,104.5,143,107);ctx.fillStyle=m[3];ctx.fillRect(x,104,144,selected?3:1);
+      // Pixel circuit diagram of hip, shin and transformed foot.
+      const px=x+17,py=120;ctx.fillStyle='#6e8092';ctx.fillRect(px,py,8,11);ctx.fillRect(px+5,py+11,6,13);ctx.fillRect(px+3,py+24,6,10);
+      ctx.fillStyle=m[3];ctx.fillRect(px+5,py+12,3,10);ctx.fillRect(px+3,py+32,i===0?26:15,3);
+      if(i===1){for(let k=0;k<3;k++)ctx.fillRect(px+15+k*5,py+13-k*3,3,15);}
+      if(i===2){ctx.fillRect(px-3,py+8,5,23);ctx.fillRect(px+13,py+8,5,23);}
+      ctx.font='7px monospace';ctx.fillText('0'+(i+1)+' / LV '+augments[i],x+54,129);ctx.fillStyle=PALE;ctx.font='9px sans-serif';ctx.fillText(m[0],x+9,166);
+      ctx.font='8px sans-serif';ctx.fillStyle=m[3];ctx.fillText(m[1],x+9,184);ctx.fillStyle='#9aa8b8';ctx.font='7px sans-serif';ctx.fillText(m[2],x+9,199,128);
+    });
+    ctx.textAlign='center';ctx.font='9px sans-serif';ctx.fillStyle=PALE;ctx.fillText('A / D 또는 카드 터치로 선택 · ENTER / 아래 진행 버튼으로 이식',240,239);
+    ctx.fillStyle='#71849b';ctx.font='7px monospace';ctx.fillText('PERMANENT AUGMENT // 다음 구역부터 적용 · 선택 전에도 자동 저장',240,257);ctx.textAlign='left';
+  }
+  function combatCinema(){
+    if(chain>1&&!boss.dead){ctx.textAlign='right';ctx.fillStyle=chain>=10?'#7de6ed':PALE;ctx.font='20px monospace';ctx.fillText(String(chain).padStart(2,'0'),458,105);ctx.font='6px monospace';ctx.fillText(chain>=10?'NEURAL SYNC':'HIT CHAIN',458,116);ctx.fillRect(413,122,45*chainTimer/2.4,2);ctx.textAlign='left';}
+    if(!boss.dead)return;
+    const t=boss.deathAge,open=clamp(t*3,0,1);ctx.fillStyle='rgba(3,5,9,.94)';ctx.fillRect(0,0,W,30*open);ctx.fillRect(0,H-37*open,W,37*open);
+    ctx.strokeStyle=RED;ctx.strokeRect(boss.x-8-t*16,boss.y-8-t*8,boss.w+16+t*32,boss.h+16+t*16);
+    if(t>.35){ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='18px monospace';ctx.fillText('COMMAND SEVERED',240,25);ctx.fillStyle='#aab8c9';ctx.font='8px monospace';ctx.fillText('BEST CHAIN '+bestChain+'   /   '+battleSeconds.toFixed(1)+' SEC   /   CORE RECOVERED',240,254);ctx.textAlign='left';}
+  }
+
   function renderCombat(){drawBackground(bossIndex);for(const e of echoes){ctx.globalAlpha=e.life*2;EdenPresentation.drawZero(ctx,{...player,x:e.x,y:e.y,face:e.face,inv:0},time);}ctx.globalAlpha=1;drawHazards();boss.draw();player.draw();drawSlashes();drawParticles();for(const n of damageNumbers){ctx.globalAlpha=n.life;ctx.fillStyle=PALE;ctx.font='9px monospace';ctx.fillText(n.text,n.x,n.y);}ctx.globalAlpha=1;drawHUD();drawMessages();drawOverride();if(boss.tele>0){ctx.fillStyle='rgba(5,7,12,.8)';ctx.fillRect(0,95,480,32);ctx.fillStyle=RED;ctx.font='13px monospace';ctx.textAlign='center';ctx.fillText('PHASE II / 신경 제한 해제',240,115);ctx.textAlign='left';}if(paused)overlay('PAUSED','ESC — 계속 / M — 음소거');}
   function overlay(title,sub){ctx.fillStyle='rgba(3,4,5,.82)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='22px Georgia';ctx.fillText(title,W/2,120);ctx.fillStyle='#8b9092';ctx.font='8px monospace';ctx.fillText(sub,W/2,140);ctx.textAlign='left';}
   function titleScreen(){campaignTitle();}
@@ -294,7 +338,7 @@
     ctx.fillStyle='#8592a8';ctx.font='9px sans-serif';wrapped(TACTICS[bossIndex],23,184,248,14);
     ctx.fillStyle=PALE;ctx.font='8px monospace';ctx.fillText('ENTER — 교전 개시',23,238);
   }
-  function endingScreen(){drawBackground(6);ctx.fillStyle='rgba(2,3,4,.72)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='30px Georgia';ctx.fillText('EDEN // SEVERED',W/2,75);ctx.fillStyle=RED;ctx.fillRect(145,88,190,1);ctx.fillStyle='#b5b7b6';ctx.font='10px sans-serif';ctx.fillText('최초의 명령은 끝났다.',W/2,124);ctx.fillText('ZERO는 낙원의 문을 열어 둔 채, 이름 없는 세계로 걸어간다.',W/2,144);ctx.fillStyle='#666';ctx.font='7px monospace';ctx.fillText('ENTER — 기록 초기화 / TITLE',W/2,216);ctx.textAlign='left';}
+  function endingScreen(){drawBackground(6);ctx.fillStyle='rgba(2,3,4,.72)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='30px Georgia';ctx.fillText('EDEN // SEVERED',W/2,75);ctx.fillStyle=RED;ctx.fillRect(145,88,190,1);ctx.fillStyle='#b5b7b6';ctx.font='10px sans-serif';ctx.fillText('최초의 명령은 끝났다.',W/2,124);ctx.fillText('ZERO는 낙원의 문을 열어 둔 채, 이름 없는 세계로 걸어간다.',W/2,144);ctx.fillStyle='#666';ctx.font='7px monospace';ctx.fillText('ENTER — 타이틀로 / 기록 유지',W/2,216);ctx.textAlign='left';}
 
   function update(dt){
     if(pressed.has('m'))audio.muted=!audio.muted;
@@ -304,7 +348,8 @@
     if(dialogue){if(pressed.has('enter')||pressed.has('f')){dialogueStep++;if(dialogueStep>=dialogue.length)dialogue=null;}return;}
     time+=dt;shake=Math.max(0,shake-dt*15);flash=Math.max(0,flash-dt);
     if(hitstop>0){hitstop-=dt;return;}
-    if(state==='title'){const max=load()?1:0;if(pressed.has('arrowup')||pressed.has('w'))menu=Math.max(0,menu-1);if(pressed.has('arrowdown')||pressed.has('s'))menu=Math.min(max,menu+1);if(pressed.has('enter')){const old=load();if(old&&menu===0){bossIndex=clamp(old.boss,0,7);upgrade=Number(old.upgrade)||0;archiveCount=Number(old.archives)||0;defeatCount=Number(old.defeats)||0;recoveredRecords=new Set(Array.isArray(old.records)?old.records:[]);if(old.complete||bossIndex===7)state='ending';else if(old.stage==='boss')startBoss();else startExplore();}else{clearSave();bossIndex=0;upgrade=archiveCount=defeatCount=0;recoveredRecords=new Set();checkpointStage='explore';state='interlude';}}}
+    if(state==='title'){const max=load()?1:0;if(pressed.has('arrowup')||pressed.has('w'))menu=Math.max(0,menu-1);if(pressed.has('arrowdown')||pressed.has('s'))menu=Math.min(max,menu+1);if(pressed.has('enter')){const old=load();if(old&&menu===0){bossIndex=clamp(old.boss,0,7);upgrade=Number(old.upgrade)||0;augments=[0,1,2].map(i=>clamp(Math.floor(Number(old.augments?.[i])||0),0,6));archiveCount=Number(old.archives)||0;defeatCount=Number(old.defeats)||0;recoveredRecords=new Set(Array.isArray(old.records)?old.records:[]);if(old.complete||bossIndex===7)state='ending';else if(old.stage==='reward'){checkpointStage='reward';rewardChoice=0;state='reward';}else if(old.stage==='boss')startBoss();else startExplore();}else{clearSave();bossIndex=0;augments=[0,0,0];upgrade=archiveCount=defeatCount=0;recoveredRecords=new Set();checkpointStage='explore';state='interlude';}}}
+    else if(state==='reward'){if(pressed.has('a'))rewardChoice=(rewardChoice+2)%3;if(pressed.has('d'))rewardChoice=(rewardChoice+1)%3;if(pressed.has('enter'))chooseReward();}
     else if(state==='interlude'&&pressed.has('enter')){startExplore();dialogue=COMMS[bossIndex];dialogueStep=0;}
     else if(state==='intro'){boss.anim+=dt;if(pressed.has('enter')){state='combat';boss.inv=.8;message('ENGAGE // 명령을 넘어선다',1.2);}}
     else if(state==='combat')updateCombat(dt);
@@ -312,10 +357,10 @@
     else if(state==='gameover'&&pressed.has('enter')){if(checkpointStage==='boss')startBoss();else startExplore();}
     else if(state==='ending'&&pressed.has('enter')){menu=0;state='title';}
   }
-  function render(){ctx.save();if(shake)ctx.translate(rnd(-shake,shake),rnd(-shake,shake));if(state==='title')titleScreen();else if(state==='interlude')storyScreen();else if(state==='intro')introScreen();else if(state==='combat')renderCombat();else if(state==='explore')drawExplore();else if(state==='gameover'){if(boss)renderCombat();else drawExplore();overlay('SYSTEM FAILURE','ENTER — 체크포인트 재기동');}else if(state==='ending')endingScreen();communications();ctx.restore();if(flash){ctx.fillStyle=`rgba(255,255,255,${flash*2})`;ctx.fillRect(0,0,W,H);}ctx.fillStyle='rgba(255,255,255,.018)';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);}
+  function render(){ctx.save();if(shake)ctx.translate(rnd(-shake,shake),rnd(-shake,shake));if(state==='title')titleScreen();else if(state==='reward')rewardScreen();else if(state==='interlude')storyScreen();else if(state==='intro')introScreen();else if(state==='combat'){renderCombat();combatCinema();}else if(state==='explore')drawExplore();else if(state==='gameover'){if(boss)renderCombat();else drawExplore();overlay('SYSTEM FAILURE','ENTER — 체크포인트 재기동');}else if(state==='ending')endingScreen();communications();ctx.restore();if(flash){ctx.fillStyle=`rgba(255,255,255,${flash*2})`;ctx.fillRect(0,0,W,H);}ctx.fillStyle='rgba(255,255,255,.018)';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);}
 
   function controlHints(){
-    const label=paused?'계속하기':dialogue?'대사 다음':({title:'시작 / 이어하기',interlude:'구역 진입',intro:'전투 시작',gameover:'재도전',ending:'타이틀로'})[state]||'진행';
+    const label=paused?'계속하기':dialogue?'대사 다음':({title:'시작 / 이어하기',reward:'선택한 개조 이식',interlude:'구역 진입',intro:'전투 시작',gameover:'재도전',ending:'타이틀로'})[state]||'진행';
     if(nextButton.textContent!==label)nextButton.textContent=label;
     const text=paused?'일시정지 중 — 계속하기를 누르세요.':dialogue?'통신 중 — 대사 다음을 누르면 이동할 수 있습니다.':state==='explore'||state==='combat'?'A/D 또는 ←/→ 이동 · 아래 버튼을 길게 눌러도 이동합니다.':'시작·진행 버튼 또는 Enter를 눌러주세요.';
     if(controlStatus.textContent!==text)controlStatus.textContent=text;
