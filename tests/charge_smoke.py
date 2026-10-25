@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 root = Path(__file__).resolve().parents[1]
 source = (root / 'src/game.js').read_text()
 driver = '''window.combatTest={
- get player(){return player},get slashes(){return slashes},get boss(){return boss},
+ get player(){return player},get slashes(){return slashes},get boss(){return boss},get state(){return state},
  arena(){dialogue=null;startBoss(0);state='combat';boss.inv=0;boss.t=999;player.x=190;},
  warning(){boss.t=0;boss.move=0;},
 };'''
@@ -75,6 +75,50 @@ with sync_playwright() as p:
         page.evaluate('window.edenFreeze=true')
         page.wait_for_timeout(40)
         page.screenshot(path=f'/tmp/eden-effect-{name}.png')
+    page.evaluate('window.edenFreeze=false;combatTest.arena()')
+    for _ in range(5):
+        page.keyboard.press('j')
+        page.wait_for_timeout(25)
+    assert page.evaluate('combatTest.player.combo') <= 2
+    for x,face,outward,inward in [(8,-1,'a','d'),(453,1,'d','a')]:
+        page.evaluate('([x,face])=>{combatTest.arena();combatTest.player.x=x;combatTest.player.face=face}',[x,face])
+        page.keyboard.down(outward)
+        page.keyboard.press('Shift')
+        page.wait_for_timeout(360)
+        page.keyboard.up(outward)
+        assert 8 <= page.evaluate('combatTest.player.x') <= 453
+        page.keyboard.down(inward)
+        page.wait_for_timeout(300)
+        page.keyboard.up(inward)
+        assert abs(page.evaluate('combatTest.player.x')-x)>15
+    page.evaluate('combatTest.arena()')
+    page.keyboard.press('Space')
+    page.keyboard.down('d')
+    page.keyboard.press('j')
+    page.wait_for_timeout(100)
+    assert page.evaluate('!combatTest.player.onGround && combatTest.player.attack>0')
+    page.keyboard.up('d')
+    page.wait_for_function('combatTest.player.onGround')
+    page.evaluate('combatTest.arena()')
+    page.keyboard.press('j')
+    page.wait_for_timeout(50)
+    page.evaluate('combatTest.player.damage(10,-1);combatTest.player.damage(10,-1)')
+    assert page.evaluate('combatTest.player.hp') == 90
+    page.screenshot(path='/tmp/eden-player-hit.png')
+    page.wait_for_timeout(700)
+    page.evaluate('combatTest.arena()')
+    page.keyboard.press('j')
+    page.wait_for_timeout(40)
+    page.keyboard.press('Shift')
+    page.wait_for_timeout(40)
+    assert page.evaluate('combatTest.player.dash>0 && combatTest.player.attack>0')
+    page.evaluate('combatTest.boss.windup=.2;combatTest.boss.hurt(9999)')
+    page.wait_for_function('combatTest.state==="reward"')
+    page.evaluate('combatTest.arena();combatTest.player.damage(999,1)')
+    page.wait_for_function('combatTest.state==="gameover"')
+    page.keyboard.press('Enter')
+    page.wait_for_function('combatTest.state==="intro"')
+    assert page.evaluate('combatTest.player.hp===combatTest.player.maxHp')
     assert not errors,errors
-    print('PASS: buffered J combo hits three times, keyboard/mouse/touch hold-release, touch cancel, charge and four skill renders; no JS errors')
+    print('PASS: combos, repeated input, both walls, air control/attack, damage immunity, dash/attack, enemy death during windup, restart, keyboard/mouse/touch charge, four skill renders; no JS errors')
     browser.close()

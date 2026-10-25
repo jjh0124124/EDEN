@@ -10,19 +10,33 @@ function game(){
   const world={console,Math,performance:{now:()=>0},requestAnimationFrame:()=>{},
     addEventListener:(n,fn)=>{(events[n]??=[]).push(fn);},document:{querySelectorAll:()=>[],querySelector:s=>s==='#game'?canvas:{classList:{add(){}}}},
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
-    EdenPresentation:{zero(){},drawZero(){},boss(){},background(){},Soundtrack:class{tone(){}noise(){}tick(){}wake(){}}}};
+    EdenPresentation:{zero(){},drawZero(){},boss(){},background(){},Soundtrack:class{constructor(){this.events=[]}tone(...args){this.events.push(['tone',...args])}noise(...args){this.events.push(['noise',...args])}tick(){}wake(){}}}};
   world.window=world;
   const exports=`globalThis.testGame={player,Boss,BOSSES,startBoss,startExplore,update,updateCombat,finishBoss,load,save,keys,pressed,
     step(dt=.016){update(dt);pressed.clear();},
     press(k){pressed.add(k);update(.016);pressed.clear();},
     engage(i=0){startBoss(i);state='combat';boss.inv=0;boss.t=999;},
     get boss(){return boss},get state(){return state},get hazards(){return hazards},get slashes(){return slashes},get room(){return room},get upgrade(){return upgrade},get paused(){return paused},get dialogue(){return dialogue},get checkpoint(){return checkpointStage},get archiveCount(){return archiveCount},
-    get augments(){return augments},get chain(){return chain},chooseReward,rewardPointer,freeze(t){hitstop=t},
+    get augments(){return augments},get chain(){return chain},get sounds(){return audio.events},get feedback(){return {shake,hitstop,particles:particles.length,numbers:damageNumbers.length}},chooseReward,rewardPointer,freeze(t){hitstop=t},
     title(){state='title';dialogue=null;hitstop=0;menu=0},setUpgrade(v){upgrade=v},resume(){paused=false},};`;
   const source=fs.readFileSync(__dirname+'/../src/game.js','utf8').replace('})();',exports+'\n})();');
   vm.runInNewContext(source,world);world.testGame.dispatch=(type,event)=>{for(const fn of events[type]||[])fn({preventDefault(){},...event});};return world.testGame;
 }
 const frames=(g,n=60)=>{for(let i=0;i<n;i++)g.step(1/60);};
+
+test('whiff has no camera kick and contact scales without moving boss hitbox',()=>{const g=game();g.engage();g.player.skill(1);assert.equal(g.feedback.shake,0);const x=g.boss.x,y=g.boss.y;g.boss.hurt(12);const light=g.feedback.hitstop;assert.ok(g.boss.recoil>0);g.boss.inv=0;g.boss.hurt(52);assert.ok(g.feedback.hitstop>light);assert.ok(g.feedback.shake<=1.8);assert.equal(g.boss.x,x);assert.equal(g.boss.y,y);assert.equal(g.boss.hp,g.boss.maxHp-64);});
+test('burst hits cap shake, labels and pause instead of accumulating them',()=>{const g=game();g.engage();g.boss.hp=g.boss.maxHp=10000;for(let i=0;i<20;i++){g.boss.inv=0;g.boss.hurt(12);}assert.ok(g.feedback.shake<=1.8);assert.ok(g.feedback.hitstop<=.065);assert.ok(g.feedback.numbers<=8);});
+test('rapid repeated presses cannot overlap attack startups',()=>{const g=game();g.engage();for(let i=0;i<8;i++)g.press('j');assert.equal(g.player.combo,1);assert.equal(g.slashes.length,1);frames(g,15);assert.equal(g.player.combo,2);});
+test('both walls contain dash and attacks without trapping the player',()=>{for(const [x,face,key] of [[8,-1,'d'],[453,1,'a']]){const g=game();g.engage();g.player.x=x;g.player.face=face;g.press('shift');g.press('j');frames(g,25);assert.ok(g.player.x>=8&&g.player.x<=453);g.keys.add(key);frames(g,20);assert.ok(face<0?g.player.x>30:g.player.x<430);}});
+test('air attack preserves horizontal control and returns to floor',()=>{const g=game();g.engage();const x=g.player.x;g.press(' ');g.keys.add('d');frames(g,6);g.press('j');frames(g,8);assert.equal(g.player.onGround,false);assert.ok(g.player.x>x+15);assert.ok(g.player.attack>0);frames(g,80);assert.equal(g.player.onGround,true);assert.equal(g.player.y+g.player.h,226);});
+test('hit during attack clears reservation and respects damage invulnerability',()=>{const g=game();g.engage();g.press('j');frames(g,6);g.press('j');g.player.damage(10,-1);assert.equal(g.player.buffer,null);assert.ok(g.player.stun>0);g.player.damage(10,1);assert.equal(g.player.hp,90);frames(g,42);g.player.damage(10,1);assert.equal(g.player.hp,80);});
+test('dash during attack preserves attack timing and clears pending follow-up',()=>{const g=game();g.engage();g.press('j');g.press('j');const duration=g.player.attackDuration;g.press('shift');assert.ok(g.player.dash>0);assert.equal(g.player.buffer,null);assert.equal(g.player.attackDuration,duration);assert.ok(g.player.attack>0);});
+test('boss dies during windup without emitting a late attack',()=>{const g=game();g.engage();g.boss.windup=.2;g.boss.move=1;g.boss.hurt(2000);frames(g,180);assert.equal(g.state,'reward');assert.equal(g.hazards.length,0);assert.equal(g.upgrade,1);});
+test('restart resets input, particles and camera feedback',()=>{const g=game();g.engage();g.player.damage(100,1);frames(g,100);assert.equal(g.state,'gameover');g.press('enter');assert.equal(g.state,'intro');assert.equal(g.player.hp,g.player.maxHp);assert.equal(g.player.buffer,null);assert.equal(g.feedback.shake,0);assert.equal(g.feedback.hitstop,0);assert.equal(g.feedback.particles,0);});
+test('jump input during hitstop is not lost',()=>{const g=game();g.engage();g.freeze(.065);g.press(' ');frames(g,6);assert.equal(g.player.onGround,false);assert.ok(g.player.vy<0);});
+test('damage lift reports airborne without changing knockback velocity',()=>{const g=game();g.engage();g.player.damage(10,-1);assert.equal(g.player.onGround,false);assert.equal(g.player.vx,-95);assert.equal(g.player.vy,-90);});
+test('contact sound occurs only on accepted damage, not during invulnerability',()=>{const g=game();g.engage();g.player.strike(false);const windupSounds=g.sounds.length;assert.equal(g.feedback.numbers,0);g.boss.hurt(12);assert.equal(g.sounds.length,windupSounds+2);const accepted=g.sounds.length;g.boss.hurt(12);assert.equal(g.sounds.length,accepted);});
+test('hitstop uses fractional remainder at both frame rates',()=>{for(const dt of [1/30,1/60]){const g=game();g.engage();g.player.cool[0]=1;g.freeze(.022);g.step(dt);g.step(dt);assert.ok(Math.abs(g.player.cool[0]-(1-(2*dt-.022)))<.0001);}});
 
 test('early J inputs link a three-hit combo with a stronger longer finisher',()=>{const g=game();g.engage();g.press('j');frames(g,8);g.press('j');assert.equal(g.player.combo,1);frames(g,8);assert.equal(g.player.combo,2);frames(g,6);g.press('j');frames(g,12);assert.equal(g.player.combo,3);const finisher=g.slashes.find(s=>s.combo===3);assert.equal(finisher.dmg,24);assert.equal(finisher.w,70);});
 test('attack input during hitstop survives until action resumes',()=>{const g=game();g.engage();g.freeze(.08);g.press('j');assert.equal(g.player.attack,0);frames(g,8);assert.equal(g.player.combo,1);assert.ok(g.player.attack>0);});

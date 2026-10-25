@@ -183,7 +183,8 @@ window.EdenPresentation = (() => {
     if(p.h===48&&!art.zero){c.save();c.translate(p.x+9,p.y+48);c.scale(.8,.8);drawZero(c,{...p,x:-9,y:-60,h:60},t);c.restore();return;}
     if(art.zero){
       let row=0,frame=Math.floor(t*5)%4;
-      if(p.charging){row=2;frame=0;}
+      if(p.stun>0||p.hp<=0){row=2;frame=3;}
+      else if(p.charging){row=2;frame=0;}
       else if(p.attack>0){row=p.weaponMode==='rail'?3:2;const progress=Math.max(0,Math.min(.999,1-p.attack/(p.attackDuration||.4)));frame=progress<.25?0:progress<.52?1:progress<.78?2:3;}
       else if(p.dash>0||Math.abs(p.vx)>12){row=1;frame=Math.floor(t*11)%4;}
       else if(!p.onGround){row=1;frame=p.vy<0?1:3;}

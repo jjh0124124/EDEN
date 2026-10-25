@@ -24,10 +24,10 @@ with sync_playwright() as p:
     page.goto('http://127.0.0.1:4173/', wait_until='networkidle')
     page.screenshot(path='/tmp/eden-title-v2.png')
     def press(key):
-        page.keyboard.press(key)
+        page.keyboard.press(key, delay=35)
         page.wait_for_timeout(70)
     press('Enter')
-    assert page.evaluate('edenTest.state') == 'interlude'
+    page.wait_for_function('edenTest.state === "interlude"')
     press('Enter')
     assert page.evaluate('edenTest.state') == 'explore'
     for _ in range(3): press('Enter')
@@ -44,7 +44,7 @@ with sync_playwright() as p:
     press('Escape')
     page.screenshot(path='/tmp/eden-explore-v2.png')
     page.evaluate('edenTest.arena(0);edenTest.finish()')
-    page.wait_for_timeout(3000)
+    page.wait_for_function('edenTest.state === "reward"')
     assert page.evaluate('edenTest.state') == 'reward'
     page.reload(wait_until='networkidle')
     press('Enter')
@@ -77,7 +77,7 @@ with sync_playwright() as p:
         page.wait_for_timeout(1800)
         assert page.evaluate('edenTest.boss.phase') == 2
     page.evaluate('edenTest.finish()')
-    page.wait_for_timeout(3000)
+    page.wait_for_function('edenTest.state === "ending"')
     assert page.evaluate('edenTest.state') == 'ending'
     page.reload(wait_until='networkidle')
     press('Enter')
