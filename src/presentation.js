@@ -180,9 +180,11 @@ window.EdenPresentation = (() => {
   atlas.onload=()=>{atlasReady=atlas.naturalWidth===2048&&atlas.naturalHeight===2304;};
   atlas.src='assets/characters/zero/zero-atlas.png';
   function drawZero(c,p,t){
+    if(p.h===48&&!art.zero){c.save();c.translate(p.x+9,p.y+48);c.scale(.8,.8);drawZero(c,{...p,x:-9,y:-60,h:60},t);c.restore();return;}
     if(art.zero){
       let row=0,frame=Math.floor(t*5)%4;
-      if(p.attack>0){row=p.weaponMode==='rail'?3:2;const progress=Math.max(0,Math.min(.999,1-p.attack/(p.attackDuration||.4)));frame=progress<.25?0:progress<.52?1:progress<.78?2:3;}
+      if(p.charging){row=2;frame=0;}
+      else if(p.attack>0){row=p.weaponMode==='rail'?3:2;const progress=Math.max(0,Math.min(.999,1-p.attack/(p.attackDuration||.4)));frame=progress<.25?0:progress<.52?1:progress<.78?2:3;}
       else if(p.dash>0||Math.abs(p.vx)>12){row=1;frame=Math.floor(t*11)%4;}
       else if(!p.onGround){row=1;frame=p.vy<0?1:3;}
       const data=zeroFrames[row][frame];
@@ -194,7 +196,7 @@ window.EdenPresentation = (() => {
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||60)));c.scale(p.face,1);
       if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
       if(p.stun>0)c.rotate(-.1*p.stun/.18);
-      sprite(c,art.zero,data,.24,[273,545,823,1105][row],clip);
+      sprite(c,art.zero,data,p.h===48?.20:.24,[273,545,823,1105][row],clip);
       if(p.attack>0&&p.weaponMode==='pile'){line(c,4,-24,4,0,C.red,3);line(c,4,0,4,7,C.white,2);}
       c.restore();return;
     }
