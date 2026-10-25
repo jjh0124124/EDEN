@@ -17,12 +17,22 @@ function game(){
     press(k){pressed.add(k);update(.016);pressed.clear();},
     engage(i=0){startBoss(i);state='combat';boss.inv=0;boss.t=999;},
     get boss(){return boss},get state(){return state},get hazards(){return hazards},get slashes(){return slashes},get room(){return room},get upgrade(){return upgrade},get paused(){return paused},get dialogue(){return dialogue},get checkpoint(){return checkpointStage},get archiveCount(){return archiveCount},
-    get augments(){return augments},get chain(){return chain},chooseReward,rewardPointer,
+    get augments(){return augments},get chain(){return chain},chooseReward,rewardPointer,freeze(t){hitstop=t},
     title(){state='title';dialogue=null;hitstop=0;menu=0},setUpgrade(v){upgrade=v},resume(){paused=false},};`;
   const source=fs.readFileSync(__dirname+'/../src/game.js','utf8').replace('})();',exports+'\n})();');
   vm.runInNewContext(source,world);world.testGame.dispatch=(type,event)=>{for(const fn of events[type]||[])fn({preventDefault(){},...event});};return world.testGame;
 }
 const frames=(g,n=60)=>{for(let i=0;i<n;i++)g.step(1/60);};
+
+test('early J inputs link a three-hit combo with a stronger longer finisher',()=>{const g=game();g.engage();g.press('j');frames(g,8);g.press('j');assert.equal(g.player.combo,1);frames(g,8);assert.equal(g.player.combo,2);frames(g,6);g.press('j');frames(g,12);assert.equal(g.player.combo,3);const finisher=g.slashes.find(s=>s.combo===3);assert.equal(finisher.dmg,24);assert.equal(finisher.w,70);});
+test('attack input during hitstop survives until action resumes',()=>{const g=game();g.engage();g.freeze(.08);g.press('j');assert.equal(g.player.attack,0);frames(g,8);assert.equal(g.player.combo,1);assert.ok(g.player.attack>0);});
+test('holding J does not repeat or spend extra attacks',()=>{const g=game();g.engage();g.player.x=g.boss.x-30;g.dispatch('keydown',{code:'KeyJ',key:'j'});frames(g,90);assert.equal(g.boss.maxHp-g.boss.hp,12);});
+test('skill input links after recovery instead of overwriting attack animation',()=>{const g=game();g.engage();g.press('j');frames(g,8);g.press('q');assert.equal(g.player.cool[0],0);frames(g,9);assert.ok(g.player.cool[0]>0);assert.equal(g.player.attackDuration,.6);});
+test('expired inputs cannot launch a delayed surprise attack',()=>{const g=game();g.engage();g.player.strike(true);g.press('j');frames(g,40);assert.equal(g.player.attack,0);assert.equal(g.player.combo,0);assert.equal(g.player.buffer,null);});
+test('damage and pause discard pending attacks',()=>{for(const cancel of ['damage','pause']){const g=game();g.engage();g.press('j');frames(g,6);g.press('j');if(cancel==='damage')g.player.damage(5,1);else{g.press('escape');g.press('escape');}frames(g,40);assert.equal(g.player.combo,1);assert.equal(g.player.buffer,null);}});
+test('evade pressed during hitstop is preserved',()=>{const g=game();g.engage();g.freeze(.08);const x=g.player.x;g.press('shift');frames(g,12);assert.ok(g.player.x>x+20);assert.ok(g.player.inv>0);});
+test('K held during hitstop starts charging after it ends',()=>{const g=game();g.engage();g.freeze(.08);g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,70);assert.equal(g.player.chargeLevel,2);assert.equal(g.player.charging,true);});
+test('Q registers all three overlapping cuts at both frame rates',()=>{for(const dt of [1/60,1/30]){const g=game();g.engage();g.player.x=g.boss.x-35;g.player.skill(0);for(let i=0;i<40;i++)g.step(dt);assert.equal(g.boss.maxHp-g.boss.hp,39);}});
 
 test('K holds without attacking and releases a full charged strike',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'ㅏ'});frames(g,66);assert.equal(g.slashes.length,0);assert.equal(g.player.charging,true);assert.equal(g.player.chargeLevel,2);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();assert.equal(g.player.charging,false);assert.equal(g.slashes[0].dmg,52);assert.equal(g.slashes[0].interrupt,true);});
 test('tap and half charge have distinct damage and reach',()=>{for(const [held,damage,width] of [[5,22,62],[30,34,82]]){const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,held);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();assert.equal(g.slashes[0].dmg,damage);assert.equal(g.slashes[0].w,width);}});

@@ -19,6 +19,16 @@ with sync_playwright() as p:
     page.on('pageerror',lambda e:errors.append(str(e)))
     page.route('**/src/game.js',lambda route:route.fulfill(body=source,content_type='application/javascript'))
     page.goto('http://127.0.0.1:4173/',wait_until='networkidle')
+    page.evaluate('combatTest.arena();combatTest.player.x=combatTest.boss.x-35')
+    page.keyboard.press('j')
+    for stage in [1,2]:
+        page.wait_for_function('(stage)=>combatTest.player.combo===stage && combatTest.player.attack<.14',arg=stage)
+        page.keyboard.press('j')
+        page.wait_for_function('(stage)=>combatTest.player.combo===stage+1',arg=stage)
+    page.wait_for_function('combatTest.boss.hp<=combatTest.boss.maxHp-51')
+    page.evaluate('window.edenFreeze=true')
+    page.screenshot(path='/tmp/eden-combo.png')
+    page.evaluate('window.edenFreeze=false')
     page.evaluate('combatTest.arena()')
     page.keyboard.down('k')
     page.wait_for_function('combatTest.player.chargeLevel===2')
@@ -66,5 +76,5 @@ with sync_playwright() as p:
         page.wait_for_timeout(40)
         page.screenshot(path=f'/tmp/eden-effect-{name}.png')
     assert not errors,errors
-    print('PASS: keyboard/mouse/touch hold-release, touch cancel, charge and four skill renders; no JS errors')
+    print('PASS: buffered J combo hits three times, keyboard/mouse/touch hold-release, touch cancel, charge and four skill renders; no JS errors')
     browser.close()
