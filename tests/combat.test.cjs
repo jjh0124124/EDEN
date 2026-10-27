@@ -24,6 +24,30 @@ function game(){
 }
 const frames=(g,n=60)=>{for(let i=0;i<n;i++)g.step(1/60);};
 
+test('R is directional and short-range, with no standalone invulnerability',()=>{for(const [distance,face,hits] of [[45,1,true],[180,1,false],[45,-1,false]]){const g=game();g.engage();g.player.x=g.boss.x-distance;g.player.face=face;g.player.skill(3);assert.equal(g.player.inv,0);assert.equal(g.slashes.length,1);assert.equal(g.player.sp,45);frames(g,35);assert.equal(g.boss.maxHp-g.boss.hp,hits?68:0);}});
+test('confirmed Q third hit cancels into R but whiff and cooldown cannot',()=>{const g=game();g.engage();g.player.x=g.boss.x-35;g.player.skill(0);for(let i=0;i<40&&g.player.finishWindow<=0;i++)g.step(1/60);assert.ok(g.player.finishWindow>0);assert.ok(g.player.attack>0);g.press('r');frames(g,5);assert.equal(g.player.weaponMode,'crown');assert.equal(g.player.finishWindow,0);assert.ok(g.player.cool[3]>10);const h=game();h.engage();h.player.skill(0);frames(h,15);h.press('r');frames(h,4);assert.equal(h.player.weaponMode,'triple');h.player.finishWindow=.3;h.player.cool[3]=2;h.player.sp=100;h.player.skill(3);assert.equal(h.player.weaponMode,'triple');});
+test('J second hit advances and third hit pushes only a neutral SURGEON',()=>{const g=game();g.engage();g.player.strike(false);frames(g,18);const x=g.player.x;g.player.strike(false);frames(g,9);assert.ok(g.player.x>=x+17);for(const casting of [false,true]){const h=game();h.engage();h.player.combo=2;h.player.x=h.boss.x-35;h.boss.windup=casting?1:0;const bx=h.boss.x;h.player.strike(false);frames(h,12);assert.ok(casting?h.boss.x===bx:h.boss.x>=bx+24);}});
+test('full charge is ready within first boss cast time',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,40);assert.equal(g.player.chargeLevel,2);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();assert.equal(g.slashes[0].interrupt,true);});
+test('R can be interrupted before its strike becomes active',()=>{const g=game();g.engage();g.player.x=g.boss.x-40;g.player.skill(3);g.player.damage(10,-1);frames(g,35);assert.equal(g.boss.hp,g.boss.maxHp);assert.equal(g.player.attack,0);assert.equal(g.player.finishWindow,0);});
+test('first boss can be cleared with normal stats, spacing, evasion and confirms',()=>{
+  const g=game();g.engage();g.boss.t=1.4;
+  for(let frame=0;frame<7200&&g.state==='combat';frame++){
+    const p=g.player,b=g.boss,dist=b.x-p.x,dir=Math.sign(dist)||1;g.keys.clear();
+    if(b.dead){g.step(1/60);continue;}
+    let move=Math.abs(dist)>43?dir:0;
+    if(b.windup>0&&b.move%3===1&&Math.abs(p.x+9-b.target.x)<70)move=p.x<350?1:-1;
+    if(move)g.keys.add(move>0?'d':'a');
+    if(b.windup>0&&b.move%3===0&&b.windup<.35&&p.onGround)g.pressed.add(' ');
+    const threat=g.hazards.some(h=>h.owner==='b'&&h.delay<=.05&&Math.hypot(h.x-(p.x+9),h.y-(p.y+24))<48);
+    if(threat&&p.dash<=0&&p.sp>=12)g.pressed.add('shift');
+    if(p.finishWindow>0&&p.sp>=55&&p.cool[3]<=0)g.pressed.add('r');
+    else if(p.linkWindow>0&&p.sp>=24&&Math.abs(dist)<60)g.pressed.add('q');
+    else if(p.attack<=0&&Math.abs(dist)<65)g.pressed.add('j');
+    g.step(1/60);
+  }
+  assert.equal(g.state,'reward');assert.ok(g.player.hp>0);assert.equal(g.boss.hp,0);
+});
+
 test('Q link cancels confirmed J and K recovery despite cooldown, once per hit',()=>{for(const heavy of [false,true]){const g=game();g.engage();g.player.x=g.boss.x-35;g.player.cool[0]=3;g.player.strike(heavy);for(let i=0;i<20&&g.player.linkWindow<=0;i++)g.step(1/60);assert.ok(g.player.linkWindow>0);assert.ok(g.player.attack>0);const sp=g.player.sp;g.press('q');frames(g,4);assert.equal(g.player.attackDuration,.6);assert.equal(g.player.linkWindow,0);assert.ok(g.player.sp<sp-20);const after=g.player.sp;g.player.skill(0);assert.equal(g.player.sp,after);}});
 test('Q link requires a recent hit and sufficient SP',()=>{const g=game();g.engage();g.player.cool[0]=3;g.player.strike(false);g.press('q');frames(g,20);assert.equal(g.player.attackDuration,.24);g.player.x=g.boss.x-35;g.player.strike(false);for(let i=0;i<20&&g.player.linkWindow<=0;i++)g.step(1/60);g.player.sp=23;g.player.skill(0);assert.equal(g.player.attackDuration,.27);g.player.sp=100;frames(g,25);g.player.skill(0);assert.equal(g.player.attackDuration,.27);});
 test('taking damage removes Q link permission',()=>{const g=game();g.engage();g.player.x=g.boss.x-35;g.player.strike(false);for(let i=0;i<20&&g.player.linkWindow<=0;i++)g.step(1/60);assert.ok(g.player.linkWindow>0);g.player.damage(1,1);assert.equal(g.player.linkWindow,0);});

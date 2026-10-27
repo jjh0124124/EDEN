@@ -176,6 +176,23 @@ window.EdenPresentation = (() => {
     }
   }
   const zeroStates=['idle','run','jump','dash','light1','light2','light3','heavy','rail','pile','crown','hit'];
+  function combatLegs(c,p,progress){
+    // Articulated pixel sprite: shared torso, independently animated hip/knee/foot.
+    const drive=Math.sin(Math.min(1,progress*2)*Math.PI),n=p.attackKind||1;
+    const hip=[0,-25];let knee=[7,-13],foot=[12,-1];
+    if(p.weaponMode==='crown'){knee=[9+drive*22,-16-drive*13];foot=[13+drive*70,-1-drive*13];}
+    else if(n===1){knee=[7+drive*10,-15-drive*5];foot=[12+drive*31,-1-drive*23];}
+    else if(n===2){knee=[7+drive*16,-14-drive*16];foot=[12+drive*19,-1-drive*40];}
+    else{knee=[7+drive*20,-14-drive*5];foot=[12+drive*49,-1-drive*15];}
+    const segment=(a,b,w)=>{line(c,...a,...b,C.ink,w+3);line(c,...a,...b,C.edge,w);line(c,a[0]-1,a[1],b[0]-1,b[1],C.steel,2);for(const f of [.22,.5,.78]){const x=a[0]+(b[0]-a[0])*f,y=a[1]+(b[1]-a[1])*f;rect(c,x-2,y-2,4,4,C.edge);rect(c,x-2,y-2,3,1,C.light);rect(c,x,y,1,1,C.red);}joint(c,...b,3);};
+    segment([-3,-25],[-8-drive*4,-13],4);segment([-8-drive*4,-13],[-10-drive*6,-1],4);plate(c,-17-drive*6,-3,12,4,C.edge);
+    segment(hip,knee,5);segment(knee,foot,4);plate(c,-5,-27,10,5,C.edge);plate(c,knee[0]-3,knee[1]-4,7,8,C.edge);
+    line(c,hip[0]+2,hip[1]+3,knee[0]+2,knee[1]-1,C.red,1);line(c,knee[0]+2,knee[1]+2,foot[0]+2,foot[1]-1,C.red,1);
+    const blade=p.weaponMode==='crown'?16:7;
+    poly(c,[[foot[0]-3,foot[1]-4],[foot[0]+blade,foot[1]-1],[foot[0]+blade+5,foot[1]+4],[foot[0]-4,foot[1]+3]],C.ink);
+    line(c,foot[0]-1,foot[1]-2,foot[0]+blade+4,foot[1]+3,C.light,2);line(c,foot[0]+2,foot[1]+1,foot[0]+blade+3,foot[1]+4,C.red);
+    if(p.weaponMode==='crown'){line(c,knee[0]-3,knee[1]+4,foot[0]-4,foot[1]+4,C.light,2);for(let i=0;i<3;i++)rect(c,foot[0]+3+i*4,foot[1]-4,2,2,C.red);}
+  }
   const atlas=new Image();let atlasReady=false;
   atlas.onload=()=>{atlasReady=atlas.naturalWidth===2048&&atlas.naturalHeight===2304;};
   atlas.src='assets/characters/zero/zero-atlas.png';
@@ -197,7 +214,10 @@ window.EdenPresentation = (() => {
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||60)));c.scale(p.face,1);
       if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
       if(p.stun>0)c.rotate(-.1*p.stun/.18);
+      const articulated=p.attack>0&&p.stun<=0&&p.hp>0&&['kick','crown'].includes(p.weaponMode);
+      if(articulated){c.save();c.beginPath();c.rect(-90,-95,200,71);c.clip();}
       sprite(c,art.zero,data,p.h===48?.20:.24,[273,545,823,1105][row],clip);
+      if(articulated){c.restore();combatLegs(c,p,Math.max(0,Math.min(1,1-p.attack/(p.attackDuration||.4))));}
       if(p.attack>0&&p.weaponMode==='pile'){line(c,4,-24,4,0,C.red,3);line(c,4,0,4,7,C.white,2);}
       c.restore();return;
     }

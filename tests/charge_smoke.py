@@ -68,13 +68,22 @@ with sync_playwright() as p:
     page.evaluate('window.edenFreeze=true')
     page.screenshot(path='/tmp/eden-surgeon-warning.png')
     # Capture distinct effects through the real renderer, without shipping a debug menu.
-    for key,name,delay in [('q','triple',130),('w','rail',480),('e','pile',410),('r','crown',430)]:
+    for key,name,delay in [('q','triple',130),('w','rail',480),('e','pile',410),('r','guillotine',260)]:
         page.evaluate('window.edenFreeze=false;combatTest.arena()')
         page.keyboard.press(key)
         page.wait_for_timeout(delay)
         page.evaluate('window.edenFreeze=true')
         page.wait_for_timeout(40)
         page.screenshot(path=f'/tmp/eden-effect-{name}.png')
+    page.evaluate('window.edenFreeze=false;combatTest.arena();combatTest.player.x=combatTest.boss.x-35')
+    page.keyboard.press('j')
+    page.wait_for_function('combatTest.player.linkWindow>0')
+    page.keyboard.press('q')
+    page.wait_for_function('combatTest.player.finishWindow>0')
+    page.keyboard.press('r')
+    page.wait_for_function('combatTest.boss.hp<=combatTest.boss.maxHp-119')
+    page.evaluate('window.edenFreeze=true')
+    page.screenshot(path='/tmp/eden-confirm-finisher.png')
     page.evaluate('window.edenFreeze=false;combatTest.arena()')
     for _ in range(5):
         page.keyboard.press('j')
