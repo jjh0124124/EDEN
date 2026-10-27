@@ -2,7 +2,7 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={};
-  for(const [key,path] of Object.entries({zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
+  for(const [key,path] of Object.entries({surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
     const image=new Image();image.onload=()=>{art[key]=image;};image.src='assets/'+path;
   }
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
@@ -12,6 +12,15 @@ window.EdenPresentation = (() => {
     [[22,287,302,262,200],[369,299,291,249,530],[726,290,320,261,887],[1095,287,283,259,1245]],
     [[23,546,252,283,192],[302,550,430,279,468],[704,549,414,280,843],[1125,546,205,283,1240]],
     [[28,831,246,280,192],[324,835,348,276,467],[680,832,456,279,807],[1118,827,218,284,1240]]
+  ];
+  const duelFrames=[
+    [[30,10,320,325,236],[390,10,355,325,586],[765,10,425,325,941],[1190,10,340,325,1374]],
+    [[30,345,325,328,252],[385,345,360,328,588],[765,345,420,328,942],[1190,345,340,328,1374]],
+    [[25,678,340,320,231],[380,678,405,320,573],[785,678,405,320,970],[1190,678,340,320,1374]]
+  ];
+  const surgeonDuelFrames=[
+    [5,60,350,440,160],[375,10,400,490,565],[730,65,540,435,1004],[1215,65,320,435,1370],
+    [5,530,350,470,160],[375,500,380,500,545],[715,545,540,455,1000],[1215,535,320,465,1370]
   ];
   function sprite(c,image,frame,scale,baseline,clip){
     const [x,y,w,h,anchor]=frame;
@@ -81,6 +90,18 @@ window.EdenPresentation = (() => {
     c.restore();
   }
   function boss(c,b,t){
+    if(b.d.type==='surgeon'&&art.surgeonLow&&!b.dead&&b.move%3===0&&b.release>0&&b.hitFlash<=0){
+      c.save();c.translate(Math.round(b.x+b.w/2),Math.round(b.y+b.h));c.scale(-b.dir,1);
+      sprite(c,art.surgeonLow,[0,0,1254,1254,833],.125,1063);c.restore();return;
+    }
+    if(b.d.type==='surgeon'&&art.surgeonDuel&&!b.dead){
+      const row=b.move%3===0?0:4,index=b.hitFlash>0||b.recovery>0&&b.release<=0?row+3:b.windup>0?row+1:b.release>0?row+2:row;
+      const frame=surgeonDuelFrames[index];let clip=null;
+      if(index===2||index===6)clip=[[0,0],[465,0],[465,270],[540,340],[540,455],[130,455],[130,200],[0,140]];
+      if(index===3||index===7)clip=[[0,0],[320,0],[320,465],[55,465],[55,310],[0,260]];
+      c.save();c.translate(Math.round(b.x+b.w/2),Math.round(b.y+b.h));c.scale(-b.dir,1);
+      sprite(c,art.surgeonDuel,frame,.22,index<4?496:995,clip);c.restore();return;
+    }
     if(b.d.type==='surgeon'&&art.surgeon){
       const frames=[[13,22,442,679,205],[509,22,521,679,745],[1042,52,703,649,1467],[1781,107,378,594,1980]];
       const index=b.dead||b.hitFlash>0?3:b.windup>0||b.tele>0?1:b.release>0?2:0;
@@ -176,33 +197,26 @@ window.EdenPresentation = (() => {
     }
   }
   const zeroStates=['idle','run','jump','dash','light1','light2','light3','heavy','rail','pile','crown','hit'];
-  function combatLegs(c,p,progress){
-    // Articulated pixel sprite: shared torso, independently animated hip/knee/foot.
-    const drive=Math.sin(Math.min(1,progress*2)*Math.PI),n=p.attackKind||1;
-    const hip=[0,-25];let knee=[7,-13],foot=[12,-1];
-    if(p.weaponMode==='crown'){knee=[9+drive*22,-16-drive*13];foot=[13+drive*70,-1-drive*13];}
-    else if(n===1){knee=[7+drive*10,-15-drive*5];foot=[12+drive*31,-1-drive*23];}
-    else if(n===2){knee=[7+drive*16,-14-drive*16];foot=[12+drive*19,-1-drive*40];}
-    else{knee=[7+drive*20,-14-drive*5];foot=[12+drive*49,-1-drive*15];}
-    const segment=(a,b,w)=>{line(c,...a,...b,C.ink,w+3);line(c,...a,...b,C.edge,w);line(c,a[0]-1,a[1],b[0]-1,b[1],C.steel,2);for(const f of [.22,.5,.78]){const x=a[0]+(b[0]-a[0])*f,y=a[1]+(b[1]-a[1])*f;rect(c,x-2,y-2,4,4,C.edge);rect(c,x-2,y-2,3,1,C.light);rect(c,x,y,1,1,C.red);}joint(c,...b,3);};
-    segment([-3,-25],[-8-drive*4,-13],4);segment([-8-drive*4,-13],[-10-drive*6,-1],4);plate(c,-17-drive*6,-3,12,4,C.edge);
-    segment(hip,knee,5);segment(knee,foot,4);plate(c,-5,-27,10,5,C.edge);plate(c,knee[0]-3,knee[1]-4,7,8,C.edge);
-    line(c,hip[0]+2,hip[1]+3,knee[0]+2,knee[1]-1,C.red,1);line(c,knee[0]+2,knee[1]+2,foot[0]+2,foot[1]-1,C.red,1);
-    const blade=p.weaponMode==='crown'?16:7;
-    poly(c,[[foot[0]-3,foot[1]-4],[foot[0]+blade,foot[1]-1],[foot[0]+blade+5,foot[1]+4],[foot[0]-4,foot[1]+3]],C.ink);
-    line(c,foot[0]-1,foot[1]-2,foot[0]+blade+4,foot[1]+3,C.light,2);line(c,foot[0]+2,foot[1]+1,foot[0]+blade+3,foot[1]+4,C.red);
-    if(p.weaponMode==='crown'){line(c,knee[0]-3,knee[1]+4,foot[0]-4,foot[1]+4,C.light,2);for(let i=0;i<3;i++)rect(c,foot[0]+3+i*4,foot[1]-4,2,2,C.red);}
-  }
   const atlas=new Image();let atlasReady=false;
   atlas.onload=()=>{atlasReady=atlas.naturalWidth===2048&&atlas.naturalHeight===2304;};
   atlas.src='assets/characters/zero/zero-atlas.png';
   function drawZero(c,p,t){
+    const elapsed=(p.attackDuration||.4)-(p.attack||0),sweep=p.weaponMode==='kick'&&p.attackKind===3||p.weaponMode==='triple'&&elapsed>=.25;
+    if(!sweep&&art.zeroDuel&&p.stun<=0&&p.hp>0&&(p.charging||p.attack>0&&['kick','heavy','triple','crown'].includes(p.weaponMode))){
+      const elapsed=(p.attackDuration||.4)-(p.attack||0),progress=elapsed/(p.attackDuration||.4);
+      let row=p.weaponMode==='kick'?Math.min(2,(p.attackKind||1)-1):2;
+      let frame=p.charging?0:progress<.12?0:progress<.25?1:progress<.65?2:3;
+      if(p.weaponMode==='triple'){row=elapsed<.14?0:elapsed<.25?1:2;const start=[0,.14,.25][row],contact=[.08,.18,.30][row];frame=elapsed<contact?1:elapsed<contact+.13?2:3;}
+      c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
+      if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
+      sprite(c,art.zeroDuel,duelFrames[row][frame],.17,[330,667,991][row]);c.restore();return;
+    }
     if(p.h===48&&!art.zero){c.save();c.translate(p.x+9,p.y+48);c.scale(.8,.8);drawZero(c,{...p,x:-9,y:-60,h:60},t);c.restore();return;}
     if(art.zero){
       let row=0,frame=Math.floor(t*5)%4;
       if(p.stun>0||p.hp<=0){row=2;frame=3;}
       else if(p.charging){row=2;frame=0;}
-      else if(p.attack>0){row=p.weaponMode==='rail'?3:2;const progress=Math.max(0,Math.min(.999,1-p.attack/(p.attackDuration||.4)));frame=progress<.25?0:progress<.52?1:progress<.78?2:3;}
+      else if(p.attack>0){row=p.weaponMode==='rail'?3:2;const progress=Math.max(0,Math.min(.999,1-p.attack/(p.attackDuration||.4)));frame=p.weaponMode==='rail'?(progress<.25?0:progress<.52?1:progress<.78?2:3):(progress<.12?0:progress<.25?1:progress<.65?2:3);if(sweep&&p.weaponMode==='triple')frame=elapsed<.3?1:elapsed<.43?2:3;}
       else if(p.dash>0||Math.abs(p.vx)>12){row=1;frame=Math.floor(t*11)%4;}
       else if(!p.onGround){row=1;frame=p.vy<0?1:3;}
       const data=zeroFrames[row][frame];
@@ -214,11 +228,7 @@ window.EdenPresentation = (() => {
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||60)));c.scale(p.face,1);
       if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
       if(p.stun>0)c.rotate(-.1*p.stun/.18);
-      const articulated=p.attack>0&&p.stun<=0&&p.hp>0&&['kick','crown'].includes(p.weaponMode);
-      if(articulated){c.save();c.beginPath();c.rect(-90,-95,200,71);c.clip();}
       sprite(c,art.zero,data,p.h===48?.20:.24,[273,545,823,1105][row],clip);
-      if(articulated){c.restore();combatLegs(c,p,Math.max(0,Math.min(1,1-p.attack/(p.attackDuration||.4))));}
-      if(p.attack>0&&p.weaponMode==='pile'){line(c,4,-24,4,0,C.red,3);line(c,4,0,4,7,C.white,2);}
       c.restore();return;
     }
     if(!atlasReady){zero(c,p,t);return;}
@@ -232,5 +242,5 @@ window.EdenPresentation = (() => {
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
   function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral};}};
+  return {zero,drawZero,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow};}};
 })();
