@@ -12,7 +12,7 @@ with sync_playwright() as p:
     page=browser.new_page(viewport={'width':1280,'height':1000},has_touch=True)
     errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))
-    page.route('**/src/game.js',lambda r:r.fulfill(body=source,content_type='application/javascript'))
+    page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
     page.goto('http://127.0.0.1:4173/',wait_until='networkidle')
     for _ in range(5):
         page.locator('#advance').click()

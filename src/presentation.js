@@ -2,7 +2,7 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={};
-  for(const [key,path] of Object.entries({surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
+  for(const [key,path] of Object.entries({zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
     const image=new Image();image.onload=()=>{art[key]=image;};image.src='assets/'+path;
   }
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
@@ -22,6 +22,21 @@ window.EdenPresentation = (() => {
     [5,60,350,440,160],[375,10,400,490,565],[730,65,540,435,1004],[1215,65,320,435,1370],
     [5,530,350,470,160],[375,500,380,500,545],[715,545,540,455,1000],[1215,535,320,465,1370]
   ];
+  const driveFrames=[
+    [15,35,365,450,235],[395,35,355,450,600],[750,35,405,450,1040],[1175,30,360,455,1380],
+    [0,540,465,445,205],[470,530,310,455,660],[785,535,385,450,1040],[1190,535,330,450,1370]
+  ];
+  const effectFrames={
+    boost:[[165,160,200,210,292],[430,160,310,210,670],[760,160,390,210,1080],[1160,160,376,210,1475]],
+    hit:[[100,590,260,300,190],[400,590,365,300,520],[785,590,365,300,925],[1180,590,355,300,1350]]
+  };
+  function drawCombatVFX(c,p){
+    if(!art.combatVFX)return;
+    const kind=p.sprite==='boost'?'boost':'hit',progress=Math.max(0,Math.min(.999,1-p.life/p.max));
+    const frame=Math.floor(progress*4),scale=(kind==='boost'?.13:.12)*(p.effectScale||1);
+    c.save();c.globalAlpha=1;c.translate(Math.round(p.x),Math.round(p.y));c.scale(p.dir||1,1);
+    sprite(c,art.combatVFX,effectFrames[kind][frame],scale,kind==='boost'?274:738);c.restore();
+  }
   function sprite(c,image,frame,scale,baseline,clip){
     const [x,y,w,h,anchor]=frame;
     c.save();c.translate(-(anchor-x)*scale,-(baseline-y)*scale);c.scale(scale,scale);
@@ -205,7 +220,7 @@ window.EdenPresentation = (() => {
     if(!p.duelMode||p.hp<=0||p.stun>0)return null;
     if(p.dash>0)return {row:0,frame:1};
     if(p.charging)return {row:p.parryWindow>0?0:2,frame:p.parryWindow>0?1:0};
-    if(p.attack>0&&['kick','heavy','triple','crown','pile'].includes(p.weaponMode)){
+    if(p.attack>0&&['kick','heavy','triple','crown','pile','drive'].includes(p.weaponMode)){
       const elapsed=(p.attackDuration||.4)-p.attack;
       let row=p.weaponMode==='kick'?Math.max(0,Math.min(2,(p.attackKind||1)-1)):2;
       let contact=p.weaponMode==='kick'?(p.attackKind===3?.11:.06):p.weaponMode==='crown'?.18:p.weaponMode==='pile'?.28:.12;
@@ -222,6 +237,13 @@ window.EdenPresentation = (() => {
     if(art.zeroDuel&&p.hp>0&&p.stun<=0&&p.dash<=0&&p.onGround&&(p.parryFlash>0||p.charging&&p.parryWindow>0)){
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
       sprite(c,art.zeroDuel,duelFrames[0][1],.17,330);c.restore();return;
+    }
+    if(p.duelMode&&art.zeroDrive&&p.weaponMode==='drive'&&p.attack>0&&p.stun<=0&&p.hp>0&&p.dash<=0){
+      const elapsed=(p.attackDuration||.52)-p.attack,starts=[0,.05,.10,.14,.28,.34,.42,.49];
+      let frame=0;for(let i=1;i<starts.length;i++)if(elapsed>=starts[i])frame=i;
+      c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
+      if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
+      sprite(c,art.zeroDrive,driveFrames[frame],.13,frame<4?474:970,frame===4?[[0,0],[465,0],[465,220],[390,220],[390,445],[0,445]]:null);c.restore();return;
     }
     const pose=duelPose(p);
     if(pose&&art.zeroDuel){
@@ -270,5 +292,5 @@ window.EdenPresentation = (() => {
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
   function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,duelPose,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow};}};
+  return {zero,drawZero,duelPose,drawCombatVFX,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
 })();

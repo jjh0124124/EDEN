@@ -20,7 +20,7 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={'width':1280,'height':800})
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.route('**/src/game.js', lambda route: route.fulfill(body=source, content_type='application/javascript'))
+    page.route('**/src/game.js*', lambda route: route.fulfill(body=source, content_type='application/javascript'))
     page.goto('http://127.0.0.1:4173/', wait_until='networkidle')
     page.screenshot(path='/tmp/eden-title-v2.png')
     def press(key):

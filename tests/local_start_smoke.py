@@ -20,7 +20,7 @@ with sync_playwright() as p:
     errors, failed = [], []
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.on('response', lambda r: failed.append(f'{r.status} {r.url}') if r.status >= 400 else None)
-    page.route('**/src/game.js', lambda r:r.fulfill(body=source,content_type='application/javascript'))
+    page.route('**/src/game.js*', lambda r:r.fulfill(body=source,content_type='application/javascript'))
     page.goto(os.environ.get('EDEN_BASE_URL', 'http://127.0.0.1:4173/'), wait_until='networkidle')
     page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
     assert page.evaluate('localSmoke.state') == 'title'
@@ -52,7 +52,7 @@ with sync_playwright() as p:
     page.locator('#advance').click()
     page.wait_for_function('!localSmoke.paused')
     # Also exercise unmodified shipped scripts with the browser's persisted save.
-    page.unroute('**/src/game.js')
+    page.unroute('**/src/game.js*')
     page.reload(wait_until='networkidle')
     page.locator('#boot.ready').wait_for(state='attached')
     page.locator('#advance').click()

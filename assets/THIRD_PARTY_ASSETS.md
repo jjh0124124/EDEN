@@ -20,3 +20,9 @@ The first three image files are source assets. Runtime frame extraction does not
 ## BUILD 10 generated image assets
 
 The built-in image generator produced `characters/zero/zero-duel.png` (12 full-body attack poses), `characters/bosses/surgeon-duel.png` (8 duel poses), and `characters/bosses/surgeon-low-cut.png` (one dedicated low incision pose). Runtime rectangles, pelvis anchors, and clipping isolate the poses. The low incision replaces the sheet's high-reaching release for that attack. Existing sheets remain in use for other states. Frame sequences were reviewed through the actual renderer in `tests/duel_art_smoke.py`.
+
+## BUILD 14 generated image assets
+
+- `characters/zero/zero-drive.png`: built-in image generation, 8 full-body propulsion attack poses; existing ZERO sheet used as reference. Per-frame source rectangles, pelvis anchors, and a boundary clip isolate the attack frames.
+- `effects/neural-impact.png`: built-in image generation, 4 thruster frames and 4 metal impact/debris frames, transparent RGBA. Explicit emitter pivots align each sequence; runtime uses nearest-neighbor image rendering, not text or newly drawn geometric substitutes.
+- `tests/reverse_drive_smoke.py` checks both actor facings and renders all effect frames. Higgsfield was unavailable; it was not used. Original generated source PNGs are retained.

@@ -9,7 +9,7 @@ with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
     page=browser.new_page(viewport={'width':1280,'height':960});errors=[]
     page.on('pageerror',lambda e:errors.append(str(e)))
-    page.route('**/src/game.js',lambda r:r.fulfill(body=source,content_type='application/javascript'))
+    page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
     page.goto('http://127.0.0.1:4173/',wait_until='networkidle')
     page.wait_for_function('EdenPresentation.assetStatus.zeroDuel && EdenPresentation.assetStatus.surgeonDuel')
     page.evaluate('duelTest.setup()')
