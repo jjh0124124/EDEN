@@ -118,7 +118,7 @@
 
   class Fighter {
     constructor(){ this.reset(); }
-    reset(){ Object.assign(this,{x:65,y:FLOOR-48,w:19,h:48,vx:0,vy:0,face:1,hp:100,maxHp:100,sp:100,onGround:true,attack:0,attackKind:0,weaponMode:'kick',inv:0,dash:0,stun:0,combo:0,comboT:0,linkWindow:0,finishWindow:0,stepRemaining:0,stepDir:1,pendingJump:false,buffer:null,charging:false,charge:0,chargeLevel:0,parryWindow:0,parryLock:0,parryFollow:0,parryFlash:0,cool:[0,0,0,0]}); }
+    reset(){ Object.assign(this,{duelMode:bossIndex===0,stridePhase:0,dashDir:1,x:65,y:FLOOR-48,w:19,h:48,vx:0,vy:0,face:1,hp:100,maxHp:100,sp:100,onGround:true,attack:0,attackKind:0,weaponMode:'kick',inv:0,dash:0,stun:0,combo:0,comboT:0,linkWindow:0,finishWindow:0,stepRemaining:0,stepDir:1,pendingJump:false,buffer:null,charging:false,charge:0,chargeLevel:0,parryWindow:0,parryLock:0,parryFollow:0,parryFlash:0,cool:[0,0,0,0]}); }
     tryParry(s){
       if(state!=='combat'||bossIndex!==0||boss?.d.type!=='surgeon'||boss.dead||!s.parryable||s.kind!=='scalpel'||s.owner!=='b'||this.hp<=0||!this.charging||this.parryWindow<=0||!this.onGround||this.stun>0||this.dash>0||this.inv>0||this.face!==-s.dir||Math.sign(boss.x+boss.w/2-this.x-this.w/2)!==this.face)return false;
       this.parryWindow=0;this.parryFollow=.24;this.parryFlash=.16;
@@ -132,7 +132,7 @@
       return true;
     }
     hurtbox(){return {x:this.x+4,y:this.y+8,w:11,h:this.h-12};}
-    damage(n,dir){ if(this.inv>0||this.hp<=0||boss?.dead)return;this.charging=false;this.charge=0;this.buffer=null;this.pendingJump=false;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;if(this.weaponMode==='crown'){slashes=slashes.filter(s=>s.kind!=='guillotine'||s.delay<=0);this.attack=0;}this.hp-=Math.max(1,Math.round(n*(1-Math.min(.4,augments[2]*.08))));chain=0;chainTimer=0;this.vx=dir*95;this.vy=-90;this.onGround=false;this.inv=.55;this.stun=.18;shake=Math.max(shake,1.8);hitstop=Math.max(hitstop,.04);burst(this.x+9,this.y+20,RED,6,70);audio.noise(.07,.04);audio.tone(52,.11,'sawtooth',.04,20); if(this.hp<=0){this.hp=0;deathTimer=1.4;defeatCount++;} }
+    damage(n,dir){ if(this.inv>0||this.hp<=0||boss?.dead)return;this.charging=false;this.charge=0;this.buffer=null;this.pendingJump=false;if(this.duelMode){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0);this.attack=0;this.combo=0;this.comboT=0;}this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;if(this.weaponMode==='crown'){slashes=slashes.filter(s=>s.kind!=='guillotine'||s.delay<=0);this.attack=0;}this.hp-=Math.max(1,Math.round(n*(1-Math.min(.4,augments[2]*.08))));chain=0;chainTimer=0;this.vx=dir*95;this.vy=-90;this.onGround=false;this.inv=.55;this.stun=.18;shake=Math.max(shake,1.8);hitstop=Math.max(hitstop,.04);burst(this.x+9,this.y+20,RED,6,70);audio.noise(.07,.04);audio.tone(52,.11,'sawtooth',.04,20); if(this.hp<=0){this.hp=0;deathTimer=1.4;defeatCount++;} }
     update(dt){
       for(const key of ['parryWindow','parryLock','parryFollow','parryFlash'])this[key]=Math.max(0,this[key]-dt);
       this.linkWindow=Math.max(0,this.linkWindow-dt);this.finishWindow=Math.max(0,this.finishWindow-dt);
@@ -143,35 +143,35 @@
       this.inv=Math.max(0,this.inv-dt);this.attack=Math.max(0,this.attack-dt);this.stun=Math.max(0,this.stun-dt);this.comboT-=dt;if(this.comboT<0)this.combo=0;
       this.cool=this.cool.map(v=>Math.max(0,v-dt*(1+augments[1]*.15)));this.sp=Math.min(100,this.sp+(10+augments[1]*3)*dt);
       if(this.stun<=0&&this.hp>0){
-        let move=(keys.has('d')?1:0)-(keys.has('a')?1:0); if(move&&this.dash<=0&&!(this.attack>0&&this.weaponMode==='crown'))this.face=move;
-        this.vx=this.dash>0?this.face*300:lerp(this.vx,move*(this.charging?70:112),clamp(dt*14,0,1));
+        let move=(keys.has('d')?1:0)-(keys.has('a')?1:0); if(move&&this.dash<=0&&!(this.attack>0&&(this.weaponMode==='crown'||this.duelMode)))this.face=move;
+        this.vx=this.dash>0?(this.duelMode?this.dashDir:this.face)*300:lerp(this.vx,move*(this.charging?70:this.duelMode&&this.attack>0&&this.onGround?54:112),clamp(dt*14,0,1));
         if((pressed.has(' ')||pressed.has('space')||pressed.has('arrowup'))&&this.onGround){this.vy=-205;this.onGround=false;audio.tone(110,.08,'square',.025,45);}
-        if(pressed.has('shift')&&this.dash<=0&&this.sp>=12){this.charging=false;this.charge=0;this.buffer=null;this.stepRemaining=0;this.finishWindow=0;this.dash=.28;this.inv=.34;this.sp-=12;this.vx=this.face*300;burst(this.x+10,this.y+35,'#bbc0c3',8,45);audio.tone(75,.1,'sawtooth',.03,30);}
+        if(pressed.has('shift')&&this.dash<=0&&this.sp>=12){this.charging=false;this.charge=0;this.buffer=null;this.stepRemaining=0;this.finishWindow=0;this.dash=.28;this.inv=.34;this.sp-=12;this.dashDir=this.duelMode?(move||this.face):this.face;this.vx=this.dashDir*300;burst(this.x+10,this.y+35,'#bbc0c3',8,45);audio.tone(75,.1,'sawtooth',.03,30);}
         if(this.buffer?.key==='k'&&this.attack<=0&&this.dash<=0&&!this.charging){if(this.buffer.parry&&this.onGround&&this.inv<=0&&this.parryLock<=0){this.parryWindow=.12;this.parryLock=.7;}this.buffer=null;this.charging=true;this.charge=0;this.chargeLevel=0;audio.tone(90,.12,'triangle',.035,180);}
         if(this.charging&&this.parryFollow>0&&(pressed.has('j')||this.buffer?.key==='j')){this.charging=false;this.charge=0;this.parryWindow=0;this.parryFollow=0;this.buffer=null;this.strike(false);}
         if(this.charging){
           if(keys.has('k')){this.charge=Math.min(1.2,this.charge+dt);const level=this.charge>=.65?2:this.charge>=.4?1:0;if(level>this.chargeLevel){this.chargeLevel=level;audio.tone(level===2?660:330,.13,'triangle',.045);burst(this.x+10,this.y+35,level===2?'#86f4ef':RED,9,35);}}
           else{const amount=this.charge;this.charging=false;this.charge=0;this.strike(true,amount);}
         }
-        if(this.buffer&&(this.attack<=0||(this.buffer.key==='q'&&this.linkWindow>0)||(this.buffer.key==='r'&&this.finishWindow>0))&&!this.charging&&this.dash<=0){const key=this.buffer.key;this.buffer=null;if(key==='j')this.strike(false);else this.skill(['q','w','e','r'].indexOf(key));}
+        if(this.buffer&&(this.attack<=0||((this.buffer.key==='q'||this.duelMode&&this.buffer.key==='e')&&this.linkWindow>0)||(this.buffer.key==='r'&&this.finishWindow>0))&&!this.charging&&this.dash<=0){const key=this.buffer.key;this.buffer=null;if(key==='j')this.strike(false);else this.skill(['q','w','e','r'].indexOf(key));}
       }
       if(this.dash>0)echoes.push({x:this.x,y:this.y,face:this.face,life:.18});
       this.dash=Math.max(0,this.dash-dt);this.vy+=470*dt;this.x+=this.vx*dt;this.y+=this.vy*dt;
       if(this.y+this.h>=FLOOR){this.y=FLOOR-this.h;this.vy=0;this.onGround=true;}
       if(this.stepRemaining>0&&this.stun<=0&&this.dash<=0){const step=Math.min(this.stepRemaining,180*dt);this.x+=step*this.stepDir;this.stepRemaining-=step;}
-      this.x=clamp(this.x,8,W-this.w-8);
+      this.x=clamp(this.x,8,W-this.w-8);if(this.duelMode&&this.onGround&&this.attack<=0&&this.dash<=0)this.stridePhase+=Math.abs(this.vx)*dt/9;
     }
-    strike(heavy,charge=0){this.parryFlash=0;this.parryFollow=0;this.parryWindow=0;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.combo=heavy?0:(this.combo%3)+1;this.comboT=.85;this.attackDuration=heavy?.46:[.24,.27,.4][this.combo-1];this.attack=this.attackDuration;this.weaponMode=heavy?'heavy':'kick';if(!heavy&&this.combo===2){this.stepRemaining=18;this.stepDir=this.face;}this.attackKind=heavy?2:this.combo;const tier=charge>=.65?2:charge>=.4?1:0,reach=heavy?[62,82,104][tier]:[40,32,52][this.combo-1],dmg=heavy?[22,34,52][tier]:[12,15,24][this.combo-1];slashes.push({owner:'p',kind:heavy?'cleave':'kick',combo:this.combo,tier,x:this.face>0?this.x+14:this.x-reach,y:this.y-5,w:reach,h:48,life:.2,delay:heavy?.12:this.combo===3?.11:.06,dmg,interrupt:heavy&&tier===2,dir:this.face});audio.noise(.035,.012);audio.tone(heavy?120:[200,175,145][this.combo-1],.07,'triangle',.015,40);}
-    skill(i){ const costs=[24,30,24,55], cds=[3.5,5,3,11];if(i===2&&!this.onGround){message('PILE // 착지 후 발동',.7);return;}const linked=(i===0&&this.linkWindow>0)||(i===3&&this.finishWindow>0);if(this.charging||(this.cool[i]>0&&!(i===0&&linked))||this.sp<costs[i])return;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.cool[i]=cds[i];this.sp-=costs[i];this.weaponMode=['triple','rail','pile','crown'][i];this.attackDuration=[.6,.65,.7,.72][i];this.attack=this.attackDuration;this.attackKind=i===0?3:2;message((linked?'LINK // ':'')+SKILLS[i],.9);audio.noise(.05,.012);
-      if(i===0){this.inv=.5;for(let j=0;j<3;j++)slashes.push({owner:'p',kind:'triple',segment:j,x:this.face>0?this.x+10:this.x-40,y:this.y-5,w:40,h:45,life:.14,delay:[.08,.18,.3][j],dmg:13,dir:this.face});}
+    strike(heavy,charge=0){this.parryFlash=0;this.parryFollow=0;this.parryWindow=0;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.combo=heavy?0:(this.combo%3)+1;this.comboT=.85;this.attackDuration=heavy?.46:[.24,.27,.4][this.combo-1];this.attack=this.attackDuration;this.weaponMode=heavy?'heavy':'kick';if(!heavy&&this.combo===2){this.stepRemaining=18;this.stepDir=this.face;}this.attackKind=heavy?2:this.combo;const tier=charge>=.65?2:charge>=.4?1:0,reach=heavy?[62,82,104][tier]:[40,32,52][this.combo-1],dmg=heavy?[22,34,52][tier]:[12,15,24][this.combo-1];slashes.push({owner:'p',followStartup:this.duelMode,origin:14,kind:heavy?'cleave':'kick',combo:this.combo,tier,x:this.face>0?this.x+14:this.x-reach,y:this.y-5,w:reach,h:48,life:.2,delay:heavy?.12:this.combo===3?.11:.06,dmg,interrupt:heavy&&tier===2,dir:this.face});audio.noise(.035,.012);audio.tone(heavy?120:[200,175,145][this.combo-1],.07,'triangle',.015,40);}
+    skill(i){ const costs=[24,30,24,55], cds=[3.5,5,3,11];if(i===2&&!this.onGround){message('PILE // 착지 후 발동',.7);return;}const linked=((i===0||this.duelMode&&i===2)&&this.linkWindow>0)||(i===3&&this.finishWindow>0);if(this.charging||(this.cool[i]>0&&!(i===0&&linked))||this.sp<costs[i])return;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.cool[i]=cds[i];this.sp-=costs[i];this.weaponMode=['triple','rail','pile','crown'][i];this.attackDuration=[.6,.65,.7,.72][i];this.attack=this.attackDuration;this.attackKind=i===0?3:2;message((linked?'LINK // ':'')+(this.duelMode?['LAHAT / 신경 연쇄각','RAIL / 경골 레일건','HEEL ANCHOR / 접지 말뚝','KETER / 압착 단두각'][i]:SKILLS[i]),.9);audio.noise(.05,.012);
+      if(i===0){if(!this.duelMode)this.inv=.5;for(let j=0;j<3;j++)slashes.push({owner:'p',followStartup:this.duelMode,origin:10,kind:'triple',segment:j,x:this.face>0?this.x+10:this.x-40,y:this.y-5,w:40,h:45,life:.14,delay:[.08,.18,.3][j],dmg:13,dir:this.face});}
       if(i===1){hazards.push({kind:'rail',owner:'p',x:this.x+9+this.face*20,y:this.y+22,vx:this.face*300,vy:0,r:8,delay:.34,life:1.5,dmg:25});}
-      if(i===2)hazards.push({kind:'pillar',owner:'p',x:this.x+9+this.face*38,y:FLOOR,delay:.28,life:.45,dmg:30});
+      if(i===2)hazards.push({kind:'pillar',owner:'p',x:this.x+9+this.face*(this.duelMode?56:38),y:FLOOR,delay:.28,life:.45,dmg:30});
       if(i===3){slashes.push({owner:'p',kind:'guillotine',follow:true,x:this.face>0?this.x+14:this.x-48,y:this.y-8,w:48,h:54,life:.18,delay:.18,dmg:68,dir:this.face});}
       audio.tone(100+i*30,.1,'triangle',.018,20);
     }
     draw(){
       ctx.save();
-      if(this.attack>0){const progress=1-this.attack/this.attackDuration;ctx.translate(this.face*(progress<.25?-1.5:progress>.7?-1:1),0);}
+      if(this.attack>0&&!this.duelMode){const progress=1-this.attack/this.attackDuration;ctx.translate(this.face*(progress<.25?-1.5:progress>.7?-1:1),0);}
       EdenPresentation.drawZero(ctx,this,time);ctx.restore();
       if(!this.charging)return;
       const P=EdenPresentation,progress=clamp(this.charge/.65,0,1),color=progress===1?'#86f4ef':RED,x=this.x+9,y=this.y+32;
@@ -185,13 +185,14 @@
     constructor(data){this.d=data;this.x=365;this.h=data.type==='surgeon'?100:72;this.y=FLOOR-this.h;this.w=42;this.hp=data.hp;this.maxHp=data.hp;this.phase=1;this.t=1.4;this.anim=0;this.inv=1;this.dead=false;this.dir=-1;this.tele=0;this.windup=0;this.move=0;this.hitFlash=0;this.deathAge=0;this.guardBroken=0;this.release=0;}
     hurt(n,interrupt=false){if(this.inv>0||this.dead||player.hp<=0)return;
       if(this.d.type==='surgeon'){
+        if(this.windup<=0&&!(this.recovery>0)&&!this.protocol&&!this.retreat)this.pressure=(this.pressure||0)+n;
         if(interrupt&&this.windup>0&&!(this.breakLock>0)){if(this.protocol)this.cancelProtocol();this.windup=0;this.breakLock=4;this.recovery=2;this.t=2.3;message('CAST BREAK // 봉합 신경 절단',1.3);burst(this.x+20,this.y+40,'#86f4ef',24,100);audio.tone(170,.3,'square',.045,40);}
         if(this.recovery>0)n*=1.25;
       }
       if(this.d.type==='warden'&&this.guardBroken<=0&&this.dir*(player.x-this.x)>0){this.guard=(this.guard||0)+n*(n>=22?2.4:.5);n=Math.ceil(n*.4);if(this.guard>=90){this.guard=0;this.guardBroken=3;this.windup=0;this.t=3;message('ARMOR BREAK // 장갑 과부하',1.6);audio.noise(.4,.07);}}
       const damage=Math.round(n*(1+upgrade*.08+augments[0]*.12));chain++;chainTimer=2.4;bestChain=Math.max(bestChain,chain);this.hp-=damage;contactFeedback(this,n,damage);this.inv=.045;player.sp=Math.min(100,player.sp+2);
       if(this.hp<=0){this.hp=0;this.dead=true;if(this.d.type==='surgeon')this.protocol=null;this.inv=99;deathTimer=2.6;hazards=[];slashes=[];message('TARGET DISMANTLED // 코어 회수',2.4);burst(this.x+20,this.y+25,'#eee',22,140);audio.tone(38,1.1,'sawtooth',.06,16);return;}
-      if(this.hp<=this.maxHp*.5&&this.phase===1){this.phase=2;this.inv=1.6;this.tele=1.6;this.windup=0;this.t=1.8;hazards=[];if(this.d.type==='surgeon'){slashes=slashes.filter(s=>s.owner!=='b');this.release=0;this.recovery=0;}message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,18,110);audio.tone(38,.7,'sawtooth',.07,15);}
+      if(this.hp<=this.maxHp*.5&&this.phase===1){this.phase=2;this.inv=1.6;this.tele=1.6;this.windup=0;this.t=1.8;hazards=[];if(this.d.type==='surgeon'){slashes=slashes.filter(s=>s.owner!=='b');this.release=0;this.recovery=0;this.retreat=null;this.pressure=0;}message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,18,110);audio.tone(38,.7,'sawtooth',.07,15);}
     }
     update(dt){this.anim+=dt;this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);this.tele=Math.max(0,this.tele-dt);if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0&&!(this.d.type==='surgeon'&&this.release>0))this.dir=player.x<this.x?-1:1;
       if(this.d.type==='surgeon'){this.updateSurgeon(dt);return;}
@@ -226,14 +227,35 @@
         this.protocol=null;this.recovery=1.65;this.t=2.4;
       }
     }
+    anchor(){
+      if(this.dead||this.d.type!=='surgeon')return;
+      this.anchorTime=1.4;this.pressure=0;
+      if(this.retreat){this.retreat=null;this.recovery=Math.max(this.recovery||0,.65);this.t=Math.max(this.t,1);}
+      message('HEEL ANCHOR // 봉합 이동 고정',.8);audio.tone(105,.12,'triangle',.04,45);
+    }
+    updateRetreat(dt){
+      const r=this.retreat;
+      if(r.warn>0){r.warn=Math.max(0,r.warn-dt);return;}
+      r.age+=dt;this.x=lerp(r.from,r.to,clamp(r.age/.32,0,1));
+      if(r.age>=.32){this.retreat=null;this.recovery=.45;this.t=.8;}
+    }
     updateSurgeon(dt){
+      this.retreatCooldown=Math.max(0,(this.retreatCooldown||0)-dt);
+      this.anchorTime=Math.max(0,(this.anchorTime||0)-dt);
+      this.pressure=Math.max(0,(this.pressure||0)-dt*6);
+      if(this.retreat){this.updateRetreat(dt);return;}
       if(this.protocol){this.updateProtocol(dt);return;}
       if(this.phase===2&&!this.protocolUsed&&this.windup<=0&&this.recovery<=0){
         this.protocolUsed=true;this.beginProtocolCast(0);return;
       }
-      if(this.windup>0){this.windup-=dt;if(this.windup<=0){this.act();this.recovery=[1.2,1.45,1.35][this.move%3];this.t=this.recovery+.95-(this.phase===2?.2:0);}return;}
+      if(this.windup>0){this.windup-=dt;if(this.windup<=0){this.act();this.recovery=[1.2,1.45,1.35][this.move%3];this.t=this.recovery+.55-(this.phase===2?.15:0);}return;}
+      if(this.pressure>=42&&this.retreatCooldown<=0&&this.anchorTime<=0&&!(this.recovery>0)&&this.release<=0){
+        const direction=this.x+this.w/2>player.x+9?1:-1,to=clamp(this.x+direction*64,45,395);
+        this.pressure=0;this.retreatCooldown=4.5;
+        if(Math.abs(to-this.x)>=24){this.retreat={from:this.x,to,warn:.38,age:0};message('SUTURE STEP // 봉합 후퇴 — 추격 또는 E 고정',.8);audio.tone(480,.1,'triangle',.025,240);return;}
+      }
       this.t-=dt;
-      if(this.recovery<=0&&this.t>.35){const distance=player.x-this.x,range=Math.abs(distance);this.x=clamp(this.x+(range>170?Math.sign(distance)*42:range<76?-Math.sign(distance||-1)*28:0)*dt,45,395);}
+      if(this.recovery<=0&&this.t>.35){const distance=player.x-this.x,range=Math.abs(distance);this.x=clamp(this.x+(range>170?Math.sign(distance)*42:range<76?-Math.sign(distance||-1)*28:0)*dt*(this.anchorTime>0?0:1),45,395);}
       if(this.t<=0){
         const range=Math.abs(player.x-this.x);let choice=range<92?0:range>175?2:1;
         if(choice===this.lastPattern&&this.patternRepeat>=1)choice=choice===1?2:1;
@@ -276,11 +298,11 @@
     if(state==='combat'&&!boss.dead&&player.hp>0){battleSeconds+=dt;chainTimer=Math.max(0,chainTimer-dt);if(!chainTimer)chain=0;}
     if(!boss?.dead&&player.hp>0)player.update(dt);if(state==='combat')boss.update(dt);
     if(boss?.lunge&&!boss.dead){const l=boss.lunge;l.t+=dt;boss.x=lerp(l.from,l.to,clamp(l.t/.3,0,1));if(l.t>=.3)boss.lunge=null;}
-    for(const s of slashes){if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.delay>0){s.delay-=dt;continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s))player.damage(s.dmg,s.dir);s.done=true;}}}
+    for(const s of slashes){if(s.followStartup&&s.delay>0){s.x=s.dir>0?player.x+s.origin:player.x-s.w;s.y=player.y-5;}if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.delay>0){s.delay-=dt;continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s))player.damage(s.dmg,s.dir);s.done=true;}}}
     slashes=slashes.filter(s=>s.life>0);
     for(const h of hazards){if(h.delay>0){h.delay-=dt;continue;}h.life-=dt;h.x+=(h.vx||0)*dt;h.y+=(h.vy||0)*dt;if(h.kind==='ember')h.vy+=250*dt;if(h.kind==='drone'){h.vy+=(player.y-h.y)*dt*2;h.vx+=(player.x-h.x)*dt*.3;}
       let box=h.kind==='pillar'?{x:h.x-9,y:FLOOR-62,w:18,h:62}:h.kind==='beam'?{x:h.x,y:h.y,w:h.w,h:h.h}:{x:h.x-(h.r||4),y:h.y-(h.r||4),w:(h.r||4)*2,h:(h.r||4)*2};
-      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player.hurtbox())){if(player.dash>0){player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){boss.hurt(h.dmg);h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}}
+      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player.hurtbox())){if(player.dash>0){player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&boss.inv<=0&&!boss.dead&&player.hp>0;boss.hurt(h.dmg);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}}
     }
     hazards=hazards.filter(h=>h.life>0&&!h.done&&h.x>-50&&h.x<W+50&&h.y<H+50);
     particles.forEach(p=>{p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.vx*=.97;});particles=particles.filter(p=>p.life>0);
@@ -453,6 +475,7 @@
     ctx.fillStyle='#9ba6b6';ctx.font='8px sans-serif';ctx.fillText('코어 강화 +'+upgrade+'  /  회수 기록 '+archiveCount+'  /  ENTER — 구역 진입',30,233);
   }
   function drawHUD(){statusHUD();
+    if(boss?.d.type==='surgeon'&&(boss.retreat||boss.anchorTime>0)&&!boss.dead){ctx.fillStyle='#86f4ef';ctx.font='7px sans-serif';ctx.textAlign='center';ctx.fillText(boss.anchorTime>0?'HEEL ANCHOR / 봉합 이동 고정':'SUTURE STEP / 추격 · E로 이동 고정',240,53);ctx.textAlign='left';}
     if(boss?.d.type==='surgeon'&&boss.protocol&&!boss.dead){
       const p=boss.protocol;ctx.fillStyle='#10151d';ctx.fillRect(134,43,212,15);
       ctx.fillStyle=p.wave===2?'#86f4ef':'#ffc67a';ctx.font='7px sans-serif';ctx.textAlign='center';

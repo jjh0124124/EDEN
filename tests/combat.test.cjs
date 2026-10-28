@@ -75,7 +75,7 @@ test('attack input during hitstop survives until action resumes',()=>{const g=ga
 test('holding J does not repeat or spend extra attacks',()=>{const g=game();g.engage();g.player.x=g.boss.x-30;g.dispatch('keydown',{code:'KeyJ',key:'j'});frames(g,90);assert.equal(g.boss.maxHp-g.boss.hp,12);});
 test('skill input links after recovery instead of overwriting attack animation',()=>{const g=game();g.engage();g.press('j');frames(g,8);g.press('q');assert.equal(g.player.cool[0],0);frames(g,9);assert.ok(g.player.cool[0]>0);assert.equal(g.player.attackDuration,.6);});
 test('expired inputs cannot launch a delayed surprise attack',()=>{const g=game();g.engage();g.player.strike(true);g.press('j');frames(g,40);assert.equal(g.player.attack,0);assert.equal(g.player.combo,0);assert.equal(g.player.buffer,null);});
-test('damage and pause discard pending attacks',()=>{for(const cancel of ['damage','pause']){const g=game();g.engage();g.press('j');frames(g,6);g.press('j');if(cancel==='damage')g.player.damage(5,1);else{g.press('escape');g.press('escape');}frames(g,40);assert.equal(g.player.combo,1);assert.equal(g.player.buffer,null);}});
+test('damage and pause discard pending attacks',()=>{for(const cancel of ['damage','pause']){const g=game();g.engage();g.press('j');frames(g,6);g.press('j');if(cancel==='damage')g.player.damage(5,1);else{g.press('escape');g.press('escape');}frames(g,40);assert.equal(g.player.combo,cancel==='damage'?0:1);assert.equal(g.player.buffer,null);}});
 test('evade pressed during hitstop is preserved',()=>{const g=game();g.engage();g.freeze(.08);const x=g.player.x;g.press('shift');frames(g,12);assert.ok(g.player.x>x+20);assert.ok(g.player.inv>0);});
 test('K held during hitstop starts charging after it ends',()=>{const g=game();g.engage();g.freeze(.08);g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,70);assert.equal(g.player.chargeLevel,2);assert.equal(g.player.charging,true);});
 test('Q registers all three overlapping cuts at both frame rates',()=>{for(const dt of [1/60,1/30]){const g=game();g.engage();g.player.x=g.boss.x-35;g.player.skill(0);for(let i=0;i<40;i++)g.step(dt);assert.equal(g.boss.maxHp-g.boss.hp,39);}});
@@ -170,3 +170,29 @@ test('only the protocol final parry adds an opening, without damage or a stun ch
   g.dispatch('keydown',{code:'KeyK',key:'k'});g.slashes[0].delay=0;g.step();assert.equal(g.player.hp,100);assert.equal(g.boss.hp,hp);assert.ok(g.boss.recovery>=2);assert.equal(g.player.inv,0);
 });
 test('SURGEON release sprite keeps the committed attack direction when crossed',()=>{const g=game();g.engage();g.boss.dir=-1;g.boss.move=0;g.boss.act();g.player.x=440;g.step();assert.equal(g.boss.dir,-1);assert.equal(g.slashes[0].dir,-1);});
+
+test('SURGEON telegraphs a damage-triggered retreat without invulnerability or an automatic hit',()=>{
+  const g=game();g.engage();g.boss.x=300;g.player.x=265;g.boss.hurt(43);g.freeze(0);g.step();assert.ok(g.boss.retreat);const x=g.boss.x;frames(g,15);assert.equal(g.boss.x,x);assert.equal(g.player.hp,100);g.boss.inv=0;const hp=g.boss.hp;g.boss.hurt(12);assert.ok(g.boss.hp<hp);frames(g,36);assert.ok(g.boss.x>x+40);assert.equal(g.player.hp,100);assert.ok(g.boss.retreatCooldown>3);
+});
+test('retreat waits for punish windows and never clips outside either wall',()=>{
+  for(const x of [45,395]){const g=game();g.engage();g.boss.x=x;g.player.x=x===45?100:330;g.boss.recovery=1;g.boss.hurt(68);g.freeze(0);frames(g,10);assert.equal(g.boss.retreat,undefined);g.boss.recovery=0;g.boss.pressure=50;frames(g,60);assert.ok(g.boss.x>=45&&g.boss.x<=395);assert.equal(g.player.hp,100);}
+});
+test('E anchors SURGEON during retreat windup but does not cancel its attacks',()=>{
+  const g=game();g.engage();g.boss.x=300;g.player.x=255;g.boss.hurt(43);g.freeze(0);g.step();assert.ok(g.boss.retreat);g.boss.inv=0;g.player.skill(2);frames(g,23);assert.ok(g.boss.anchorTime>0);assert.equal(g.boss.retreat,null);assert.equal(g.boss.x,300);g.boss.windup=.5;g.boss.move=0;g.boss.anchor();frames(g,35);assert.ok(g.slashes.some(s=>s.owner==='b'));
+});
+test('first-operation Q requires an opening and a hit interrupts future chain strikes',()=>{
+  const g=game();g.engage();g.player.skill(0);assert.equal(g.player.inv,0);g.player.damage(8,1);assert.equal(g.player.attack,0);assert.equal(g.slashes.length,0);
+  const h=game();h.engage(1);h.player.skill(0);assert.equal(h.player.inv,.5);assert.equal(h.player.duelMode,false);
+});
+test('first-operation attack facing stays aligned with the hit while moving backwards',()=>{
+  const g=game();g.engage();g.player.face=1;g.player.strike(false);g.keys.add('a');frames(g,5);assert.equal(g.player.face,1);assert.equal(g.slashes[0].dir,1);assert.ok(g.player.vx<0);
+  const h=game();h.engage(1);h.player.strike(false);h.keys.add('a');frames(h,5);assert.equal(h.player.face,-1);
+});
+test('moving kick startup follows the leg before contact, then commits its position',()=>{
+  const g=game();g.engage();g.player.x=200;g.player.strike(false);g.keys.add('d');g.step();assert.equal(g.slashes[0].x,g.player.x+14);frames(g,5);const x=g.slashes[0].x;frames(g,3);assert.equal(g.slashes[0].x,x);
+});
+test('first-operation confirmed J can link into E without bypassing SP or cooldown',()=>{
+  const g=game();g.engage();g.player.x=g.boss.x-35;g.player.strike(false);frames(g,6);assert.ok(g.player.linkWindow>0);assert.ok(g.player.attack>0);g.press('e');frames(g,4);assert.equal(g.player.weaponMode,'pile');assert.equal(g.player.linkWindow,0);assert.ok(g.player.cool[2]>0);
+  const h=game();h.engage();h.player.strike(false);h.player.linkWindow=.2;h.player.cool[2]=1;h.player.skill(2);assert.equal(h.player.weaponMode,'kick');
+});
+test('first-operation backdash follows held movement without flipping an active attack',()=>{const g=game();g.engage();g.player.x=200;g.player.face=1;g.player.strike(false);g.keys.add('a');g.press('shift');frames(g,5);assert.ok(g.player.x<180);assert.equal(g.player.face,1);assert.ok(g.player.attack>0);});

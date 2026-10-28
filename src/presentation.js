@@ -95,7 +95,7 @@ window.EdenPresentation = (() => {
       sprite(c,art.surgeonLow,[0,0,1254,1254,833],.125,1063);c.restore();return;
     }
     if(b.d.type==='surgeon'&&art.surgeonDuel&&!b.dead){
-      const row=b.move%3===0?0:4,index=b.hitFlash>0||b.recovery>0&&b.release<=0?row+3:b.windup>0?row+1:b.release>0?row+2:row;
+      const row=b.move%3===0?0:4,index=b.hitFlash>0||b.retreat?.age>0||b.recovery>0&&b.release<=0?row+3:b.windup>0||b.retreat?row+1:b.release>0?row+2:row;
       const frame=surgeonDuelFrames[index];let clip=null;
       if(index===2||index===6)clip=[[0,0],[465,0],[465,270],[540,340],[540,455],[130,455],[130,200],[0,140]];
       if(index===3||index===7)clip=[[0,0],[320,0],[320,465],[55,465],[55,310],[0,260]];
@@ -200,10 +200,34 @@ window.EdenPresentation = (() => {
   const atlas=new Image();let atlasReady=false;
   atlas.onload=()=>{atlasReady=atlas.naturalWidth===2048&&atlas.naturalHeight===2304;};
   atlas.src='assets/characters/zero/zero-atlas.png';
+  // First-operation pose selection uses contact times, not a global animation clock.
+  function duelPose(p){
+    if(!p.duelMode||p.hp<=0||p.stun>0)return null;
+    if(p.dash>0)return {row:0,frame:1};
+    if(p.charging)return {row:p.parryWindow>0?0:2,frame:p.parryWindow>0?1:0};
+    if(p.attack>0&&['kick','heavy','triple','crown','pile'].includes(p.weaponMode)){
+      const elapsed=(p.attackDuration||.4)-p.attack;
+      let row=p.weaponMode==='kick'?Math.max(0,Math.min(2,(p.attackKind||1)-1)):2;
+      let contact=p.weaponMode==='kick'?(p.attackKind===3?.11:.06):p.weaponMode==='crown'?.18:p.weaponMode==='pile'?.28:.12;
+      let recovery=contact+.12;
+      if(p.weaponMode==='triple'){row=elapsed<.14?0:elapsed<.25?1:2;contact=[.08,.18,.30][row];recovery=[.14,.25,.44][row];}
+      return {row,frame:elapsed<contact*.45?0:elapsed<contact?1:elapsed<recovery?2:3};
+    }
+    if(p.attack>0)return null;
+    if(!p.onGround)return {row:0,frame:p.vy<0?1:3};
+    if(Math.abs(p.vx||0)<=12)return {row:0,frame:0};
+    return null;
+  }
   function drawZero(c,p,t){
     if(art.zeroDuel&&p.hp>0&&p.stun<=0&&p.dash<=0&&p.onGround&&(p.parryFlash>0||p.charging&&p.parryWindow>0)){
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
       sprite(c,art.zeroDuel,duelFrames[0][1],.17,330);c.restore();return;
+    }
+    const pose=duelPose(p);
+    if(pose&&art.zeroDuel){
+      c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
+      if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
+      sprite(c,art.zeroDuel,duelFrames[pose.row][pose.frame],.17,[330,667,991][pose.row]);c.restore();return;
     }
     const elapsed=(p.attackDuration||.4)-(p.attack||0),sweep=p.weaponMode==='kick'&&p.attackKind===3||p.weaponMode==='triple'&&elapsed>=.25;
     if(!sweep&&art.zeroDuel&&p.stun<=0&&p.hp>0&&(p.charging||p.attack>0&&['kick','heavy','triple','crown'].includes(p.weaponMode))){
@@ -221,7 +245,7 @@ window.EdenPresentation = (() => {
       if(p.stun>0||p.hp<=0){row=2;frame=3;}
       else if(p.charging){row=2;frame=0;}
       else if(p.attack>0){row=p.weaponMode==='rail'?3:2;const progress=Math.max(0,Math.min(.999,1-p.attack/(p.attackDuration||.4)));frame=p.weaponMode==='rail'?(progress<.25?0:progress<.52?1:progress<.78?2:3):(progress<.12?0:progress<.25?1:progress<.65?2:3);if(sweep&&p.weaponMode==='triple')frame=elapsed<.3?1:elapsed<.43?2:3;}
-      else if(p.dash>0||Math.abs(p.vx)>12){row=1;frame=Math.floor(t*11)%4;}
+      else if(p.dash>0||Math.abs(p.vx)>12){row=1;frame=p.duelMode?Math.floor(p.stridePhase||0)%4:Math.floor(t*11)%4;}
       else if(!p.onGround){row=1;frame=p.vy<0?1:3;}
       const data=zeroFrames[row][frame];
       let clip=null;
@@ -246,5 +270,5 @@ window.EdenPresentation = (() => {
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
   function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow};}};
+  return {zero,drawZero,duelPose,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow};}};
 })();
