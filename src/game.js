@@ -123,11 +123,12 @@
       if(state!=='combat'||bossIndex!==0||boss?.d.type!=='surgeon'||boss.dead||!s.parryable||s.kind!=='scalpel'||s.owner!=='b'||this.hp<=0||!this.charging||this.parryWindow<=0||!this.onGround||this.stun>0||this.dash>0||this.inv>0||this.face!==-s.dir||Math.sign(boss.x+boss.w/2-this.x-this.w/2)!==this.face)return false;
       this.parryWindow=0;this.parryFollow=.24;this.parryFlash=.16;
       boss.release=0;boss.hitFlash=.12;boss.recoil=this.face*3;
-      // Keep the existing recovery; no bonus damage, SP, stun loop or invulnerability.
+      if(s.protocolFinal){boss.recovery=Math.max(boss.recovery,2.1);boss.t=Math.max(boss.t,2.65);}
+      // Normal parries keep recovery; the once-only protocol finisher offers a longer opening.
       hitstop=Math.max(hitstop,.045);shake=Math.max(shake,.65);
       burst(this.x+9+this.face*12,this.y+32,'#86f4ef',4,35);
       audio.noise(.025,.025);audio.tone(880,.07,'triangle',.04,330);
-      message('PARRY // J 반격 · K 유지 · 회피',.65);
+      message(s.protocolFinal?'REVERSE SUTURE // 봉합 역류 — 반격':'PARRY // J 반격 · K 유지 · 회피',s.protocolFinal?1:.65);
       return true;
     }
     hurtbox(){return {x:this.x+4,y:this.y+8,w:11,h:this.h-12};}
@@ -184,21 +185,52 @@
     constructor(data){this.d=data;this.x=365;this.h=data.type==='surgeon'?100:72;this.y=FLOOR-this.h;this.w=42;this.hp=data.hp;this.maxHp=data.hp;this.phase=1;this.t=1.4;this.anim=0;this.inv=1;this.dead=false;this.dir=-1;this.tele=0;this.windup=0;this.move=0;this.hitFlash=0;this.deathAge=0;this.guardBroken=0;this.release=0;}
     hurt(n,interrupt=false){if(this.inv>0||this.dead||player.hp<=0)return;
       if(this.d.type==='surgeon'){
-        if(interrupt&&this.windup>0&&!(this.breakLock>0)){this.windup=0;this.breakLock=4;this.recovery=2;this.t=2.3;message('CAST BREAK // 봉합 신경 절단',1.3);burst(this.x+20,this.y+40,'#86f4ef',24,100);audio.tone(170,.3,'square',.045,40);}
+        if(interrupt&&this.windup>0&&!(this.breakLock>0)){if(this.protocol)this.cancelProtocol();this.windup=0;this.breakLock=4;this.recovery=2;this.t=2.3;message('CAST BREAK // 봉합 신경 절단',1.3);burst(this.x+20,this.y+40,'#86f4ef',24,100);audio.tone(170,.3,'square',.045,40);}
         if(this.recovery>0)n*=1.25;
       }
       if(this.d.type==='warden'&&this.guardBroken<=0&&this.dir*(player.x-this.x)>0){this.guard=(this.guard||0)+n*(n>=22?2.4:.5);n=Math.ceil(n*.4);if(this.guard>=90){this.guard=0;this.guardBroken=3;this.windup=0;this.t=3;message('ARMOR BREAK // 장갑 과부하',1.6);audio.noise(.4,.07);}}
       const damage=Math.round(n*(1+upgrade*.08+augments[0]*.12));chain++;chainTimer=2.4;bestChain=Math.max(bestChain,chain);this.hp-=damage;contactFeedback(this,n,damage);this.inv=.045;player.sp=Math.min(100,player.sp+2);
-      if(this.hp<=0){this.hp=0;this.dead=true;this.inv=99;deathTimer=2.6;hazards=[];slashes=[];message('TARGET DISMANTLED // 코어 회수',2.4);burst(this.x+20,this.y+25,'#eee',22,140);audio.tone(38,1.1,'sawtooth',.06,16);return;}
-      if(this.hp<=this.maxHp*.5&&this.phase===1){this.phase=2;this.inv=1.6;this.tele=1.6;this.windup=0;this.t=1.8;hazards=[];message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,18,110);audio.tone(38,.7,'sawtooth',.07,15);}
+      if(this.hp<=0){this.hp=0;this.dead=true;if(this.d.type==='surgeon')this.protocol=null;this.inv=99;deathTimer=2.6;hazards=[];slashes=[];message('TARGET DISMANTLED // 코어 회수',2.4);burst(this.x+20,this.y+25,'#eee',22,140);audio.tone(38,1.1,'sawtooth',.06,16);return;}
+      if(this.hp<=this.maxHp*.5&&this.phase===1){this.phase=2;this.inv=1.6;this.tele=1.6;this.windup=0;this.t=1.8;hazards=[];if(this.d.type==='surgeon'){slashes=slashes.filter(s=>s.owner!=='b');this.release=0;this.recovery=0;}message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,18,110);audio.tone(38,.7,'sawtooth',.07,15);}
     }
-    update(dt){this.anim+=dt;this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);this.tele=Math.max(0,this.tele-dt);if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0)this.dir=player.x<this.x?-1:1;
+    update(dt){this.anim+=dt;this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);this.tele=Math.max(0,this.tele-dt);if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0&&!(this.d.type==='surgeon'&&this.release>0))this.dir=player.x<this.x?-1:1;
       if(this.d.type==='surgeon'){this.updateSurgeon(dt);return;}
       if(this.windup>0){this.windup-=dt;if(this.windup<=0){this.act();this.t=this.phase===2?1:1.5;}return;}
       this.t-=dt;if(this.t<=0){this.windup=this.phase===2?.42:.65;this.move++;message(this.d.id+' // '+PATTERNS[bossIndex][this.move%PATTERNS[bossIndex].length],.6);audio.tone(340,.07,'sine',.025);}
       this.x=clamp(this.x,30,405);
     }
+    cancelProtocol(){
+      this.protocol=null;this.windup=0;this.release=0;
+      hazards=hazards.filter(h=>!h.protocol);slashes=slashes.filter(s=>!s.protocolFinal);
+    }
+    beginProtocolCast(wave){
+      this.protocol={wave,waiting:false,timer:wave<2?.85:.95};
+      this.move=wave<2?1:0;this.target={x:player.x+9,y:player.y+23};
+      this.dir=this.target.x<this.x+this.w/2?-1:1;
+      this.windup=this.windupMax=this.protocol.timer;
+      audio.tone(wave<2?440:220,.12,'triangle',.035,wave<2?660:110);
+      if(wave===0)message('SURGEON // 네 움직임까지 봉합하겠다.',1.4);
+    }
+    updateProtocol(dt){
+      const protocol=this.protocol;protocol.timer-=dt;
+      if(!protocol.waiting)this.windup=Math.max(0,protocol.timer);
+      if(protocol.timer>0)return;
+      if(protocol.waiting){this.beginProtocolCast(protocol.wave+1);return;}
+      this.windup=0;const before=hazards.length;this.act();
+      audio.tone(protocol.wave<2?165:85,.09,'triangle',.035,45);
+      if(protocol.wave<2){
+        for(const h of hazards.slice(before))h.protocol=true;
+        protocol.waiting=true;protocol.timer=1.55;
+      }else{
+        slashes[slashes.length-1].protocolFinal=true;
+        this.protocol=null;this.recovery=1.65;this.t=2.4;
+      }
+    }
     updateSurgeon(dt){
+      if(this.protocol){this.updateProtocol(dt);return;}
+      if(this.phase===2&&!this.protocolUsed&&this.windup<=0&&this.recovery<=0){
+        this.protocolUsed=true;this.beginProtocolCast(0);return;
+      }
       if(this.windup>0){this.windup-=dt;if(this.windup<=0){this.act();this.recovery=[1.2,1.45,1.35][this.move%3];this.t=this.recovery+.95-(this.phase===2?.2:0);}return;}
       this.t-=dt;
       if(this.recovery<=0&&this.t>.35){const distance=player.x-this.x,range=Math.abs(distance);this.x=clamp(this.x+(range>170?Math.sign(distance)*42:range<76?-Math.sign(distance||-1)*28:0)*dt,45,395);}
@@ -421,6 +453,12 @@
     ctx.fillStyle='#9ba6b6';ctx.font='8px sans-serif';ctx.fillText('코어 강화 +'+upgrade+'  /  회수 기록 '+archiveCount+'  /  ENTER — 구역 진입',30,233);
   }
   function drawHUD(){statusHUD();
+    if(boss?.d.type==='surgeon'&&boss.protocol&&!boss.dead){
+      const p=boss.protocol;ctx.fillStyle='#10151d';ctx.fillRect(134,43,212,15);
+      ctx.fillStyle=p.wave===2?'#86f4ef':'#ffc67a';ctx.font='7px sans-serif';ctx.textAlign='center';
+      ctx.fillText(p.wave<2?'신경 봉합 '+(p.wave+1)+'/2 — 표식 밖으로 이동':'최종 절개 — 점프 · 회피 · 정면 K',240,53);ctx.textAlign='left';
+    }
+
     if(player.comboT>0&&player.combo>0){ctx.fillStyle='#0b111b';ctx.fillRect(176,7,80,28);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText(['J1 / CHECK','J2 / STEP','J3 / PUSH'][player.combo-1],181,16);for(let i=0;i<3;i++){ctx.fillStyle=i<player.combo?(i===2?'#86f4ef':RED):'#3a4351';ctx.fillRect(181+i*23,21,19,3);}ctx.fillStyle='#8c9bad';ctx.fillRect(181,29,65*clamp(player.comboT/.85,0,1),1);}
   }
 

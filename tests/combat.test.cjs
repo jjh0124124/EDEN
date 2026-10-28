@@ -139,3 +139,34 @@ test('jump and dash remain alternatives to parrying the incision',()=>{
   for(const action of [' ','shift']){const g=parrySetup();g.dispatch('keyup',{code:'KeyK',key:'k'});g.slashes[0].delay=.15;g.press(action);frames(g,25);assert.equal(g.player.hp,100);assert.equal(g.player.parryFollow,0);}
 });
 test('J pressed during parry hitstop is retained for the counter',()=>{const g=parrySetup();g.step();g.dispatch('keydown',{code:'KeyJ',key:'j'});g.step(.01);g.dispatch('keyup',{code:'KeyJ',key:'j'});frames(g,4);assert.equal(g.player.charging,false);assert.equal(g.player.weaponMode,'kick');assert.ok(g.player.attack>0);});
+
+function protocolSetup(x=230){const g=game();g.engage();g.boss.phase=2;g.player.x=x;g.step();assert.ok(g.boss.protocol);return g;}
+test('protocol locks each wave, runs twice then one low finisher, and does not repeat',()=>{
+  const g=protocolSetup();const locked=g.boss.target.x;g.player.x=100;g.step();assert.equal(g.boss.target.x,locked);
+  const waves=new Set();let finalSeen=false;for(let i=0;i<420;i++){if(g.boss.protocol)waves.add(g.boss.protocol.wave);if(g.slashes.some(s=>s.protocolFinal))finalSeen=true;g.step(1/60);}
+  assert.deepEqual([...waves],[0,1,2]);assert.equal(finalSeen,true);assert.equal(g.boss.protocol,null);assert.equal(g.boss.protocolUsed,true);
+  frames(g,180);assert.equal(g.boss.protocol,null);
+});
+test('protocol is avoidable without parry at both walls and center at 30/60 fps',()=>{
+  for(const dt of [1/30,1/60])for(const x of [8,230,453]){
+    const g=protocolSetup(x);let elapsed=0;
+    while(elapsed<6.6){g.keys.clear();const b=g.boss,p=g.player;
+      if(b.protocol&&b.protocol.wave<2){const target=b.target.x,dir=target<240?1:-1;if(Math.abs(p.x+9-target)<125)g.keys.add(dir>0?'d':'a');}
+      else if(b.protocol?.wave===2&&b.windup<.2&&p.onGround)g.pressed.add(' ');
+      g.step(dt);elapsed+=dt;
+    }
+    assert.equal(g.player.hp,100,`x=${x}, dt=${dt}`);assert.equal(g.player.parryFollow,0);
+  }
+});
+test('maximum charge interrupts protocol and clears its pending hazards without restarting it',()=>{
+  const g=protocolSetup();frames(g,55);assert.ok(g.hazards.some(h=>h.protocol));g.boss.beginProtocolCast(1);g.boss.inv=0;g.boss.hurt(52,true);
+  assert.equal(g.boss.protocol,null);assert.equal(g.hazards.some(h=>h.protocol),false);assert.ok(g.boss.recovery>0);frames(g,180);assert.equal(g.boss.protocol,null);
+});
+test('protocol pauses, cancels on boss death, and resets on first-boss retry',()=>{
+  const g=protocolSetup();g.press('escape');const remaining=g.boss.protocol.timer;frames(g,90);assert.equal(g.boss.protocol.timer,remaining);g.press('escape');g.boss.inv=0;g.boss.hurt(9999);assert.equal(g.boss.protocol,null);assert.equal(g.hazards.length,0);g.startBoss(0);assert.equal(g.boss.protocolUsed,undefined);
+});
+test('only the protocol final parry adds an opening, without damage or a stun chain',()=>{
+  const g=protocolSetup(320);g.boss.beginProtocolCast(2);g.boss.protocol.timer=.01;g.step();assert.equal(g.slashes[0].protocolFinal,true);const hp=g.boss.hp;
+  g.dispatch('keydown',{code:'KeyK',key:'k'});g.slashes[0].delay=0;g.step();assert.equal(g.player.hp,100);assert.equal(g.boss.hp,hp);assert.ok(g.boss.recovery>=2);assert.equal(g.player.inv,0);
+});
+test('SURGEON release sprite keeps the committed attack direction when crossed',()=>{const g=game();g.engage();g.boss.dir=-1;g.boss.move=0;g.boss.act();g.player.x=440;g.step();assert.equal(g.boss.dir,-1);assert.equal(g.slashes[0].dir,-1);});
