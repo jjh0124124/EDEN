@@ -201,6 +201,10 @@ window.EdenPresentation = (() => {
   atlas.onload=()=>{atlasReady=atlas.naturalWidth===2048&&atlas.naturalHeight===2304;};
   atlas.src='assets/characters/zero/zero-atlas.png';
   function drawZero(c,p,t){
+    if(art.zeroDuel&&p.hp>0&&p.stun<=0&&p.dash<=0&&p.onGround&&(p.parryFlash>0||p.charging&&p.parryWindow>0)){
+      c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
+      sprite(c,art.zeroDuel,duelFrames[0][1],.17,330);c.restore();return;
+    }
     const elapsed=(p.attackDuration||.4)-(p.attack||0),sweep=p.weaponMode==='kick'&&p.attackKind===3||p.weaponMode==='triple'&&elapsed>=.25;
     if(!sweep&&art.zeroDuel&&p.stun<=0&&p.hp>0&&(p.charging||p.attack>0&&['kick','heavy','triple','crown'].includes(p.weaponMode))){
       const elapsed=(p.attackDuration||.4)-(p.attack||0),progress=elapsed/(p.attackDuration||.4);

@@ -119,3 +119,23 @@ test('Korean IME and shifted letters use physical key codes',()=>{const g=game()
 test('arrow movement and two shift keys release independently',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'ArrowRight',key:'ArrowRight'});assert.ok(g.keys.has('d'));g.dispatch('keyup',{code:'ArrowRight',key:'ArrowRight'});assert.equal(g.keys.has('d'),false);g.dispatch('keydown',{code:'ShiftLeft',key:'Shift'});g.dispatch('keydown',{code:'ShiftRight',key:'Shift'});g.dispatch('keyup',{code:'ShiftLeft',key:'Shift'});assert.ok(g.keys.has('shift'));g.dispatch('keyup',{code:'ShiftRight',key:'Shift'});assert.equal(g.keys.has('shift'),false);});
 test('window blur clears held input and pauses gameplay',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'KeyD',key:'d'});g.dispatch('blur',{});assert.equal(g.keys.size,0);assert.equal(g.paused,true);});
 test('shin rail projectile waits for deployment and then hits',()=>{const g=game();g.engage();g.player.skill(1);frames(g,10);assert.equal(g.boss.hp,g.boss.maxHp);frames(g,80);assert.ok(g.boss.hp<g.boss.maxHp);assert.equal(g.player.weaponMode,'rail');});
+
+function parrySetup(){const g=game();g.engage(0);g.player.x=g.boss.x-55;g.player.face=1;g.boss.move=0;g.boss.dir=-1;g.boss.act();g.slashes[0].delay=0;g.dispatch('keydown',{code:'KeyK',key:'k'});return g;}
+test('first boss frontal incision can be parried at 30 and 60 fps without free damage or resources',()=>{
+  for(const dt of [1/30,1/60]){const g=parrySetup();g.player.sp=50;g.step(dt);assert.equal(g.player.hp,100);assert.equal(g.boss.hp,g.boss.maxHp);assert.equal(g.player.inv,0);assert.ok(g.player.parryFollow>0);assert.ok(g.player.sp<51);assert.equal(g.slashes[0].done,true);assert.equal(g.player.charging,true);}
+});
+test('parry grants a J choice, while K hold and release retain ordinary charging',()=>{
+  const g=parrySetup();g.step();g.freeze(0);g.dispatch('keydown',{code:'KeyJ',key:'j'});g.step();assert.equal(g.player.charging,false);assert.equal(g.player.weaponMode,'kick');assert.ok(g.player.attack>0);
+  const h=parrySetup();h.step();h.freeze(0);frames(h,12);assert.equal(h.player.charging,true);h.dispatch('keyup',{code:'KeyK',key:'k'});h.step();assert.equal(h.player.weaponMode,'heavy');assert.ok(h.player.attack>0);
+});
+test('early charge, rear attack, air, and buffered attack startup cannot parry',()=>{
+  for(const mode of ['early','rear','air','buffer']){const g=parrySetup();if(mode==='early'){g.slashes[0].delay=.22;}if(mode==='rear')g.player.face=-1;if(mode==='air'){g.player.onGround=false;g.player.y-=1;}if(mode==='buffer')g.player.attack=.04;frames(g,25);assert.ok(g.player.hp<100,mode);assert.equal(g.player.parryFollow,0,mode);}
+});
+test('parry cannot be rearmed by a rapid second charge and cannot block other bosses',()=>{
+  const g=parrySetup();g.step();g.freeze(0);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();frames(g,29);g.dispatch('keydown',{code:'KeyK',key:'k'});g.step();assert.equal(g.player.parryWindow,0);
+  const h=game();h.engage(1);h.dispatch('keydown',{code:'KeyK',key:'k'});h.step();assert.equal(h.player.parryWindow,0);h.player.parryWindow=.12;assert.equal(h.player.tryParry({owner:'b',kind:'scalpel',parryable:true,dir:-1}),false);
+});
+test('jump and dash remain alternatives to parrying the incision',()=>{
+  for(const action of [' ','shift']){const g=parrySetup();g.dispatch('keyup',{code:'KeyK',key:'k'});g.slashes[0].delay=.15;g.press(action);frames(g,25);assert.equal(g.player.hp,100);assert.equal(g.player.parryFollow,0);}
+});
+test('J pressed during parry hitstop is retained for the counter',()=>{const g=parrySetup();g.step();g.dispatch('keydown',{code:'KeyJ',key:'j'});g.step(.01);g.dispatch('keyup',{code:'KeyJ',key:'j'});frames(g,4);assert.equal(g.player.charging,false);assert.equal(g.player.weaponMode,'kick');assert.ok(g.player.attack>0);});

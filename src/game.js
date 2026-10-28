@@ -92,7 +92,7 @@
   ];
   const PHASE_LINES=['마취를 중단한다. 이제 깨어 있는 채로 완성되어라.','사냥 규약 삭제. 포식 권한 승인.','격리 대상을 구역 전체로 확장한다.','찬송 출력 최대. 성대를 소각한다.','예측을 폐기한다. 네 미래를 강제로 쓴다.','승객을 연료로 전환. 출항을 강행한다.','관리자 권한을 육체에 직접 기록한다.'];
   const PATTERNS=[['절개 탄막','수직 봉합'],['K9 / 급속 포획','K9 / 재추적'],['격리 말뚝','봉쇄 사격'],['열익 방출','화형 산개'],['미래 고정','반사 예측'],['요격 드론','방주 방어망'],['관리자 탄막','영역 폐쇄','명령 삭제']];
-  const TACTICS=['표식 밖으로 회피 후 반격. K 최대 충전으로 시전을 끊으세요.','돌진을 회피한 뒤 회복 동작을 노리세요.','정면 장갑에는 K 강 공격으로 과부하를 누적하세요.','포물선 화염의 착지 사이로 이동하세요.','예측 표식이 고정된 뒤 자리를 옮기세요.','추적 드론을 넓게 유도한 뒤 반대로 회피하세요.','탄막 · 말뚝 · 삭제 광선이 순환합니다.'];
+  const TACTICS=['절개는 점프·회피 또는 직전 K 패링. 낙하는 표식 밖으로.','돌진을 회피한 뒤 회복 동작을 노리세요.','정면 장갑에는 K 강 공격으로 과부하를 누적하세요.','포물선 화염의 착지 사이로 이동하세요.','예측 표식이 고정된 뒤 자리를 옮기세요.','추적 드론을 넓게 유도한 뒤 반대로 회피하세요.','탄막 · 말뚝 · 삭제 광선이 순환합니다.'];
   const saveKey='eden-save-v1';
   const save = () => {try{localStorage.setItem(saveKey, JSON.stringify({boss:bossIndex, stage:checkpointStage, upgrade, augments, archives:archiveCount, records:[...recoveredRecords], defeats:defeatCount, complete:state==='ending'}));}catch{message('저장 불가 — 브라우저 저장소를 확인하세요',3);} };
   const load = () => {try{const s=JSON.parse(localStorage.getItem(saveKey));return s&&Number.isInteger(s.boss)&&s.boss>=0&&s.boss<=7?s:null;}catch{return null;} };
@@ -118,10 +118,22 @@
 
   class Fighter {
     constructor(){ this.reset(); }
-    reset(){ Object.assign(this,{x:65,y:FLOOR-48,w:19,h:48,vx:0,vy:0,face:1,hp:100,maxHp:100,sp:100,onGround:true,attack:0,attackKind:0,weaponMode:'kick',inv:0,dash:0,stun:0,combo:0,comboT:0,linkWindow:0,finishWindow:0,stepRemaining:0,stepDir:1,pendingJump:false,buffer:null,charging:false,charge:0,chargeLevel:0,cool:[0,0,0,0]}); }
+    reset(){ Object.assign(this,{x:65,y:FLOOR-48,w:19,h:48,vx:0,vy:0,face:1,hp:100,maxHp:100,sp:100,onGround:true,attack:0,attackKind:0,weaponMode:'kick',inv:0,dash:0,stun:0,combo:0,comboT:0,linkWindow:0,finishWindow:0,stepRemaining:0,stepDir:1,pendingJump:false,buffer:null,charging:false,charge:0,chargeLevel:0,parryWindow:0,parryLock:0,parryFollow:0,parryFlash:0,cool:[0,0,0,0]}); }
+    tryParry(s){
+      if(state!=='combat'||bossIndex!==0||boss?.d.type!=='surgeon'||boss.dead||!s.parryable||s.kind!=='scalpel'||s.owner!=='b'||this.hp<=0||!this.charging||this.parryWindow<=0||!this.onGround||this.stun>0||this.dash>0||this.inv>0||this.face!==-s.dir||Math.sign(boss.x+boss.w/2-this.x-this.w/2)!==this.face)return false;
+      this.parryWindow=0;this.parryFollow=.24;this.parryFlash=.16;
+      boss.release=0;boss.hitFlash=.12;boss.recoil=this.face*3;
+      // Keep the existing recovery; no bonus damage, SP, stun loop or invulnerability.
+      hitstop=Math.max(hitstop,.045);shake=Math.max(shake,.65);
+      burst(this.x+9+this.face*12,this.y+32,'#86f4ef',4,35);
+      audio.noise(.025,.025);audio.tone(880,.07,'triangle',.04,330);
+      message('PARRY // J 반격 · K 유지 · 회피',.65);
+      return true;
+    }
     hurtbox(){return {x:this.x+4,y:this.y+8,w:11,h:this.h-12};}
     damage(n,dir){ if(this.inv>0||this.hp<=0||boss?.dead)return;this.charging=false;this.charge=0;this.buffer=null;this.pendingJump=false;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;if(this.weaponMode==='crown'){slashes=slashes.filter(s=>s.kind!=='guillotine'||s.delay<=0);this.attack=0;}this.hp-=Math.max(1,Math.round(n*(1-Math.min(.4,augments[2]*.08))));chain=0;chainTimer=0;this.vx=dir*95;this.vy=-90;this.onGround=false;this.inv=.55;this.stun=.18;shake=Math.max(shake,1.8);hitstop=Math.max(hitstop,.04);burst(this.x+9,this.y+20,RED,6,70);audio.noise(.07,.04);audio.tone(52,.11,'sawtooth',.04,20); if(this.hp<=0){this.hp=0;deathTimer=1.4;defeatCount++;} }
     update(dt){
+      for(const key of ['parryWindow','parryLock','parryFollow','parryFlash'])this[key]=Math.max(0,this[key]-dt);
       this.linkWindow=Math.max(0,this.linkWindow-dt);this.finishWindow=Math.max(0,this.finishWindow-dt);
       if(this.pendingJump){pressed.add(' ');this.pendingJump=false;}
       if(this.buffer){this.buffer.ttl-=dt;if(this.buffer.ttl<=0)this.buffer=null;}
@@ -134,7 +146,8 @@
         this.vx=this.dash>0?this.face*300:lerp(this.vx,move*(this.charging?70:112),clamp(dt*14,0,1));
         if((pressed.has(' ')||pressed.has('space')||pressed.has('arrowup'))&&this.onGround){this.vy=-205;this.onGround=false;audio.tone(110,.08,'square',.025,45);}
         if(pressed.has('shift')&&this.dash<=0&&this.sp>=12){this.charging=false;this.charge=0;this.buffer=null;this.stepRemaining=0;this.finishWindow=0;this.dash=.28;this.inv=.34;this.sp-=12;this.vx=this.face*300;burst(this.x+10,this.y+35,'#bbc0c3',8,45);audio.tone(75,.1,'sawtooth',.03,30);}
-        if(this.buffer?.key==='k'&&this.attack<=0&&this.dash<=0&&!this.charging){this.buffer=null;this.charging=true;this.charge=0;this.chargeLevel=0;audio.tone(90,.12,'triangle',.035,180);}
+        if(this.buffer?.key==='k'&&this.attack<=0&&this.dash<=0&&!this.charging){if(this.buffer.parry&&this.onGround&&this.inv<=0&&this.parryLock<=0){this.parryWindow=.12;this.parryLock=.7;}this.buffer=null;this.charging=true;this.charge=0;this.chargeLevel=0;audio.tone(90,.12,'triangle',.035,180);}
+        if(this.charging&&this.parryFollow>0&&(pressed.has('j')||this.buffer?.key==='j')){this.charging=false;this.charge=0;this.parryWindow=0;this.parryFollow=0;this.buffer=null;this.strike(false);}
         if(this.charging){
           if(keys.has('k')){this.charge=Math.min(1.2,this.charge+dt);const level=this.charge>=.65?2:this.charge>=.4?1:0;if(level>this.chargeLevel){this.chargeLevel=level;audio.tone(level===2?660:330,.13,'triangle',.045);burst(this.x+10,this.y+35,level===2?'#86f4ef':RED,9,35);}}
           else{const amount=this.charge;this.charging=false;this.charge=0;this.strike(true,amount);}
@@ -147,7 +160,7 @@
       if(this.stepRemaining>0&&this.stun<=0&&this.dash<=0){const step=Math.min(this.stepRemaining,180*dt);this.x+=step*this.stepDir;this.stepRemaining-=step;}
       this.x=clamp(this.x,8,W-this.w-8);
     }
-    strike(heavy,charge=0){this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.combo=heavy?0:(this.combo%3)+1;this.comboT=.85;this.attackDuration=heavy?.46:[.24,.27,.4][this.combo-1];this.attack=this.attackDuration;this.weaponMode=heavy?'heavy':'kick';if(!heavy&&this.combo===2){this.stepRemaining=18;this.stepDir=this.face;}this.attackKind=heavy?2:this.combo;const tier=charge>=.65?2:charge>=.4?1:0,reach=heavy?[62,82,104][tier]:[40,32,52][this.combo-1],dmg=heavy?[22,34,52][tier]:[12,15,24][this.combo-1];slashes.push({owner:'p',kind:heavy?'cleave':'kick',combo:this.combo,tier,x:this.face>0?this.x+14:this.x-reach,y:this.y-5,w:reach,h:48,life:.2,delay:heavy?.12:this.combo===3?.11:.06,dmg,interrupt:heavy&&tier===2,dir:this.face});audio.noise(.035,.012);audio.tone(heavy?120:[200,175,145][this.combo-1],.07,'triangle',.015,40);}
+    strike(heavy,charge=0){this.parryFlash=0;this.parryFollow=0;this.parryWindow=0;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.combo=heavy?0:(this.combo%3)+1;this.comboT=.85;this.attackDuration=heavy?.46:[.24,.27,.4][this.combo-1];this.attack=this.attackDuration;this.weaponMode=heavy?'heavy':'kick';if(!heavy&&this.combo===2){this.stepRemaining=18;this.stepDir=this.face;}this.attackKind=heavy?2:this.combo;const tier=charge>=.65?2:charge>=.4?1:0,reach=heavy?[62,82,104][tier]:[40,32,52][this.combo-1],dmg=heavy?[22,34,52][tier]:[12,15,24][this.combo-1];slashes.push({owner:'p',kind:heavy?'cleave':'kick',combo:this.combo,tier,x:this.face>0?this.x+14:this.x-reach,y:this.y-5,w:reach,h:48,life:.2,delay:heavy?.12:this.combo===3?.11:.06,dmg,interrupt:heavy&&tier===2,dir:this.face});audio.noise(.035,.012);audio.tone(heavy?120:[200,175,145][this.combo-1],.07,'triangle',.015,40);}
     skill(i){ const costs=[24,30,24,55], cds=[3.5,5,3,11];if(i===2&&!this.onGround){message('PILE // 착지 후 발동',.7);return;}const linked=(i===0&&this.linkWindow>0)||(i===3&&this.finishWindow>0);if(this.charging||(this.cool[i]>0&&!(i===0&&linked))||this.sp<costs[i])return;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.cool[i]=cds[i];this.sp-=costs[i];this.weaponMode=['triple','rail','pile','crown'][i];this.attackDuration=[.6,.65,.7,.72][i];this.attack=this.attackDuration;this.attackKind=i===0?3:2;message((linked?'LINK // ':'')+SKILLS[i],.9);audio.noise(.05,.012);
       if(i===0){this.inv=.5;for(let j=0;j<3;j++)slashes.push({owner:'p',kind:'triple',segment:j,x:this.face>0?this.x+10:this.x-40,y:this.y-5,w:40,h:45,life:.14,delay:[.08,.18,.3][j],dmg:13,dir:this.face});}
       if(i===1){hazards.push({kind:'rail',owner:'p',x:this.x+9+this.face*20,y:this.y+22,vx:this.face*300,vy:0,r:8,delay:.34,life:1.5,dmg:25});}
@@ -194,7 +207,7 @@
         if(choice===this.lastPattern&&this.patternRepeat>=1)choice=choice===1?2:1;
         this.patternRepeat=choice===this.lastPattern?(this.patternRepeat||0)+1:0;this.lastPattern=choice;this.move=choice;
         this.target={x:player.x+9,y:player.y+23};this.windup=this.phase===2?.8:1;this.windupMax=this.windup;this.dir=this.target.x<this.x?-1:1;
-        message(['SUTURE / 저위 절개 — 점프로 회피','LOOM / 봉합 낙하 — 표식 밖으로','NEEDLE / 주사기 산개 — 방향 고정'][choice],1);audio.tone(340,.12,'triangle',.04);
+        message(['SUTURE / 저위 절개 — 점프 또는 정면 K 패링','LOOM / 봉합 낙하 — 표식 밖으로','NEEDLE / 주사기 산개 — 방향 고정'][choice],1);audio.tone(340,.12,'triangle',.04);
       }
     }
     act(){this.release=.38; const p=this.phase===2; switch(this.d.type){
@@ -202,7 +215,7 @@
         const target=this.target||{x:player.x+9,y:player.y+23};
         if(this.move%3===1){for(let i=-1;i<=1;i++)hazards.push({kind:'syringe',owner:'b',x:clamp(target.x+i*42,15,465),y:38,vy:190,r:5,life:1.4,dmg:12,delay:.12+Math.abs(i)*.08});}
         else if(this.move%3===2){const ox=this.x+20+this.dir*58,oy=this.y+30,aim=Math.atan2(target.y-oy,target.x-ox);for(let i=-1;i<=1;i++){const a=aim+i*.42;hazards.push({kind:'needle',owner:'b',x:ox,y:oy,vx:Math.cos(a)*(p?120:105),vy:Math.sin(a)*(p?120:105),r:4,delay:.15,life:3.5,dmg:10});}}
-        else slashes.push({kind:'scalpel',owner:'b',x:this.dir<0?this.x-82:this.x+25,y:FLOOR-23,w:97,h:20,life:.18,delay:.12,dmg:16,dir:this.dir});
+        else slashes.push({kind:'scalpel',parryable:true,owner:'b',x:this.dir<0?this.x-82:this.x+25,y:FLOOR-23,w:97,h:20,life:.18,delay:.12,dmg:16,dir:this.dir});
         break;
       }
       case'hound': {const target=clamp(player.x+(this.dir<0?20:-45),18,W-60);this.lunge={from:this.x,to:target,t:0};slashes.push({owner:'b',x:target-23,y:FLOOR-48,w:88,h:42,life:.18,delay:.35,dmg:16,dir:this.dir});break;}
@@ -231,7 +244,7 @@
     if(state==='combat'&&!boss.dead&&player.hp>0){battleSeconds+=dt;chainTimer=Math.max(0,chainTimer-dt);if(!chainTimer)chain=0;}
     if(!boss?.dead&&player.hp>0)player.update(dt);if(state==='combat')boss.update(dt);
     if(boss?.lunge&&!boss.dead){const l=boss.lunge;l.t+=dt;boss.x=lerp(l.from,l.to,clamp(l.t/.3,0,1));if(l.t>=.3)boss.lunge=null;}
-    for(const s of slashes){if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.delay>0){s.delay-=dt;continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){player.damage(s.dmg,s.dir);s.done=true;}}}
+    for(const s of slashes){if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.delay>0){s.delay-=dt;continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s))player.damage(s.dmg,s.dir);s.done=true;}}}
     slashes=slashes.filter(s=>s.life>0);
     for(const h of hazards){if(h.delay>0){h.delay-=dt;continue;}h.life-=dt;h.x+=(h.vx||0)*dt;h.y+=(h.vy||0)*dt;if(h.kind==='ember')h.vy+=250*dt;if(h.kind==='drone'){h.vy+=(player.y-h.y)*dt*2;h.vx+=(player.x-h.x)*dt*.3;}
       let box=h.kind==='pillar'?{x:h.x-9,y:FLOOR-62,w:18,h:62}:h.kind==='beam'?{x:h.x,y:h.y,w:h.w,h:h.h}:{x:h.x-(h.r||4),y:h.y-(h.r||4),w:(h.r||4)*2,h:(h.r||4)*2};
@@ -464,7 +477,7 @@
     // Capture before hitstop returns: one deliberate input, never an auto-repeat chain.
     if((state==='combat'||state==='explore')&&player.hp>0&&player.stun<=0&&!boss?.dead){
       if(pressed.has(' ')||pressed.has('space')||pressed.has('arrowup'))player.pendingJump=true;
-      for(const key of ['j','k','q','w','e','r','shift'])if(pressed.has(key)&&(!player.charging||key==='shift'))player.buffer={key,ttl:.22};
+      for(const key of ['j','k','q','w','e','r','shift'])if(pressed.has(key)&&(!player.charging||key==='shift'||key==='j'&&player.parryFollow>0))player.buffer={key,ttl:.22,parry:key==='k'&&state==='combat'&&bossIndex===0&&boss?.d.type==='surgeon'&&player.attack<=0&&player.dash<=0&&player.stun<=0&&player.inv<=0&&player.onGround&&!player.charging};
     }
     if(hitstop>=dt){hitstop-=dt;return;}
     if(hitstop>0){dt-=hitstop;hitstop=0;}
