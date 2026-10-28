@@ -1,5 +1,7 @@
 # EDEN — BUILD 10 / SUTURE DUEL
 
+**바로 실행:** Node.js 24 LTS 설치 → 프로젝트 폴더에서 `npm install` → `npm run dev`. 브라우저가 자동으로 열립니다. [설치·실행·문제 해결 안내](#로컬에서-바로-플레이하기)
+
 화면 오른쪽 위 **BUILD 10 · SUTURE DUEL**로 버전을 확인하세요.
 
 ZERO는 기계 다리를 펼쳐 차고 찍는 근접 전투원, SURGEON은 수술 장치로 거리를 통제하는 보스입니다. J의 덧붙인 도형 다리를 제거하고 새 전신 공격 시트와 보스의 낮은 절개 자세를 생성·적용했습니다. 준비 → 타격 → 회수 자세를 재생하며, 일부 동작은 기존 프레임을 재사용합니다.
@@ -50,19 +52,54 @@ Q 삼연 절단이 짧은 피격 무적 때문에 두 번만 맞던 문제도 �
 
 한국어 HTML5 Canvas 보스 액션 게임의 개발 버전입니다. 외부 패키지나 API 키 없이 실행됩니다.
 
-## 게임 보기
+## 로컬에서 바로 플레이하기
 
-GitHub에서 **Code → Download ZIP → 압축 풀기 → index.html 열기**. `index.html`, `styles.css`, `src` 폴더를 함께 유지하세요. 키보드가 있는 데스크톱 브라우저용입니다.
+**필수:** Node.js 22.12 이상(권장: Node.js 24 LTS, npm 포함), 최신 Chrome/Edge/Firefox와 키보드. [Node.js 설치](https://nodejs.org/) 후 터미널을 새로 여세요.
+게임 자체에는 백엔드·데이터베이스·API 키가 필요 없습니다. 로컬 서버용 개발 의존성은 Vite 8.3.5이며 버전은 `package-lock.json`에 고정했습니다.
 
-브라우저가 파일 실행을 제한한다면 압축을 푼 폴더에서 다음 명령을 실행하세요.
+1. GitHub의 **Code → Download ZIP**으로 다운로드하고 압축을 풀거나 `git clone https://github.com/jjh0124124/EDEN.git`을 실행합니다.
+2. **package.json이 들어 있는 폴더**에서 터미널을 엽니다. ZIP 폴더 이름은 보통 `EDEN-main`, clone한 폴더는 `EDEN`입니다.
+3. 처음 한 번 설치합니다.
 
 ```bash
-python3 -m http.server 4173
+npm install
 ```
 
-브라우저에서 `http://localhost:4173`을 여세요. 진행 상황은 브라우저의 `localStorage`에 보관됩니다.
+4. 실행합니다. 다음부터는 이 명령 하나만 실행하면 됩니다.
 
-Windows에서는 `python3` 대신 `python` 또는 `py`를 사용할 수 있습니다.
+```bash
+npm run dev
+```
+
+기본 브라우저가 자동으로 열립니다. 열리지 않으면 주소창에 `http://127.0.0.1:4173`을 입력하세요. 서버를 실행한 터미널은 그대로 두고, 종료하려면 **Ctrl+C**를 누르세요.
+
+**플레이 시작:** 화면 아래 **시작 / 이어하기** → **구역 진입** → **대사 다음**으로 통신을 넘긴 뒤 A/D 이동, Space 점프, J 공격, K 길게 누르고 놓기로 충전 공격을 합니다. 첫 보스까지의 경로는 아래 ‘첫 작전’을 참고하세요.
+
+진행 상황은 브라우저의 `localStorage`에 저장됩니다. 같은 브라우저와 주소를 사용해야 이어집니다. `localhost`와 `127.0.0.1`은 저장 공간이 다릅니다.
+
+### 실행 문제 해결
+
+- `node`/`npm`을 찾지 못하면 Node.js 설치 후 터미널을 다시 열고 `node --version`을 확인하세요.
+- PowerShell에서 `npm.ps1` 실행이 차단되면 `npm.cmd install`, `npm.cmd run dev`를 사용하세요. 실행 정책을 바꿀 필요는 없습니다.
+- 4173 포트가 사용 중이면 기존 EDEN 서버를 Ctrl+C로 종료하거나 `npm run dev -- --port 4174`를 실행하세요. 주소도 `http://127.0.0.1:4174`로 바뀝니다.
+- 창을 전환한 뒤 멈췄다면 **계속하기** 또는 Esc를 누르세요. 통신 중에는 먼저 대사를 넘겨야 이동할 수 있습니다.
+- `index.html` 더블클릭 대신 위 HTTP 서버 실행을 권장합니다. Python 3가 이미 있다면 의존성 설치 없이 `python3 -m http.server 4173 --bind 127.0.0.1`도 가능합니다(Windows는 `py` 사용).
+
+### 개발 검증(플레이할 때는 불필요)
+
+```bash
+npm test
+```
+
+브라우저 진입 테스트는 별도 선택 의존성인 Python 3, Playwright, Chromium을 사용합니다. `npm run dev`가 실행 중인 상태에서 다른 터미널로 실행하세요.
+
+```bash
+python3 -m pip install playwright
+python3 -m playwright install chromium
+python3 tests/local_start_smoke.py
+```
+
+Windows에서는 `python3` 대신 `py`를 사용하세요. 테스트는 독립적인 브라우저 저장 공간에서 시작 버튼·대사·이동·점프·J·K·일시정지·재개와 에셋 로딩을 확인합니다. 기존 Chromium을 쓰려면 `CHROMIUM_PATH` 환경 변수로 실행 파일을 지정할 수 있습니다. 재현 가능한 의존성 재설치는 `npm ci`를 사용하세요.
 
 ## 조작
 

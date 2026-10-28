@@ -1,0 +1,12 @@
+{
+  "name": "eden",
+  "version": "0.10.0",
+  "private": true,
+  "description": "EDEN local gameplay environment",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 4173 --strictPort --open",
+    "test": "node --test tests/combat.test.cjs"
+  },
+  "devDependencies": { "vite": "8.3.5" }
+}
