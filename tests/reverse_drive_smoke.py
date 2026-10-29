@@ -14,8 +14,8 @@ with sync_playwright() as p:
     page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
     page.evaluate('driveTest.setup()');page.wait_for_timeout(60);page.keyboard.down('k')
     page.wait_for_function('driveTest.player.reverseDrive===1')
-    page.keyboard.press('q',delay=20);page.keyboard.up('k')
-    page.wait_for_function('driveTest.player.weaponMode==="drive" && driveTest.boss.hp<=driveTest.boss.maxHp-30')
+    page.keyboard.press('Shift',delay=20);page.keyboard.up('k')
+    page.wait_for_function('driveTest.player.weaponMode==="drive" && driveTest.boss.hp<=driveTest.boss.maxHp-20')
     page.wait_for_timeout(25)
     page.evaluate('window.freezeDrive=true')
     assert page.evaluate('driveTest.player.reverseDrive')==0
@@ -45,5 +45,5 @@ with sync_playwright() as p:
     }''')
     page.locator('#review').screenshot(path='/tmp/eden-generated-vfx-frames.png')
     assert not errors,errors
-    print('PASS: K parry → powered Q with real input; 8 unique drive frames both facings; 8 generated VFX frames; no JS errors')
+    print('PASS: K parry → powered Shift with real input; 8 unique drive frames both facings; 8 generated VFX frames; no JS errors')
     browser.close()

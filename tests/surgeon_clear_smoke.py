@@ -12,9 +12,9 @@ driver='''window.sliceTest={get state(){return state},get hp(){return player.hp}
    if(move)keys.add(move>0?'d':'a');
    if(b.windup>0&&b.move%3===0&&b.windup<.35&&p.onGround)pressed.add(' ');
    const threat=hazards.some(h=>h.owner==='b'&&h.delay<=.05&&Math.hypot(h.x-(p.x+9),h.y-(p.y+24))<48);
-   if(threat&&p.dash<=0&&p.sp>=12)pressed.add('shift');
-   if(p.finishWindow>0&&p.sp>=55&&p.cool[3]<=0)pressed.add('r');
-   else if(p.linkWindow>0&&p.sp>=24&&Math.abs(dist)<60)pressed.add('q');
+   if(threat&&p.dash<=0&&p.driveLock<=0&&p.sp>=12){keys.clear();keys.add(dir>0?'a':'d');pressed.add('shift');}
+   if((p.finishWindow>0||p.linkWindow>0)&&p.superMeter>=100)pressed.add('r');
+   else if(p.linkWindow>0&&p.cool[0]<=0&&p.sp>=14&&Math.abs(dist)<60)pressed.add('q');
    else if(p.attack<=0&&Math.abs(dist)<65)pressed.add('j');
   }update(1/60);pressed.clear();
  }

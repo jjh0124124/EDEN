@@ -2,7 +2,7 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={};
-  for(const [key,path] of Object.entries({mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
+  for(const [key,path] of Object.entries({sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
     const image=new Image();image.onload=()=>{art[key]=image;};image.src='assets/'+path;
   }
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
@@ -36,6 +36,12 @@ window.EdenPresentation = (() => {
     hit:[[100,590,260,300,190],[400,590,365,300,520],[785,590,365,300,925],[1180,590,355,300,1350]]
   };
   function drawCombatVFX(c,p){
+    if((p.sprite==='sweep'||p.sprite==='superburst')&&art.sweepVFX){
+      const phase=Math.min(3,Math.floor(Math.max(0,1-p.life/p.max)*4)),sweep=p.sprite==='sweep';
+      const frames=sweep?[[0,180,370,180,20],[370,105,425,320,400],[800,65,470,420,800],[1265,120,270,330,1270]]:[[0,550,290,440,250],[300,545,450,445,535],[755,550,440,435,960],[1195,580,340,400,1380]];
+      c.save();c.globalAlpha=sweep?.85:.9;c.translate(Math.round(p.x),Math.round(p.y));c.scale(p.dir||1,1);
+      sprite(c,art.sweepVFX,frames[phase],(sweep?.11:.13)*(p.effectScale||1),sweep?285:760);c.restore();return;
+    }
     if(!art.combatVFX)return;
     const kind=p.sprite==='boost'?'boost':'hit',progress=Math.max(0,Math.min(.999,1-p.life/p.max));
     const frame=Math.floor(progress*4),scale=(kind==='boost'?.13:.12)*(p.effectScale||1);
@@ -271,12 +277,22 @@ window.EdenPresentation = (() => {
     return null;
   }
   function drawZero(c,p,t){
+    if(p.duelMode&&p.weaponMode==='recoil')p={...p,weaponMode:'rail'};
+    if(p.duelMode&&art.zeroDrive&&art.mechanisms&&p.attack>0&&p.stun<=0&&p.hp>0&&p.dash<=0&&['riser','hook','super'].includes(p.weaponMode)){
+      const elapsed=(p.attackDuration||.48)-p.attack;let image,frame,scale,baseline;
+      if(p.weaponMode==='riser'){const f=elapsed<.11?1:elapsed<.28?3:5;image=art.zeroDrive;frame=driveFrames[f];scale=.13;baseline=f<4?474:970;}
+      else if(p.weaponMode==='hook'){const f=elapsed<.06?0:elapsed<.14?1:elapsed<.28?2:3;image=art.zeroDuel;frame=duelFrames[1][f];scale=.17;baseline=667;}
+      else if(p.ultimateT>.66){image=art.zeroDrive;frame=driveFrames[4];scale=.13;baseline=970;}
+      else{const f=p.ultimateT>0?(p.ultimateT>.48?1:p.ultimateT>.30?2:p.ultimateT>.23?1:p.ultimateT>.08?2:3):(elapsed<.07?0:1);image=art.mechanisms;frame=mechanismFrames[2][f];scale=.17;baseline=985;}
+      c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);const clip=image===art.zeroDrive&&frame===driveFrames[4]?[[0,0],[465,0],[465,220],[390,220],[390,445],[0,445]]:image===art.mechanisms&&frame===mechanismFrames[2][1]?[[0,0],[400,0],[400,295],[25,295],[25,250],[0,250]]:null;sprite(c,image,frame,scale,baseline,clip);c.restore();return;
+    }
+
     if(art.zeroDuel&&p.hp>0&&p.stun<=0&&p.dash<=0&&p.onGround&&(p.parryFlash>0||p.charging&&p.parryWindow>0)){
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
       sprite(c,art.zeroDuel,duelFrames[0][1],.17,330);c.restore();return;
     }
     if(p.duelMode&&art.zeroDrive&&p.weaponMode==='drive'&&p.attack>0&&p.stun<=0&&p.hp>0&&p.dash<=0){
-      const elapsed=(p.attackDuration||.52)-p.attack,starts=[0,.05,.10,.14,.28,.34,.42,.49];
+      const elapsed=((p.attackDuration||.52)-p.attack)*.52/(p.attackDuration||.52),starts=[0,.05,.10,.14,.28,.34,.42,.49];
       let frame=0;for(let i=1;i<starts.length;i++)if(elapsed>=starts[i])frame=i;
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
       if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
@@ -344,5 +360,5 @@ window.EdenPresentation = (() => {
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
   function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {mechanisms:!!art.mechanisms,sentry:!!art.sentry,ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
+  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {sweepVFX:!!art.sweepVFX,mechanisms:!!art.mechanisms,sentry:!!art.sentry,ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
 })();

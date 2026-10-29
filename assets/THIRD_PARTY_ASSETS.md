@@ -32,3 +32,5 @@ The built-in image generator produced `characters/zero/zero-duel.png` (12 full-b
 - `characters/bosses/surgical-sentry.png`: built-in image generation, four transparent first-operation sentry poses (idle, aiming, firing, wreck). Source retained in generation workspace. Uses explicit body pivots, facing, and damage flash; reviewed alongside reused ZERO air/landing poses in `tests/sentry_air_smoke.py`.
 
 - `characters/zero/zero-mechanisms.png`: built-in image generation using the existing ZERO drive sheet as reference. Twelve full-body K piston/E heel-anchor/R scissor poses. Runtime pivots, contact-time selection, and two boundary clips isolate the sequences; reviewed through the actual renderer in `tests/compression_smoke.py`. Original generated PNG retained.
+
+- `effects/leg-sweep-overdrive.png`: transparent RGBA atlas used for the first-operation J sweep and confirmed R overdrive impacts. Four frames per effect; source rectangles isolate each sequence. Reviewed with the production renderer and `tests/overdrive_smoke.py`.

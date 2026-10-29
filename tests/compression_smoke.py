@@ -16,11 +16,8 @@ with sync_playwright() as p:
     page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
     page.evaluate('compressionTest.setup()');page.keyboard.press('j')
     page.wait_for_function('compressionTest.p.linkWindow>0')
-    page.keyboard.down('k');page.wait_for_function('compressionTest.p.charging')
-    assert page.evaluate('compressionTest.p.parryWindow')==0
-    page.wait_for_function('compressionTest.p.chargeLevel===2',timeout=1200)
-    page.keyboard.up('k');page.wait_for_function('compressionTest.p.weaponMode==="heavy"')
-    page.wait_for_function('compressionTest.b.hp<compressionTest.b.maxHp-40')
+    page.keyboard.press('q');page.wait_for_function('compressionTest.p.weaponMode==="riser"')
+    page.wait_for_function('compressionTest.b.hp<=compressionTest.b.maxHp-30')
     page.evaluate('window.freezeReview=true;compressionTest.show()')
     page.wait_for_timeout(60);page.screenshot(path='/tmp/eden-compression-ordnance.png')
     count=page.evaluate('''()=>{
@@ -38,5 +35,5 @@ with sync_playwright() as p:
     }""")
     page.locator('#ordnance').screenshot(path='/tmp/eden-mechanisms-review.png')
     assert not errors,errors
-    print('PASS: real J→K compression→charged impact, no cancel parry, four production ordnance sprites, no JS errors')
+    print('PASS: real J→Q rising impact, no cancel parry, four production ordnance sprites, no JS errors')
     browser.close()
