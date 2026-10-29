@@ -256,3 +256,31 @@ test('SURGEON aimed volley leaves approach time after its distant projectile arr
   }
   assert.ok(recoveries[1]>recoveries[0]+1);
 });
+
+test('first-operation jump buffers a press just before landing without repeating held input',()=>{
+  const g=game();g.engage();g.player.y=172;g.player.onGround=false;g.player.vy=110;
+  g.keys.add(' ');g.press(' ');assert.ok(g.player.jumpBuffer>0);
+  for(let i=0;i<8&&g.player.vy>=0;i++)g.step(1/60);
+  assert.ok(g.player.vy<0);assert.equal(g.player.jumpBuffer,0);
+  frames(g,65);assert.equal(g.player.onGround,true);assert.equal(g.player.vy,0);
+});
+test('jump buffer expires when pressed too early and is cleared by damage',()=>{
+  const g=game();g.engage();g.player.y=80;g.player.onGround=false;g.player.vy=10;
+  g.press(' ');frames(g,50);assert.equal(g.player.onGround,true);assert.equal(g.player.jumpBuffer,0);
+  g.player.jumpBuffer=.1;g.player.damage(5,1);assert.equal(g.player.jumpBuffer,0);
+});
+test('short support grace permits one jump only and landing pose does not lock movement',()=>{
+  const g=game();g.engage();g.step();g.player.onGround=false;g.player.y-=4;
+  g.press(' ');assert.ok(g.player.vy<0);const vy=g.player.vy;g.press(' ');assert.ok(g.player.vy>vy);
+  g.player.y=177;g.player.vy=120;g.step();assert.ok(g.player.landing>0);
+  const x=g.player.x;g.keys.add('d');frames(g,4);assert.ok(g.player.x>x);g.press('j');assert.ok(g.player.attack>0);
+});
+
+test('destroying a first-operation sentry cancels its queued shot, not released projectiles',()=>{
+  for(const released of [false,true]){const g=game();g.startExplore();g.player.x=445;g.step();
+    const d=g.room.drones[0];d.t=0;g.room.drones[1].t=999;g.step();
+    const shot=g.hazards.find(h=>h.source===d);assert.ok(shot);
+    if(released)shot.delay=0;d.hp=0;g.step();
+    assert.equal(g.hazards.includes(shot),released);
+  }
+});

@@ -28,3 +28,5 @@ The built-in image generator produced `characters/zero/zero-duel.png` (12 full-b
 - `tests/reverse_drive_smoke.py` checks both actor facings and renders all effect frames. Higgsfield was unavailable; it was not used. Original generated source PNGs are retained.
 
 - `effects/surgical-ordnance.png`: built-in image generation, transparent RGBA atlas containing a surgical syringe, lancet, heel anchor, and rail projectile. Original retained in the generation workspace. Runtime crops, rotation and clipping align the artwork with existing attacks; `tests/compression_smoke.py` exercises the production renderer. Higgsfield was not used.
+
+- `characters/bosses/surgical-sentry.png`: built-in image generation, four transparent first-operation sentry poses (idle, aiming, firing, wreck). Source retained in generation workspace. Uses explicit body pivots, facing, and damage flash; reviewed alongside reused ZERO air/landing poses in `tests/sentry_air_smoke.py`.
