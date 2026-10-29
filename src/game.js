@@ -137,7 +137,7 @@
       return true;
     }
     hurtbox(){return {x:this.x+4,y:this.y+8,w:11,h:this.h-12};}
-    damage(n,dir){ if(this.inv>0||this.hp<=0||boss?.dead)return;this.charging=false;this.charge=0;this.buffer=null;this.pendingJump=false;if(this.duelMode){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0);this.attack=0;this.combo=0;this.comboT=0;}this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;if(this.weaponMode==='crown'){slashes=slashes.filter(s=>s.kind!=='guillotine'||s.delay<=0);this.attack=0;}this.hp-=Math.max(1,Math.round(n*(1-Math.min(.4,augments[2]*.08))));chain=0;chainTimer=0;this.vx=dir*95;this.vy=-90;this.onGround=false;this.inv=.55;this.stun=.18;shake=Math.max(shake,1.8);hitstop=Math.max(hitstop,.04);if(this.duelMode)spriteEffect('hit',this.x+9,this.y+24,dir,.2,.85);else burst(this.x+9,this.y+20,RED,6,70);audio.noise(.07,.04);audio.tone(52,.11,'sawtooth',.04,20); if(this.hp<=0){this.hp=0;deathTimer=1.4;defeatCount++;} }
+    damage(n,dir){ if(this.inv>0||this.hp<=0||boss?.dead)return;this.charging=false;this.charge=0;this.buffer=null;this.pendingJump=false;if(this.duelMode){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0);hazards=hazards.filter(h=>h.owner!=='p'||!(h.delay>0));this.attack=0;this.combo=0;this.comboT=0;}this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;if(this.weaponMode==='crown'){slashes=slashes.filter(s=>s.kind!=='guillotine'||s.delay<=0);this.attack=0;}this.hp-=Math.max(1,Math.round(n*(1-Math.min(.4,augments[2]*.08))));chain=0;chainTimer=0;this.vx=dir*95;this.vy=-90;this.onGround=false;this.inv=.55;this.stun=.18;shake=Math.max(shake,1.8);hitstop=Math.max(hitstop,.04);if(this.duelMode)spriteEffect('hit',this.x+9,this.y+24,dir,.2,.85);else burst(this.x+9,this.y+20,RED,6,70);audio.noise(.07,.04);audio.tone(52,.11,'sawtooth',.04,20); if(this.hp<=0){this.hp=0;deathTimer=1.4;defeatCount++;} }
     update(dt){
       for(const key of ['parryWindow','parryLock','parryFollow','parryFlash'])this[key]=Math.max(0,this[key]-dt);
       this.driveTime=Math.max(0,this.driveTime-dt);if(!this.driveTime)this.reverseDrive=0;
@@ -152,8 +152,8 @@
         let move=(keys.has('d')?1:0)-(keys.has('a')?1:0); if(move&&this.dash<=0&&!(this.attack>0&&(this.weaponMode==='crown'||this.duelMode)))this.face=move;
         this.vx=this.dash>0?(this.duelMode?this.dashDir:this.face)*300:lerp(this.vx,move*(this.charging?70:this.duelMode&&this.attack>0&&this.onGround?54:112),clamp(dt*14,0,1));
         if((pressed.has(' ')||pressed.has('space')||pressed.has('arrowup'))&&this.onGround){this.vy=-205;this.onGround=false;audio.tone(110,.08,'square',.025,45);}
-        if(pressed.has('shift')&&this.dash<=0&&this.sp>=12){this.charging=false;this.charge=0;this.buffer=null;this.stepRemaining=0;this.finishWindow=0;this.dash=.28;this.inv=.34;this.sp-=12;this.dashDir=this.duelMode?(move||this.face):this.face;this.vx=this.dashDir*300;if(this.duelMode)spriteEffect('boost',this.x+9,this.y+this.h-10,this.dashDir,.22,.7);else burst(this.x+10,this.y+35,'#bbc0c3',8,45);audio.tone(75,.1,'sawtooth',.03,30);}
-        if(this.buffer?.key==='k'&&this.attack<=0&&this.dash<=0&&!this.charging){if(this.buffer.parry&&this.onGround&&this.inv<=0&&this.parryLock<=0){this.parryWindow=.12;this.parryLock=.7;}this.buffer=null;this.charging=true;this.charge=0;this.chargeLevel=0;audio.tone(90,.12,'triangle',.035,180);}
+        if(pressed.has('shift')&&this.dash<=0&&this.sp>=12){if(this.duelMode){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0);hazards=hazards.filter(h=>h.owner!=='p'||!(h.delay>0));this.attack=0;this.combo=0;this.comboT=0;this.linkWindow=0;}this.charging=false;this.charge=0;this.buffer=null;this.stepRemaining=0;this.finishWindow=0;this.dash=.28;this.inv=.34;this.sp-=12;this.dashDir=this.duelMode?(move||this.face):this.face;this.vx=this.dashDir*300;if(this.duelMode)spriteEffect('boost',this.x+9,this.y+this.h-10,this.dashDir,.22,.7);else burst(this.x+10,this.y+35,'#bbc0c3',8,45);audio.tone(75,.1,'sawtooth',.03,30);}
+        if(this.buffer?.key==='k'&&(this.attack<=0||this.duelMode&&this.linkWindow>0)&&this.dash<=0&&!this.charging){const compressed=this.duelMode&&this.attack>0&&this.linkWindow>0;if(compressed){this.attack=0;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0);}if(!compressed&&this.buffer.parry&&this.onGround&&this.inv<=0&&this.parryLock<=0){this.parryWindow=.12;this.parryLock=.7;}this.buffer=null;this.charging=true;this.charge=compressed?.18:0;this.chargeLevel=0;audio.tone(90,.12,'triangle',.035,180);}
         if(this.charging&&this.parryFollow>0&&this.reverseDrive>0&&this.buffer?.key==='q'){this.charging=false;this.charge=0;this.parryWindow=0;}
         if(this.charging&&this.parryFollow>0&&(pressed.has('j')||this.buffer?.key==='j')){this.charging=false;this.charge=0;this.parryWindow=0;this.parryFollow=0;this.buffer=null;this.strike(false);}
         if(this.charging){
@@ -268,7 +268,7 @@
       if(this.phase===2&&!this.protocolUsed&&this.windup<=0&&this.recovery<=0){
         this.protocolUsed=true;this.beginProtocolCast(0);return;
       }
-      if(this.windup>0){this.windup-=dt;if(this.windup<=0){this.act();this.recovery=[1.2,1.45,1.35][this.move%3];this.t=this.recovery+.55-(this.phase===2?.15:0);}return;}
+      if(this.windup>0){this.windup-=dt;if(this.windup<=0){this.act();this.recovery=[1.2,1.45,1.35][this.move%3];if(this.move%3===2){const muzzle=this.x+20+this.dir*58;this.recovery+=clamp(Math.abs((this.target?.x??muzzle)-muzzle)/(this.phase===2?120:105)-.4,0,1.25);}this.t=this.recovery+.55-(this.phase===2?.15:0);}return;}
       if(this.counterReady&&!(this.recovery>0)&&!this.protocol){
         this.counterReady=false;this.move=2;this.target={x:player.x+9,y:player.y+23};this.dir=this.target.x<this.x?-1:1;
         this.windup=this.windupMax=.7;message('RESECTION // 후퇴 후 견제 — 발사 방향 고정',.8);audio.tone(390,.1,'triangle',.025);return;
@@ -382,6 +382,7 @@
     }
     for(const h of hazards){
       if(h.delay>0){
+        if(player.duelMode&&['pillar','syringe','needle','rail'].includes(h.kind)){ctx.save();ctx.globalAlpha=.4+.15*Math.sin(time*18);P.drawOrdnance(ctx,{...h,y:h.kind==='pillar'?FLOOR:h.y});ctx.restore();continue;}
         ctx.globalAlpha=.3+Math.sin(time*25)*.12;ctx.fillStyle=RED;
         if(h.kind==='pillar')ctx.fillRect(h.x-9,FLOOR-62,18,62);
         else if(h.kind==='beam')ctx.fillRect(h.x,h.y,h.w,h.h);
@@ -391,6 +392,7 @@
         else P.ring(ctx,h.x,h.y,11,RED);
         ctx.globalAlpha=1;continue;
       }
+      if(player.duelMode&&P.drawOrdnance(ctx,h))continue;
       if(h.kind==='warn'){P.line(ctx,h.x,h.y,h.x,FLOOR,RED);continue;}
       if(h.kind==='pillar'){
         const color=h.owner==='p'?'#86f4ef':RED,extension=Math.min(1,h.life*8);
@@ -508,7 +510,7 @@
     ctx.fillStyle='#9ba6b6';ctx.font='8px sans-serif';ctx.fillText('코어 강화 +'+upgrade+'  /  회수 기록 '+archiveCount+'  /  ENTER — 구역 진입',30,233);
   }
   function drawHUD(){statusHUD();
-    if(player.duelMode){ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Q 회수 추진':'K 패링 · 정밀 회피 → Q 추진력 회수',22,53);}
+    if(player.duelMode){ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Q 회수 추진':'J 적중 → K 압축 / 패링·회피 → Q 회수',22,53);}
 
     if(boss?.d.type==='surgeon'&&(boss.retreat||boss.anchorTime>0)&&!boss.dead){ctx.fillStyle='#86f4ef';ctx.font='7px sans-serif';ctx.textAlign='center';ctx.fillText(boss.anchorTime>0?'HEEL ANCHOR / 봉합 이동 고정':'SUTURE STEP / 추격 · E로 이동 고정',240,53);ctx.textAlign='left';}
     if(boss?.d.type==='surgeon'&&boss.protocol&&!boss.dead){

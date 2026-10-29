@@ -62,7 +62,15 @@ test('rapid repeated presses cannot overlap attack startups',()=>{const g=game()
 test('both walls contain dash and attacks without trapping the player',()=>{for(const [x,face,key] of [[8,-1,'d'],[453,1,'a']]){const g=game();g.engage();g.player.x=x;g.player.face=face;g.press('shift');g.press('j');frames(g,25);assert.ok(g.player.x>=8&&g.player.x<=453);g.keys.add(key);frames(g,20);assert.ok(face<0?g.player.x>30:g.player.x<430);}});
 test('air attack preserves horizontal control and returns to floor',()=>{const g=game();g.engage();const x=g.player.x;g.press(' ');g.keys.add('d');frames(g,6);g.press('j');frames(g,8);assert.equal(g.player.onGround,false);assert.ok(g.player.x>x+15);assert.ok(g.player.attack>0);frames(g,80);assert.equal(g.player.onGround,true);assert.equal(g.player.y+g.player.h,226);});
 test('hit during attack clears reservation and respects damage invulnerability',()=>{const g=game();g.engage();g.press('j');frames(g,6);g.press('j');g.player.damage(10,-1);assert.equal(g.player.buffer,null);assert.ok(g.player.stun>0);g.player.damage(10,1);assert.equal(g.player.hp,90);frames(g,42);g.player.damage(10,1);assert.equal(g.player.hp,80);});
-test('dash during attack preserves attack timing and clears pending follow-up',()=>{const g=game();g.engage();g.press('j');g.press('j');const duration=g.player.attackDuration;g.press('shift');assert.ok(g.player.dash>0);assert.equal(g.player.buffer,null);assert.equal(g.player.attackDuration,duration);assert.ok(g.player.attack>0);});
+test('first-operation dash disengages startup without leaving invisible future attacks',()=>{
+  for(const attack of ['j','q','w','e','r']){const g=game();g.engage();g.press(attack);g.press('shift');
+    assert.ok(g.player.dash>0);assert.equal(g.player.buffer,null);assert.equal(g.player.attack,0);
+    assert.equal(g.slashes.filter(s=>s.owner==='p'&&s.delay>0).length,0);
+    assert.equal(g.hazards.filter(h=>h.owner==='p'&&h.delay>0).length,0);
+    frames(g,40);assert.equal(g.boss.hp,g.boss.maxHp);
+  }
+  const g=game();g.engage(1);g.press('j');g.press('shift');assert.ok(g.player.attack>0);
+});
 test('boss dies during windup without emitting a late attack',()=>{const g=game();g.engage();g.boss.windup=.2;g.boss.move=1;g.boss.hurt(2000);frames(g,180);assert.equal(g.state,'reward');assert.equal(g.hazards.length,0);assert.equal(g.upgrade,1);});
 test('restart resets input, particles and camera feedback',()=>{const g=game();g.engage();g.player.damage(100,1);frames(g,100);assert.equal(g.state,'gameover');g.press('enter');assert.equal(g.state,'intro');assert.equal(g.player.hp,g.player.maxHp);assert.equal(g.player.buffer,null);assert.equal(g.feedback.shake,0);assert.equal(g.feedback.hitstop,0);assert.equal(g.feedback.particles,0);});
 test('jump input during hitstop is not lost',()=>{const g=game();g.engage();g.freeze(.065);g.press(' ');frames(g,6);assert.equal(g.player.onGround,false);assert.ok(g.player.vy<0);});
@@ -195,7 +203,7 @@ test('first-operation confirmed J can link into E without bypassing SP or cooldo
   const g=game();g.engage();g.player.x=g.boss.x-35;g.player.strike(false);frames(g,6);assert.ok(g.player.linkWindow>0);assert.ok(g.player.attack>0);g.press('e');frames(g,4);assert.equal(g.player.weaponMode,'pile');assert.equal(g.player.linkWindow,0);assert.ok(g.player.cool[2]>0);
   const h=game();h.engage();h.player.strike(false);h.player.linkWindow=.2;h.player.cool[2]=1;h.player.skill(2);assert.equal(h.player.weaponMode,'kick');
 });
-test('first-operation backdash follows held movement without flipping an active attack',()=>{const g=game();g.engage();g.player.x=200;g.player.face=1;g.player.strike(false);g.keys.add('a');g.press('shift');frames(g,5);assert.ok(g.player.x<180);assert.equal(g.player.face,1);assert.ok(g.player.attack>0);});
+test('first-operation backdash cancels attack while preserving facing',()=>{const g=game();g.engage();g.player.x=200;g.player.face=1;g.player.strike(false);g.keys.add('a');g.press('shift');frames(g,5);assert.ok(g.player.x<180);assert.equal(g.player.face,1);assert.equal(g.player.attack,0);});
 
 test('reverse drive is earned through defense, expires, and is not active in later bosses',()=>{
   const g=parrySetup();g.step();assert.equal(g.player.reverseDrive,1);assert.ok(g.player.driveTime>5);g.freeze(0);g.keys.clear();frames(g,370);assert.equal(g.player.reverseDrive,0);
@@ -210,4 +218,41 @@ test('propulsion advances without phasing through the boss or escaping arena wal
 });
 test('boss retreat becomes a telegraphed counter instead of free idle time',()=>{
   const g=game();g.engage();g.boss.x=300;g.player.x=255;g.boss.hurt(43);g.freeze(0);frames(g,80);assert.equal(g.boss.move,2);assert.ok(g.boss.windup>0);const aim=g.boss.target.x;g.player.x=30;frames(g,5);assert.equal(g.boss.target.x,aim);assert.equal(g.player.hp,100);
+});
+
+test('first-operation hit-confirm compresses K without granting a cancel parry',()=>{
+  const g=game();g.engage();g.player.x=g.boss.x-35;g.player.strike(false);
+  for(let i=0;i<20&&g.player.linkWindow<=0;i++)g.step(1/60);
+  assert.ok(g.player.linkWindow>0);g.keys.add('k');g.press('k');
+  for(let i=0;i<8&&!g.player.charging;i++)g.step(1/60);
+  assert.equal(g.player.charging,true);assert.equal(g.player.attack,0);
+  assert.ok(g.player.charge>=.18&&g.player.charge<.23);
+  assert.equal(g.player.parryWindow,0);assert.equal(g.player.linkWindow,0);
+  frames(g,30);assert.equal(g.player.chargeLevel,2);
+  g.keys.delete('k');g.step();assert.equal(g.slashes.at(-1).interrupt,true);
+});
+test('whiff cannot compress K or bypass attack recovery',()=>{
+  const g=game();g.engage();g.player.strike(false);g.keys.add('k');g.press('k');
+  assert.equal(g.player.charging,false);assert.ok(g.player.attack>0);
+});
+test('first-operation damage cancels uncommitted ordnance but preserves released shots',()=>{
+  for(const i of [1,2]){const g=game();g.engage();g.player.skill(i);
+    assert.equal(g.hazards.length,1);g.player.damage(10,-1);assert.equal(g.hazards.length,0);
+    frames(g,40);assert.equal(g.boss.hp,g.boss.maxHp);
+  }
+  const g=game();g.engage();g.player.skill(1);g.hazards[0].delay=0;
+  g.player.damage(10,-1);assert.equal(g.hazards.length,1);
+  const later=game();later.engage(1);later.player.skill(2);later.player.damage(10,-1);
+  assert.equal(later.hazards.length,1);
+});
+
+test('SURGEON aimed volley leaves approach time after its distant projectile arrives',()=>{
+  const recoveries=[];
+  for(const x of [280,60]){const g=game();g.engage();g.player.x=x;
+    g.boss.move=2;g.boss.dir=-1;g.boss.target={x:x+9,y:201};g.boss.windup=.01;
+    g.step(1/60);const recovery=g.boss.recovery;recoveries.push(recovery);
+    assert.ok(recovery>=1.35&&recovery<=2.6);assert.equal(g.hazards.length,3);
+    g.player.x=440;g.step(1/60);assert.ok(g.boss.recovery<recovery);
+  }
+  assert.ok(recoveries[1]>recoveries[0]+1);
 });

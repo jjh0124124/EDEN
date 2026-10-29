@@ -120,7 +120,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(40)
     page.keyboard.press('Shift')
     page.wait_for_timeout(40)
-    assert page.evaluate('combatTest.player.dash>0 && combatTest.player.attack>0')
+    assert page.evaluate('combatTest.player.dash>0 && combatTest.player.attack===0')
     page.evaluate('combatTest.boss.windup=.2;combatTest.boss.hurt(9999)')
     page.wait_for_function('combatTest.state==="reward"')
     page.evaluate('combatTest.arena();combatTest.player.damage(999,1)')

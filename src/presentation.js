@@ -2,7 +2,7 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={};
-  for(const [key,path] of Object.entries({zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
+  for(const [key,path] of Object.entries({ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
     const image=new Image();image.onload=()=>{art[key]=image;};image.src='assets/'+path;
   }
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
@@ -36,6 +36,29 @@ window.EdenPresentation = (() => {
     const frame=Math.floor(progress*4),scale=(kind==='boost'?.13:.12)*(p.effectScale||1);
     c.save();c.globalAlpha=1;c.translate(Math.round(p.x),Math.round(p.y));c.scale(p.dir||1,1);
     sprite(c,art.combatVFX,effectFrames[kind][frame],scale,kind==='boost'?274:738);c.restore();
+  }
+  // Four isolated RGBA sprites; shared renderer keeps telegraphs aligned with threats.
+  function drawOrdnance(c,h){
+    if(!art.ordnance)return false;
+    const frames={syringe:[245,30,140,565],needle:[655,260,565,115],pillar:[235,650,160,550],rail:[645,860,590,150]};
+    const f=frames[h.kind];if(!f)return false;
+    c.save();c.translate(Math.round(h.x),Math.round(h.y));
+    if(h.kind==='needle'||h.kind==='rail')c.rotate(Math.atan2(h.vy||0,h.vx||1));
+    const scale=h.kind==='pillar'?.115:h.kind==='syringe'?.055:h.kind==='rail'?.07:.055;
+    const w=f[2]*scale,height=f[3]*scale;
+    if(h.kind==='pillar'){
+      // Extend from the floor without changing the authored silhouette.
+      const extension=h.delay>0?1:Math.min(1,Math.max(.15,(.45-h.life)/.06),h.life/.09);
+      c.beginPath();c.rect(-w/2,-height*extension,w,height*extension);c.clip();
+      c.drawImage(art.ordnance,...f,-w/2,-height,w,height);
+    }else{
+      // Keep the sharp tip at the collision core, not half a sprite ahead of it.
+      c.filter='brightness(1.25)';
+      const x=h.kind==='syringe'?-w/2:-w+(h.kind==='rail'?8:4);
+      const y=h.kind==='syringe'?-height+5:-height/2;
+      c.drawImage(art.ordnance,...f,x,y,w,height);
+    }
+    c.restore();return true;
   }
   function sprite(c,image,frame,scale,baseline,clip){
     const [x,y,w,h,anchor]=frame;
@@ -292,5 +315,5 @@ window.EdenPresentation = (() => {
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
   function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,duelPose,drawCombatVFX,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
+  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
 })();

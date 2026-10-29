@@ -26,3 +26,5 @@ The built-in image generator produced `characters/zero/zero-duel.png` (12 full-b
 - `characters/zero/zero-drive.png`: built-in image generation, 8 full-body propulsion attack poses; existing ZERO sheet used as reference. Per-frame source rectangles, pelvis anchors, and a boundary clip isolate the attack frames.
 - `effects/neural-impact.png`: built-in image generation, 4 thruster frames and 4 metal impact/debris frames, transparent RGBA. Explicit emitter pivots align each sequence; runtime uses nearest-neighbor image rendering, not text or newly drawn geometric substitutes.
 - `tests/reverse_drive_smoke.py` checks both actor facings and renders all effect frames. Higgsfield was unavailable; it was not used. Original generated source PNGs are retained.
+
+- `effects/surgical-ordnance.png`: built-in image generation, transparent RGBA atlas containing a surgical syringe, lancet, heel anchor, and rail projectile. Original retained in the generation workspace. Runtime crops, rotation and clipping align the artwork with existing attacks; `tests/compression_smoke.py` exercises the production renderer. Higgsfield was not used.
