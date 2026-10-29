@@ -89,7 +89,7 @@ test('K held during hitstop starts charging after it ends',()=>{const g=game();g
 test('first-operation Q registers both piston contacts at both frame rates',()=>{for(const dt of [1/60,1/30]){const g=game();g.engage();g.player.x=g.boss.x-35;g.player.skill(0);for(let i=0;i<40;i++)g.step(dt);assert.equal(g.boss.maxHp-g.boss.hp,39);}});
 
 test('K holds without attacking and releases a full charged strike',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'ㅏ'});frames(g,66);assert.equal(g.slashes.length,0);assert.equal(g.player.charging,true);assert.equal(g.player.chargeLevel,2);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();assert.equal(g.player.charging,false);assert.equal(g.slashes[0].dmg,52);assert.equal(g.slashes[0].interrupt,true);});
-test('tap and half charge have distinct damage and reach',()=>{for(const [held,damage,width] of [[5,22,62],[30,34,82]]){const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,held);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();assert.equal(g.slashes[0].dmg,damage);assert.equal(g.slashes[0].w,width);}});
+test('tap and half charge have distinct damage and reach',()=>{for(const [held,damage,width] of [[5,22,40],[30,34,44]]){const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,held);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();assert.equal(g.slashes[0].dmg,damage);assert.equal(g.slashes[0].w,width);}});
 test('dash, blur and pause cancel charging without an accidental attack',()=>{for(const cancel of ['dash','blur','pause']){const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,45);if(cancel==='dash')g.press('shift');else if(cancel==='blur')g.dispatch('blur',{});else g.press('escape');g.dispatch('keyup',{code:'KeyK',key:'k'});g.resume();frames(g,3);assert.equal(g.player.charging,false);assert.equal(g.slashes.length,0);}});
 test('charge is canceled immediately on taking damage',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,50);g.player.damage(5,1);g.dispatch('keyup',{code:'KeyK',key:'k'});frames(g,20);assert.equal(g.slashes.length,0);assert.equal(g.player.charging,false);});
 test('full charge interrupts SURGEON casting and creates a punish window',()=>{const g=game();g.engage();g.player.x=g.boss.x-80;g.player.face=1;g.boss.windup=.8;g.boss.windupMax=1;g.boss.target={x:80,y:200};g.player.strike(true,1);frames(g,12);assert.equal(g.boss.windup,0);assert.ok(g.boss.recovery>1.5);assert.equal(g.hazards.length,0);assert.ok(g.boss.maxHp-g.boss.hp>=65);});
@@ -283,4 +283,19 @@ test('destroying a first-operation sentry cancels its queued shot, not released 
     if(released)shot.delay=0;d.hp=0;g.step();
     assert.equal(g.hazards.includes(shot),released);
   }
+});
+
+test('J3 cannot displace SURGEON during committed release, recovery or protocol',()=>{
+  for(const state of ['release','recovery','protocol']){const g=game();g.engage();g.player.x=g.boss.x-35;g.player.combo=2;
+    if(state==='protocol')g.boss.protocol={wave:0,waiting:true,timer:2};else g.boss[state]=1;
+    const x=g.boss.x;g.player.strike(false);frames(g,12);assert.equal(g.boss.x,x);
+  }
+});
+test('charged piston reaches by propelling ZERO, remains inside walls and cannot cross the boss',()=>{
+  const g=game();g.engage();g.player.x=150;g.player.strike(true,1);const x=g.player.x;
+  frames(g,9);assert.ok(g.player.x>=x+31);assert.equal(g.slashes[0].w,48);
+  for(const [x,face] of [[453,1],[8,-1],[340,1]]){const h=game();h.engage();h.player.x=x;h.player.face=face;h.player.strike(true,1);frames(h,15);
+    assert.ok(h.player.x>=8&&h.player.x<=453);if(x===340)assert.ok(h.player.x+h.player.w<=h.boss.x);
+  }
+  const later=game();later.engage(1);later.player.strike(true,1);assert.equal(later.slashes[0].w,104);assert.equal(later.player.stepRemaining,0);
 });

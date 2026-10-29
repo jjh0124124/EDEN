@@ -2,7 +2,7 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={};
-  for(const [key,path] of Object.entries({sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
+  for(const [key,path] of Object.entries({mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
     const image=new Image();image.onload=()=>{art[key]=image;};image.src='assets/'+path;
   }
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
@@ -25,6 +25,11 @@ window.EdenPresentation = (() => {
   const driveFrames=[
     [15,35,365,450,235],[395,35,355,450,600],[750,35,405,450,1040],[1175,30,360,455,1380],
     [0,540,465,445,205],[470,530,310,455,660],[785,535,385,450,1040],[1190,535,330,450,1370]
+  ];
+  const mechanismFrames=[
+    [[10,35,365,300,240],[385,25,335,310,580],[720,25,495,310,968],[1215,25,320,310,1380]],
+    [[5,345,330,345,215],[375,340,335,350,570],[725,355,405,345,995],[1190,345,345,345,1380]],
+    [[0,705,390,290,235],[390,700,400,295,570],[785,700,350,295,975],[1195,700,340,295,1380]]
   ];
   const effectFrames={
     boost:[[165,160,200,210,292],[430,160,310,210,670],[760,160,390,210,1080],[1160,160,376,210,1475]],
@@ -283,6 +288,15 @@ window.EdenPresentation = (() => {
       if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
       sprite(c,art.zeroDrive,driveFrames[frame],.13,frame<4?474:970);c.restore();return;
     }
+    if(p.duelMode&&art.mechanisms&&p.hp>0&&p.stun<=0&&p.dash<=0&&(p.charging||p.attack>0&&['heavy','pile','crown'].includes(p.weaponMode))){
+      const row=p.charging||p.weaponMode==='heavy'?0:p.weaponMode==='pile'?1:2;
+      const elapsed=(p.attackDuration||.46)-(p.attack||0),contact=[.12,.28,.18][row];
+      const frame=p.charging?0:elapsed<contact*.45?0:elapsed<contact?1:elapsed<contact+[.20,.20,.24][row]?2:3;
+      c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
+      if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
+      const clip=row===0&&frame===2?[[0,0],[495,0],[495,200],[470,200],[470,310],[0,310]]:row===2&&frame===1?[[0,0],[400,0],[400,295],[25,295],[25,250],[0,250]]:null;
+      sprite(c,art.mechanisms,mechanismFrames[row][frame],.17,[330,680,985][row],clip);c.restore();return;
+    }
     const pose=duelPose(p);
     if(pose&&art.zeroDuel){
       c.save();c.translate(Math.round(p.x+9),Math.round(p.y+(p.h||48)));c.scale(p.face,1);
@@ -330,5 +344,5 @@ window.EdenPresentation = (() => {
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
   function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {sentry:!!art.sentry,ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
+  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {mechanisms:!!art.mechanisms,sentry:!!art.sentry,ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
 })();

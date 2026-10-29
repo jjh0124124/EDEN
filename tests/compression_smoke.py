@@ -31,6 +31,12 @@ with sync_playwright() as p:
     }''')
     assert count==4
     page.locator('#ordnance').screenshot(path='/tmp/eden-ordnance-review.png')
+    page.evaluate("""()=>{
+      const c=document.querySelector('#ordnance');c.width=1120;c.height=600;c.style.cssText='width:1120px;height:600px;aspect-ratio:auto;max-width:none';const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.fillStyle='#17212c';ctx.fillRect(0,0,1120,600);
+      const modes=['heavy','pile','crown'],durations=[.46,.7,.72],times=[[.01,.08,.16,.4],[.03,.18,.32,.6],[.01,.13,.24,.6]];
+      for(let row=0;row<3;row++)for(let f=0;f<4;f++){ctx.save();ctx.translate(f*280+140,row*200+178);ctx.scale(2.5,2.5);EdenPresentation.drawZero(ctx,{duelMode:true,hp:100,stun:0,dash:0,attack:durations[row]-times[row][f],attackDuration:durations[row],weaponMode:modes[row],charging:false,onGround:true,vy:0,vx:0,face:1,x:-9,y:-48,h:48,inv:0},0);ctx.restore();}
+    }""")
+    page.locator('#ordnance').screenshot(path='/tmp/eden-mechanisms-review.png')
     assert not errors,errors
     print('PASS: real J→K compression→charged impact, no cancel parry, four production ordnance sprites, no JS errors')
     browser.close()
