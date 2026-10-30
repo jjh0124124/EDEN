@@ -328,3 +328,41 @@ test('first-corridor sentry shots can be parried before reaching SURGEON',()=>{
 test('earned corridor meter carries into SURGEON but resets after a boss retry',()=>{
   const g=game();g.startExplore();g.player.superMeter=45;g.startBoss(0);assert.equal(g.player.superMeter,45);g.press('enter');g.player.damage(999,1);frames(g,100);g.press('enter');assert.equal(g.player.superMeter,0);
 });
+
+test('E catches retreat then Q breaks the anchored joint for one extended opening',()=>{
+  for(const dt of [1/30,1/60]){const g=game();g.engage();g.boss.x=300;g.player.x=255;g.boss.hurt(43);g.freeze(0);g.step(dt);g.boss.inv=0;
+    g.press('e');for(let i=0;i<30&&!g.player.linkWindow;i++)g.step(dt);
+    assert.ok(g.boss.anchorTime>0);assert.equal(g.boss.retreat,null);
+    g.freeze(0);const meter=g.player.superMeter;g.press('q');for(let i=0;i<30&&!g.boss.breakLock;i++)g.step(dt);
+    assert.ok(g.boss.breakLock>3.5);assert.equal(g.boss.anchorTime,0);assert.ok(g.boss.recovery>=.9);assert.ok(g.player.superMeter>meter+10);
+    const t=g.boss.recovery,m=g.player.superMeter;g.boss.anchorTime=1;
+    assert.equal(g.boss.breakAnchor(),false);assert.equal(g.player.superMeter,m);assert.equal(g.boss.recovery,t);
+  }
+});
+test('joint break rejects active attacks, protocol, phase change, neutral and later bosses',()=>{
+  for(const state of ['windup','release','tele','protocol','neutral','dead','superLock']){const g=game();g.engage();g.boss.anchorTime=1;g.boss.recovery=.5;
+    if(state==='neutral')g.boss.recovery=0;else g.boss[state]=state==='protocol'?{wave:0}:1;
+    assert.equal(g.boss.breakAnchor(),false,state);assert.equal(g.player.superMeter,0);assert.equal(g.boss.anchorTime,1);
+  }
+  const g=game();g.engage(1);g.boss.anchorTime=1;g.boss.recovery=1;assert.equal(g.boss.breakAnchor(),false);
+});
+test('W contact opens a recovery cancel, but a whiff or rejected hit does not',()=>{
+  for(const protectedBoss of [false,true]){const g=game();g.engage();g.player.x=g.boss.x-45;if(protectedBoss)g.boss.inv=1;
+    g.press('w');for(let i=0;i<20&&!g.player.linkWindow;i++)g.step(1/60);
+    if(protectedBoss){assert.equal(g.player.linkWindow,0);continue;}
+    assert.ok(g.player.attack>0);g.freeze(0);g.press('q');assert.equal(g.player.weaponMode,'riser');
+  }
+  const g=game();g.engage();g.press('w');frames(g,28);assert.equal(g.player.linkWindow,0);
+});
+test('late W projectile cannot grant a cancel to a different attack',()=>{
+  const g=game();g.engage();g.player.x=g.boss.x-150;g.press('w');
+  frames(g,27);g.player.strike(false);const hp=g.boss.hp;frames(g,9);
+  assert.ok(g.boss.hp<hp);assert.equal(g.player.linkWindow,0);
+});
+
+test('a projectile from an older W cannot confirm a newer W cast',()=>{
+  const g=game();g.engage();g.player.x=65;g.player.skill(1);const old=g.hazards[0];
+  g.player.cool[1]=0;g.player.skill(1);assert.notEqual(old.castId,g.player.attackSerial);
+  old.x=g.boss.x+5;old.y=g.boss.y+30;old.delay=0;const hp=g.boss.hp;g.step();
+  assert.ok(g.boss.hp<hp);assert.equal(g.player.linkWindow,0);
+});

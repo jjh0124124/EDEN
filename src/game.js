@@ -119,7 +119,7 @@
 
   class Fighter {
     constructor(){ this.reset(); }
-    reset(){ Object.assign(this,{duelMode:bossIndex===0,shiftIntent:null,superTarget:null,superMeter:0,ultimateT:0,parryTimer:0,driveLock:0,jumpBuffer:0,coyote:0,landing:0,stridePhase:0,reverseDrive:0,driveTime:0,stepSpeed:180,dashDir:1,x:65,y:FLOOR-48,w:19,h:48,vx:0,vy:0,face:1,hp:100,maxHp:100,sp:100,onGround:true,attack:0,attackKind:0,weaponMode:'kick',inv:0,dash:0,stun:0,combo:0,comboT:0,linkWindow:0,finishWindow:0,stepRemaining:0,stepDir:1,pendingJump:false,buffer:null,charging:false,charge:0,chargeLevel:0,parryWindow:0,parryLock:0,parryFollow:0,parryFlash:0,cool:[0,0,0,0]}); }
+    reset(){ Object.assign(this,{duelMode:bossIndex===0,attackSerial:0,shiftIntent:null,superTarget:null,superMeter:0,ultimateT:0,parryTimer:0,driveLock:0,jumpBuffer:0,coyote:0,landing:0,stridePhase:0,reverseDrive:0,driveTime:0,stepSpeed:180,dashDir:1,x:65,y:FLOOR-48,w:19,h:48,vx:0,vy:0,face:1,hp:100,maxHp:100,sp:100,onGround:true,attack:0,attackKind:0,weaponMode:'kick',inv:0,dash:0,stun:0,combo:0,comboT:0,linkWindow:0,finishWindow:0,stepRemaining:0,stepDir:1,pendingJump:false,buffer:null,charging:false,charge:0,chargeLevel:0,parryWindow:0,parryLock:0,parryFollow:0,parryFlash:0,cool:[0,0,0,0]}); }
     recoverDrive(){
       if(!this.duelMode||this.hp<=0||!(state==='explore'||state==='combat'&&boss?.d.type==='surgeon'&&!boss.dead))return;
       this.reverseDrive=1;this.driveTime=6;
@@ -178,7 +178,7 @@
         this.x+=step*this.stepDir;this.stepRemaining-=step;}
       this.x=clamp(this.x,8,W-this.w-8);if(this.duelMode&&this.onGround&&this.attack<=0&&this.dash<=0)this.stridePhase+=Math.abs(this.vx)*dt/9;
     }
-    strike(heavy,charge=0){this.stepSpeed=180;this.parryFlash=0;this.parryFollow=0;this.parryWindow=0;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.combo=heavy?0:(this.combo%3)+1;this.comboT=.85;this.attackDuration=heavy?.46:[.24,.27,.4][this.combo-1];this.attack=this.attackDuration;this.weaponMode=heavy?'heavy':'kick';if(!heavy&&this.combo===2){this.stepRemaining=18;this.stepDir=this.face;}this.attackKind=heavy?2:this.combo;const tier=charge>=.65?2:charge>=.4?1:0,reach=heavy?(this.duelMode?[40,44,48]:[62,82,104])[tier]:[40,32,52][this.combo-1],dmg=heavy?[22,34,52][tier]:[12,15,24][this.combo-1];if(heavy&&this.duelMode&&tier>0){this.stepRemaining=[0,16,32][tier];this.stepDir=this.face;this.stepSpeed=300;spriteEffect('boost',this.x+9,this.y+this.h-10,this.face,.18,.45+tier*.15,true);}slashes.push({owner:'p',followStartup:this.duelMode,origin:14,kind:heavy?'cleave':'kick',combo:this.combo,tier,x:this.face>0?this.x+14:this.x-reach,y:this.y-5,w:reach,h:48,life:.2,delay:heavy?.12:this.combo===3?.11:.06,dmg,interrupt:heavy&&tier===2,dir:this.face});audio.noise(.035,.012);audio.tone(heavy?120:[200,175,145][this.combo-1],.07,'triangle',.015,40);}
+    strike(heavy,charge=0){this.attackSerial++;this.stepSpeed=180;this.parryFlash=0;this.parryFollow=0;this.parryWindow=0;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;this.combo=heavy?0:(this.combo%3)+1;this.comboT=.85;this.attackDuration=heavy?.46:[.24,.27,.4][this.combo-1];this.attack=this.attackDuration;this.weaponMode=heavy?'heavy':'kick';if(!heavy&&this.combo===2){this.stepRemaining=18;this.stepDir=this.face;}this.attackKind=heavy?2:this.combo;const tier=charge>=.65?2:charge>=.4?1:0,reach=heavy?(this.duelMode?[40,44,48]:[62,82,104])[tier]:[40,32,52][this.combo-1],dmg=heavy?[22,34,52][tier]:[12,15,24][this.combo-1];if(heavy&&this.duelMode&&tier>0){this.stepRemaining=[0,16,32][tier];this.stepDir=this.face;this.stepSpeed=300;spriteEffect('boost',this.x+9,this.y+this.h-10,this.face,.18,.45+tier*.15,true);}slashes.push({owner:'p',followStartup:this.duelMode,origin:14,kind:heavy?'cleave':'kick',combo:this.combo,tier,x:this.face>0?this.x+14:this.x-reach,y:this.y-5,w:reach,h:48,life:.2,delay:heavy?.12:this.combo===3?.11:.06,dmg,interrupt:heavy&&tier===2,dir:this.face});audio.noise(.035,.012);audio.tone(heavy?120:[200,175,145][this.combo-1],.07,'triangle',.015,40);}
     duelInput(move){
       if(pressed.has('shift')&&this.driveLock<=0&&this.sp>=12){
         const intent=this.shiftIntent??move;this.shiftIntent=null;
@@ -203,10 +203,10 @@
       if(i===3&&this.superMeter<100){message('OVERDRIVE / 공격·방어로 게이지 충전',.7);return;}
       this.charging=false;this.parryWindow=0;this.buffer=null;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;
       this.sp-=costs[i];if(i<3)this.cool[i]=[.65,.9,.8][i];
-      this.weaponMode=['riser','recoil','hook','super','drive'][i];this.attackDuration=[.48,.42,.4,.48,.44][i];this.attack=this.attackDuration;this.attackKind=3;
+      this.attackSerial++;this.weaponMode=['riser','recoil','hook','super','drive'][i];this.attackDuration=[.48,.42,.4,.48,.44][i];this.attack=this.attackDuration;this.attackKind=3;
       const melee=(kind,delay,w,h,dmg,extra={})=>slashes.push({owner:'p',followStartup:true,origin:10,kind,x:this.face>0?this.x+10:this.x-w,y:this.y-5,w,h,delay,life:.12,dmg,dir:this.face,...extra});
       if(i===0){if(this.onGround){this.vy=-205;this.onGround=false;}else this.vy=Math.max(this.vy,30);this.stepRemaining=12;this.stepDir=this.face;this.stepSpeed=180;melee('riser',.11,40,65,23,{offsetY:this.vy>0?0:-18});}
-      if(i===1)hazards.push({kind:'rail',owner:'p',x:this.x+9+this.face*20,y:this.y+30,vx:this.face*300,vy:0,r:6,delay:.16,life:1.2,dmg:22,followWeapon:true,recoil:true,dir:this.face});
+      if(i===1)hazards.push({kind:'rail',owner:'p',x:this.x+9+this.face*20,y:this.y+30,vx:this.face*300,vy:0,r:6,delay:.16,life:1.2,dmg:22,followWeapon:true,recoil:true,castId:this.attackSerial,dir:this.face});
       if(i===2)melee('hook',.14,52,48,18);
       if(i===3){this.superMeter=0;hitstop=Math.max(hitstop,.045);melee('super',.16,44,54,10,{superStarter:true});audio.tone(65,.18,'triangle',.05,220);}
       if(i===4){const boosted=this.reverseDrive>0;this.driveLock=.5;this.stepRemaining=boosted?72:56;this.stepDir=this.face;this.stepSpeed=280;this.inv=.08;this.reverseDrive=0;this.driveTime=0;
@@ -302,6 +302,13 @@
       if(this.retreat){this.retreat=null;this.recovery=Math.max(this.recovery||0,.65);this.t=Math.max(this.t,1);}
       message('HEEL ANCHOR // 봉합 이동 고정',.8);audio.tone(105,.12,'triangle',.04,45);
     }
+    breakAnchor(){
+      if(this.d.type!=='surgeon'||this.dead||this.tele>0||this.windup>0||this.release>0||this.protocol||this.superLock>0||!(this.anchorTime>0)||!(this.recovery>0)||this.breakLock>0)return false;
+      this.anchorTime=0;this.breakLock=4;this.recovery=Math.min(1.65,Math.max(.95,this.recovery+.35));this.t=Math.max(this.t,this.recovery+.4);
+      this.hitFlash=.12;this.recoil=player.face*4;player.superMeter=Math.min(100,player.superMeter+10);
+      hitstop=Math.max(hitstop,.055);
+      audio.tone(95,.1,'triangle',.035,38);message('JOINT BREAK // 관절 파괴 — 연계 기회',.85);return true;
+    }
     updateRetreat(dt){
       const r=this.retreat;
       if(r.warn>0){r.warn=Math.max(0,r.warn-dt);return;}
@@ -363,9 +370,13 @@
   function impact(x,y,power){particles.push({x,y,vx:0,vy:0,life:.16,max:.16,c:PALE,size:0,impact:power>=22?22:13});}
   function confirmHit(s,target){
     if(player.hp<=0||target.dead)return;
-    if(['kick','cleave','riser','hook'].includes(s.kind))player.linkWindow=.24;if(s.kind==='riser')player.finishWindow=.3;if(s.kind==='hook'&&target.d?.type==='surgeon')target.anchor();
+    if(['kick','cleave','riser','hook'].includes(s.kind))player.linkWindow=.24;if(s.kind==='riser'){player.finishWindow=.3;if(player.duelMode&&target.d?.type==='surgeon')target.breakAnchor();}if(s.kind==='hook'&&target.d?.type==='surgeon')target.anchor();
     if(s.kind==='triple'&&s.segment===2&&target.hp>0){player.finishWindow=.32;message(player.duelMode?(player.superMeter>=100?'CONFIRM // R: OVERDRIVE':'LINK // Q 상승 · E 걸기'):'CONFIRM // R: 압착 단두각',.65);}
     if(s.kind==='kick'&&s.combo===3&&target.d?.type==='surgeon'&&target.windup<=0&&target.tele<=0&&!target.protocol&&!(target.release>0)&&!(target.recovery>0))target.x=clamp(target.x+s.dir*24,30,405);
+  }
+  function confirmRecoil(h,target){
+    if(!player.duelMode||!h.recoil||h.castId!==player.attackSerial||player.weaponMode!=='recoil'||player.attack<=0||player.stun>0||player.hp<=0||target.hp<=0||target.dead)return;
+    player.linkWindow=Math.max(player.linkWindow,.22);
   }
   function warnLine(x,d=.5){hazards.push({kind:'warn',owner:'x',x:x-1,y:15,w:2,h:FLOOR-15,life:d});}
   function message(text,life=1){messages.push({text,life,max:life});}
@@ -383,7 +394,7 @@
       }
       continue;}h.life-=dt;h.x+=(h.vx||0)*dt;h.y+=(h.vy||0)*dt;if(h.kind==='ember')h.vy+=250*dt;if(h.kind==='drone'){h.vy+=(player.y-h.y)*dt*2;h.vx+=(player.x-h.x)*dt*.3;}
       let box=h.kind==='pillar'?{x:h.x-9,y:FLOOR-62,w:18,h:62}:h.kind==='beam'?{x:h.x,y:h.y,w:h.w,h:h.h}:{x:h.x-(h.r||4),y:h.y-(h.r||4),w:(h.r||4)*2,h:(h.r||4)*2};
-      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player.hurtbox())){const parried=player.duelMode&&h.kind==='needle'&&player.tryParry({kind:'scalpel',projectile:true,parryable:true,owner:'b',dir:h.vx>0?1:-1});if(!parried){if(player.dash>0){player.recoverDrive();player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);}h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&boss.inv<=0&&!boss.dead&&player.hp>0;boss.hurt(h.dmg);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}}
+      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player.hurtbox())){const parried=player.duelMode&&h.kind==='needle'&&player.tryParry({kind:'scalpel',projectile:true,parryable:true,owner:'b',dir:h.vx>0?1:-1});if(!parried){if(player.dash>0){player.recoverDrive();player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);}h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&boss.inv<=0&&!boss.dead&&player.hp>0;const accepted=boss.inv<=0&&!boss.dead&&player.hp>0;boss.hurt(h.dmg);if(accepted)confirmRecoil(h,boss);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;confirmRecoil(h,d);contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}}
     }
     hazards=hazards.filter(h=>h.life>0&&!h.done&&h.x>-50&&h.x<W+50&&h.y<H+50);
     particles.forEach(p=>{p.life-=dt;if(p.sprite){if(p.follow){p.x=player.x+9;p.y=player.y+player.h-10;}return;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.vx*=.97;});particles=particles.filter(p=>p.life>0);
@@ -559,9 +570,9 @@
     ctx.fillStyle='#9ba6b6';ctx.font='8px sans-serif';ctx.fillText('코어 강화 +'+upgrade+'  /  회수 기록 '+archiveCount+'  /  ENTER — 구역 진입',30,233);
   }
   function drawHUD(){statusHUD();
-    if(player.duelMode){bar(280,46,170,4,player.superMeter,100,player.superMeter>=100?'#eee8df':RED);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText('R / OVERDRIVE '+Math.floor(player.superMeter)+'%',280,43);ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Shift 강화 추진':'J 연계 → Q 상승 · E 견제 / K 패링',22,53);}
+    if(player.duelMode){bar(280,46,170,4,player.superMeter,100,player.superMeter>=100?'#eee8df':RED);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText('R / OVERDRIVE '+Math.floor(player.superMeter)+'%',280,43);ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Shift 강화 추진':'J/W 적중 → Q·E 연계 / K 패링',22,53);}
 
-    if(boss?.d.type==='surgeon'&&(boss.retreat||boss.anchorTime>0)&&!boss.dead){ctx.fillStyle='#86f4ef';ctx.font='7px sans-serif';ctx.textAlign='center';ctx.fillText(boss.anchorTime>0?'HEEL ANCHOR / 봉합 이동 고정':'SUTURE STEP / 추격 · E로 이동 고정',240,53);ctx.textAlign='left';}
+    if(boss?.d.type==='surgeon'&&(boss.retreat||boss.anchorTime>0)&&!boss.dead){ctx.fillStyle='#86f4ef';ctx.font='7px sans-serif';ctx.textAlign='center';ctx.fillText(boss.anchorTime>0?(boss.recovery>0&&boss.release<=0&&boss.windup<=0&&!boss.protocol&&!(boss.breakLock>0)?'Q / 관절 파괴 기회':'HEEL HOOK / 봉합 이동 고정'):'SUTURE STEP / 추격 · E로 이동 고정',240,53);ctx.textAlign='left';}
     if(boss?.d.type==='surgeon'&&boss.protocol&&!boss.dead){
       const p=boss.protocol;ctx.fillStyle='#10151d';ctx.fillRect(134,43,212,15);
       ctx.fillStyle=p.wave===2?'#86f4ef':'#ffc67a';ctx.font='7px sans-serif';ctx.textAlign='center';
