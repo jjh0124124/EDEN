@@ -5,7 +5,7 @@ const root = resolve(__dirname, '..');
 const out = resolve(root, 'dist');
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out);
-for (const name of ['index.html', 'styles.css', 'src', 'assets']) {
+for (const name of ['index.html', 'styles.css', 'src', 'assets', 'experiments']) {
   cpSync(resolve(root, name), resolve(out, name), { recursive: true });
 }
 writeFileSync(resolve(out, '.nojekyll'), '');
