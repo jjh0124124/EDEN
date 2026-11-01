@@ -8,7 +8,7 @@ with sync_playwright() as p:
  page=b.new_page(viewport={'width':1440,'height':1050});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
- page.goto('http://127.0.0.1:4174/',wait_until='networkidle');page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
+ page.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4174')+'/',wait_until='networkidle');page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
  page.evaluate('psiTest.setup()');page.keyboard.press('j');page.wait_for_function('psiTest.p.linkWindow>0');page.keyboard.press('q');page.wait_for_function('psiTest.p.weaponMode==="psiRise"');page.screenshot(path='/tmp/eden21-uppercut.png')
  page.wait_for_function('psiTest.p.onGround&&psiTest.p.attack<=0')
  page.evaluate('psiTest.guard()');page.keyboard.press('j');page.wait_for_function('psiTest.p.attack<=0&&psiTest.p.attackSerial>0');assert page.evaluate('psiTest.b.hp===psiTest.b.maxHp&&psiTest.p.linkWindow===0')

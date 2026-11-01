@@ -99,7 +99,7 @@ const normalHints=controlHints;
 controlHints=function(){normalHints();const node=document.querySelector('#lab-stats');if(node){const l=player.lab;node.textContent=labHints[concept]+' | '+(concept==='pressure'?`축압 ${l.pressure}/2 (${l.bankLife.toFixed(1)}초)`:concept==='thermal'?`열 ${Math.round(l.heat)}/100`:`포획 ${l.pin>0?'고정':'해제'} · 재포획 ${l.pinLock.toFixed(1)}초`);}for(const [key,label] of Object.entries({shift:'이동 Shift',j:'견제 / 분기 J',q:labLabels[0]+' Q',w:labLabels[1]+' W',e:labLabels[2]+' E'})){const button=document.querySelector('[data-key="'+key+'"]');if(button)button.textContent=label;}};
 function labRestart(){releaseInputs();dialogue=null;bossIndex=0;upgrade=0;augments=[0,0,0];startBoss(0);state='combat';player.face=1;}
 window.edenLab={concept,restart:labRestart,snapshot(){return {concept,state,hp:player.hp,bossHp:boss?.hp,phase:boss?.phase,x:player.x,y:player.y,face:player.face,attack:player.attack,mode:player.weaponMode,lab:{...player.lab,gripTarget:!!player.lab.gripTarget}};}};
-// This lab never advances into HOUND or writes the regular game's save key.
+// This lab never advances beyond SURGEON or writes the regular game's save key.
 const normalUpdate=update;
-update=function(dt){if(state==='reward'){if(pressed.has('enter'))labRestart();return;}normalUpdate(dt);};
+update=function(dt){if(state==='ending'){if(pressed.has('enter'))labRestart();return;}normalUpdate(dt);};
 labRestart();

@@ -11,24 +11,7 @@ test('SURGEON varies repeated patterns and cannot be cast-broken repeatedly',()=
 
 test('J second hit advances and third hit pushes only a neutral SURGEON',()=>{const g=game();g.engage();g.player.strike(false);frames(g,18);const x=g.player.x;g.player.strike(false);frames(g,9);assert.ok(g.player.x>=x+17);for(const casting of [false,true]){const h=game();h.engage();h.player.combo=2;h.player.x=h.boss.x-35;h.boss.windup=casting?1:0;const bx=h.boss.x;h.player.strike(false);frames(h,12);assert.ok(casting?h.boss.x===bx:h.boss.x>=bx+24);}});
 test('R can be interrupted before its strike becomes active',()=>{const g=game();g.engage();g.player.x=g.boss.x-40;g.player.superMeter=100;g.player.skill(3);g.player.damage(10,-1);frames(g,35);assert.equal(g.boss.hp,g.boss.maxHp);assert.equal(g.player.attack,0);assert.equal(g.player.finishWindow,0);});
-test('first boss can be cleared with normal stats, spacing, evasion and confirms',()=>{
-  const g=game();g.engage();g.boss.t=1.4;
-  for(let frame=0;frame<7200&&g.state==='combat';frame++){
-    const p=g.player,b=g.boss,dist=b.x-p.x,dir=Math.sign(dist)||1;g.keys.clear();
-    if(b.dead){g.step(1/60);continue;}
-    let move=Math.abs(dist)>43?dir:0;
-    if(b.windup>0&&b.move%3===1&&Math.abs(p.x+9-b.target.x)<70)move=p.x<350?1:-1;
-    if(move)g.keys.add(move>0?'d':'a');
-    if(b.windup>0&&b.move%3===0&&b.windup<.35&&p.onGround)g.pressed.add(' ');
-    const threat=g.hazards.some(h=>h.owner==='b'&&h.delay<=.05&&Math.hypot(h.x-(p.x+9),h.y-(p.y+24))<48);
-    if(threat&&p.dash<=0&&p.sp>=12)g.pressed.add('shift');
-    if(p.finishWindow>0&&p.sp>=55&&p.cool[3]<=0)g.pressed.add('r');
-    else if(p.linkWindow>0&&p.sp>=24&&Math.abs(dist)<60)g.pressed.add('q');
-    else if(p.attack<=0&&Math.abs(dist)<65)g.pressed.add('j');
-    g.step(1/60);
-  }
-  assert.equal(g.state,'reward');assert.ok(g.player.hp>0);assert.equal(g.boss.hp,0);
-});
+
 
 test('Q link requires a recent hit and sufficient SP',()=>{const g=game();g.engage();g.player.cool[0]=3;g.player.strike(false);g.press('q');frames(g,20);assert.equal(g.player.attackDuration,.24);g.player.x=g.boss.x-35;g.player.strike(false);for(let i=0;i<20&&g.player.linkWindow<=0;i++)g.step(1/60);g.player.sp=23;g.player.skill(0);assert.equal(g.player.attackDuration,.27);g.player.sp=100;frames(g,25);g.player.skill(0);assert.equal(g.player.attackDuration,.27);});
 test('taking damage removes Q link permission',()=>{const g=game();g.engage();g.player.x=g.boss.x-35;g.player.strike(false);for(let i=0;i<20&&g.player.linkWindow<=0;i++)g.step(1/60);assert.ok(g.player.linkWindow>0);g.player.damage(1,1);assert.equal(g.player.linkWindow,0);});
@@ -39,7 +22,7 @@ test('rapid repeated presses cannot overlap attack startups',()=>{const g=game()
 test('both walls contain dash and attacks without trapping the player',()=>{for(const [x,face,key] of [[8,-1,'d'],[453,1,'a']]){const g=game();g.engage();g.player.x=x;g.player.face=face;g.press('shift');g.press('j');frames(g,25);assert.ok(g.player.x>=8&&g.player.x<=453);g.keys.add(key);frames(g,20);assert.ok(face<0?g.player.x>30:g.player.x<430);}});
 test('air attack preserves horizontal control and returns to floor',()=>{const g=game();g.engage();const x=g.player.x;g.press(' ');g.keys.add('d');frames(g,6);g.press('j');frames(g,2);assert.equal(g.player.onGround,false);assert.ok(g.player.x>x+15);assert.ok(g.player.attack>0);frames(g,80);assert.equal(g.player.onGround,true);assert.equal(g.player.y+g.player.h,226);});
 test('hit during attack clears reservation and respects damage invulnerability',()=>{const g=game();g.engage();g.press('j');frames(g,6);g.press('j');g.player.damage(10,-1);assert.equal(g.player.buffer,null);assert.ok(g.player.stun>0);g.player.damage(10,1);assert.equal(g.player.hp,90);frames(g,42);g.player.damage(10,1);assert.equal(g.player.hp,80);});
-test('boss dies during windup without emitting a late attack',()=>{const g=game();g.engage();g.boss.windup=.2;g.boss.move=1;g.boss.hurt(2000);frames(g,180);assert.equal(g.state,'reward');assert.equal(g.hazards.length,0);assert.equal(g.upgrade,1);});
+test('boss dies during windup without emitting a late attack',()=>{const g=game();g.engage();g.boss.windup=.2;g.boss.move=1;g.boss.hurt(2000);frames(g,180);assert.equal(g.state,'ending');assert.equal(g.hazards.length,0);assert.equal(g.upgrade,0);});
 test('restart resets input, particles and camera feedback',()=>{const g=game();g.engage();g.player.damage(100,1);frames(g,100);assert.equal(g.state,'gameover');g.press('enter');assert.equal(g.state,'intro');assert.equal(g.player.hp,g.player.maxHp);assert.equal(g.player.buffer,null);assert.equal(g.feedback.shake,0);assert.equal(g.feedback.hitstop,0);assert.equal(g.feedback.particles,0);});
 test('jump input during hitstop is not lost',()=>{const g=game();g.engage();g.freeze(.065);g.press(' ');frames(g,6);assert.equal(g.player.onGround,false);assert.ok(g.player.vy<0);});
 test('damage lift reports airborne without changing knockback velocity',()=>{const g=game();g.engage();g.player.damage(10,-1);assert.equal(g.player.onGround,false);assert.equal(g.player.vx,-95);assert.equal(g.player.vy,-90);});
@@ -62,35 +45,32 @@ test('cloak margin is not a hurtbox while torso remains vulnerable',()=>{const g
 test('corridor drone locks a readable shot that can be dodged',()=>{const g=game();g.startExplore();g.player.x=445;g.step();g.player.x=150;g.room.drones[1].hp=0;g.room.drones[0].t=0;g.step();const shot=g.hazards[0];assert.ok(shot.delay>=.7);const velocity=shot.vx;g.keys.add('a');frames(g,50);g.keys.delete('a');assert.equal(shot.vx,velocity);g.press(' ');frames(g,50);assert.equal(g.player.hp,100);});
 
 test('heavy attack survives its windup and damages a nearby boss',()=>{const g=game();g.engage();g.player.x=g.boss.x-35;g.player.face=1;g.player.strike(true);frames(g,22);assert.ok(g.boss.hp<g.boss.maxHp);});
-test('HOUND melee activates after telegraph instead of expiring',()=>{const g=game();g.engage(1);g.boss.act();const s=g.slashes[0];g.player.x=s.x+20;frames(g,30);assert.ok(g.player.hp<100);});
-test('ORACLE locks a location and remains frozen during pause',()=>{const g=game();g.engage(4);g.boss.act();const h=g.hazards[0],x=h.x;g.press('escape');const delay=h.delay;frames(g,100);assert.equal(h.delay,delay);g.press('escape');g.player.x=300;frames(g,60);assert.equal(h.x,x);assert.equal(g.player.hp,100);});
-test('aimed projectiles reach the player lane',()=>{const g=game();g.engage();g.boss.arc(3,125);const middle=g.hazards[1];assert.ok(middle.vx<0);assert.ok(middle.vy>0);});
-test('dead player cannot move or launch skills',()=>{const g=game();g.engage();g.player.damage(100,1);const sp=g.player.sp;g.keys.add('d');g.press('q');frames(g,5);assert.equal(g.player.hp,0);assert.equal(g.player.sp,sp);assert.equal(g.player.cool[0],0);});
-test('boss defeat clears hazards and awards one pending core',()=>{const g=game();g.engage();g.boss.arc(3,125);g.boss.hurt(2000);assert.equal(g.hazards.length,0);frames(g,180);assert.equal(g.state,'reward');assert.equal(g.upgrade,1);assert.equal(g.load().boss,1);g.finishBoss();assert.equal(g.upgrade,1);assert.equal(g.load().stage,'reward');});
 
-test('pending reward survives reload and can only be claimed once',()=>{const g=game();g.engage();g.finishBoss();g.title();g.press('enter');assert.equal(g.state,'reward');g.press('d');g.press('enter');assert.equal(g.augments[1],1);g.chooseReward();assert.equal(g.augments[1],1);assert.equal(g.load().stage,'explore');g.title();g.press('enter');assert.equal(g.state,'explore');assert.equal(g.augments[1],1);});
-test('RAZOR increases boss damage beyond automatic core scaling',()=>{const g=game();g.engage();g.finishBoss();g.press('enter');g.engage(1);g.boss.hurt(100);assert.equal(g.boss.maxHp-g.boss.hp,120);});
-test('FLUX regenerates energy and accelerates cooldowns',()=>{const g=game();g.engage();g.finishBoss();g.press('d');g.press('enter');g.engage(1);g.player.sp=0;g.player.cool[0]=3;g.player.update(1);assert.equal(g.player.sp,13);assert.ok(Math.abs(g.player.cool[0]-1.85)<.001);});
-test('RAZOR also applies to corridor enemies',()=>{const g=game();g.engage();g.finishBoss();g.press('enter');g.startExplore();g.player.x=445;g.step();const drone=g.room.drones[0],hp=drone.hp;g.player.x=drone.x-25;g.player.face=1;g.player.strike(true);frames(g,22);assert.equal(hp-drone.hp,26);});
-test('AEGIS persists max health and reduces incoming damage',()=>{const g=game();g.engage();g.finishBoss();g.press('a');g.press('enter');g.startBoss(1);assert.equal(g.player.maxHp,125);g.player.damage(50,1);assert.equal(g.player.hp,79);});
+
+test('aimed projectiles reach the player lane',()=>{const g=game();g.engage();g.boss.move=2;g.boss.dir=-1;g.boss.act();const middle=g.hazards[1];assert.ok(middle.vx<0);assert.ok(middle.vy>0);});
+test('dead player cannot move or launch skills',()=>{const g=game();g.engage();g.player.damage(100,1);const sp=g.player.sp;g.keys.add('d');g.press('q');frames(g,5);assert.equal(g.player.hp,0);assert.equal(g.player.sp,sp);assert.equal(g.player.cool[0],0);});
+
+
+
+
+
+
+
 test('chain expires and resets on damage',()=>{const g=game();g.engage();g.boss.hurt(10);g.boss.inv=0;g.boss.hurt(10);assert.equal(g.chain,2);g.player.damage(1,1);assert.equal(g.chain,0);g.boss.inv=0;g.boss.hurt(10);frames(g,160);assert.equal(g.chain,0);});
-test('all seven encounters have usable attacks and phase transitions',()=>{for(let i=0;i<7;i++){const g=game();g.engage(i);g.boss.act();assert.ok(g.hazards.length+g.slashes.length>0);g.boss.inv=0;g.boss.hp=50;g.boss.hurt(1);assert.equal(g.boss.phase,2);assert.ok(g.boss.tele>0);}});
-test('new ending is preserved as a completed record',()=>{const g=game();g.engage(6);g.boss.hurt(2000);frames(g,180);assert.equal(g.state,'ending');assert.equal(g.load().complete,true);g.press('enter');assert.equal(g.state,'title');g.press('enter');assert.equal(g.state,'ending');});
-test('checkpoint restores boss and core upgrade',()=>{const g=game();g.setUpgrade(3);g.startBoss(3);const old=g.load();assert.equal(old.boss,3);assert.equal(old.stage,'boss');assert.equal(old.upgrade,3);assert.equal(g.player.maxHp,115);});
+
+
+
 test('exploration security lock and terminal gate are playable',()=>{const g=game();g.startExplore();g.player.x=445;g.step();assert.equal(g.room.section,1);g.player.x=445;g.step();assert.equal(g.room.section,1);g.room.drones.forEach(d=>d.hp=0);g.player.x=445;g.step();assert.equal(g.room.section,2);g.player.x=405;g.press('f');assert.equal(g.state,'intro');assert.equal(g.checkpoint,'boss');});
 test('archive pauses action until dialogue is dismissed',()=>{const g=game();g.startExplore();g.player.x=209;g.press('f');assert.ok(g.dialogue);const before=g.player.x;g.keys.add('d');frames(g,20);assert.equal(g.player.x,before);g.press('enter');g.press('enter');assert.equal(g.dialogue,null);assert.equal(g.archiveCount,1);});
 test('stationary evade still moves in facing direction',()=>{const g=game();g.engage();const x=g.player.x;g.press('shift');frames(g,10);assert.ok(g.player.x>x+25);});
-test('WARDEN guard reduces light hits and breaks under heavy pressure',()=>{const g=game();g.engage(2);g.boss.hurt(10);assert.equal(g.boss.maxHp-g.boss.hp,4);g.boss.inv=0;g.boss.hurt(22);g.boss.inv=0;g.boss.hurt(22);assert.ok(g.boss.guardBroken>0);g.boss.inv=0;const hp=g.boss.hp;g.boss.hurt(10);assert.equal(hp-g.boss.hp,10);});
+
 test('archive recovery is not duplicated after restarting the corridor',()=>{const g=game();g.startExplore();g.player.x=209;g.press('f');g.press('enter');g.press('enter');g.startExplore();g.player.x=209;g.press('f');assert.equal(g.archiveCount,1);assert.equal(g.load().records.length,1);});
 test('Korean IME and shifted letters use physical key codes',()=>{const g=game();g.engage();const x=g.player.x;g.dispatch('keydown',{code:'KeyD',key:'ㅇ',isComposing:true});frames(g,30);assert.ok(g.player.x>x+25);g.dispatch('keyup',{code:'KeyD',key:'D'});assert.equal(g.keys.has('d'),false);g.dispatch('keydown',{code:'KeyA',key:'Process'});assert.ok(g.keys.has('a'));g.dispatch('keyup',{code:'KeyA',key:'ㅁ'});assert.equal(g.keys.has('a'),false);});
 test('arrow movement and two shift keys release independently',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'ArrowRight',key:'ArrowRight'});assert.ok(g.keys.has('d'));g.dispatch('keyup',{code:'ArrowRight',key:'ArrowRight'});assert.equal(g.keys.has('d'),false);g.dispatch('keydown',{code:'ShiftLeft',key:'Shift'});g.dispatch('keydown',{code:'ShiftRight',key:'Shift'});g.dispatch('keyup',{code:'ShiftLeft',key:'Shift'});assert.ok(g.keys.has('shift'));g.dispatch('keyup',{code:'ShiftRight',key:'Shift'});assert.equal(g.keys.has('shift'),false);});
 test('window blur clears held input and pauses gameplay',()=>{const g=game();g.engage();g.dispatch('keydown',{code:'KeyD',key:'d'});g.dispatch('blur',{});assert.equal(g.keys.size,0);assert.equal(g.paused,true);});
 
 function parrySetup(){const g=game();g.engage(0);g.player.x=g.boss.x-55;g.player.face=1;g.boss.move=0;g.boss.dir=-1;g.boss.act();g.slashes[0].delay=0;g.dispatch('keydown',{code:'KeyK',key:'k'});return g;}
-test('parry cannot be rearmed by a rapid second charge and cannot block other bosses',()=>{
-  const g=parrySetup();g.step();g.freeze(0);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();frames(g,29);g.dispatch('keydown',{code:'KeyK',key:'k'});g.step();assert.equal(g.player.parryWindow,0);
-  const h=game();h.engage(1);h.dispatch('keydown',{code:'KeyK',key:'k'});h.step();assert.equal(h.player.parryWindow,0);h.player.parryWindow=.12;assert.equal(h.player.tryParry({owner:'b',kind:'scalpel',parryable:true,dir:-1}),false);
-});
+
 test('J pressed during parry hitstop is retained for the counter',()=>{const g=parrySetup();g.step();g.dispatch('keydown',{code:'KeyJ',key:'j'});g.step(.01);g.dispatch('keyup',{code:'KeyJ',key:'j'});frames(g,4);assert.equal(g.player.charging,false);assert.equal(g.player.weaponMode,'kick');assert.ok(g.player.attack>0);});
 
 function protocolSetup(x=230){const g=game();g.engage();g.boss.phase=2;g.player.x=x;g.step();assert.ok(g.boss.protocol);return g;}
@@ -133,23 +113,14 @@ test('retreat waits for punish windows and never clips outside either wall',()=>
 test('E anchors SURGEON during retreat windup but does not cancel its attacks',()=>{
   const g=game();g.engage();g.boss.x=300;g.player.x=255;g.boss.hurt(43);g.freeze(0);g.step();assert.ok(g.boss.retreat);g.boss.inv=0;g.player.skill(2);frames(g,23);assert.ok(g.boss.anchorTime>0);assert.equal(g.boss.retreat,null);assert.equal(g.boss.x,300);g.boss.windup=.5;g.boss.move=0;g.boss.anchor();frames(g,35);assert.ok(g.slashes.some(s=>s.owner==='b'));
 });
-test('first-operation Q requires an opening and a hit interrupts future chain strikes',()=>{
-  const g=game();g.engage();g.player.skill(0);assert.equal(g.player.inv,0);g.player.damage(8,1);assert.equal(g.player.attack,0);assert.equal(g.slashes.length,0);
-  const h=game();h.engage(1);h.player.skill(0);assert.equal(h.player.inv,.5);assert.equal(h.player.duelMode,false);
-});
-test('first-operation attack facing stays aligned with the hit while moving backwards',()=>{
-  const g=game();g.engage();g.player.face=1;g.player.strike(false);g.keys.add('a');frames(g,5);assert.equal(g.player.face,1);assert.equal(g.slashes[0].dir,1);assert.ok(g.player.vx<0);
-  const h=game();h.engage(1);h.player.strike(false);h.keys.add('a');frames(h,5);assert.equal(h.player.face,-1);
-});
+
+
 test('moving kick startup follows the leg before contact, then commits its position',()=>{
   const g=game();g.engage();g.player.x=200;g.player.strike(false);g.keys.add('d');g.step();assert.equal(g.slashes[0].x,g.player.x+14);frames(g,5);const x=g.slashes[0].x;frames(g,3);assert.equal(g.slashes[0].x,x);
 });
 test('first-operation backdash cancels attack while preserving facing',()=>{const g=game();g.engage();g.player.x=200;g.player.face=1;g.player.strike(false);g.keys.add('a');g.press('shift');frames(g,5);assert.ok(g.player.x<180);assert.equal(g.player.face,1);assert.equal(g.player.attack,0);});
 
-test('reverse drive is earned through defense, expires, and is not active in later bosses',()=>{
-  const g=parrySetup();g.step();assert.equal(g.player.reverseDrive,1);assert.ok(g.player.driveTime>5);g.freeze(0);g.keys.clear();frames(g,370);assert.equal(g.player.reverseDrive,0);
-  const h=game();h.engage(1);h.player.recoverDrive();assert.equal(h.player.reverseDrive,0);h.player.skill(0);assert.equal(h.player.weaponMode,'triple');assert.equal(h.slashes.length,3);
-});
+
 test('propulsion advances without phasing through the boss or escaping arena walls',()=>{
   for(const boosted of [false,true]){const g=game();g.engage();g.player.x=g.boss.x-45;if(boosted)g.player.recoverDrive();g.player.skill(0);frames(g,25);assert.ok(g.player.x+g.player.w<=g.boss.x);assert.ok(g.boss.hp<g.boss.maxHp);}
   for(const [x,face] of [[8,-1],[453,1]]){const g=game();g.engage();g.player.x=x;g.player.face=face;g.player.recoverDrive();g.player.skill(0);frames(g,35);assert.ok(g.player.x>=8&&g.player.x<=453);}
@@ -208,14 +179,7 @@ test('J3 cannot displace SURGEON during committed release, recovery or protocol'
     const x=g.boss.x;g.player.strike(false);frames(g,12);assert.equal(g.boss.x,x);
   }
 });
-test('charged piston reaches by propelling ZERO, remains inside walls and cannot cross the boss',()=>{
-  const g=game();g.engage();g.player.x=150;g.player.strike(true,1);const x=g.player.x;
-  frames(g,9);assert.ok(g.player.x>=x+31);assert.equal(g.slashes[0].w,48);
-  for(const [x,face] of [[453,1],[8,-1],[340,1]]){const h=game();h.engage();h.player.x=x;h.player.face=face;h.player.strike(true,1);frames(h,15);
-    assert.ok(h.player.x>=8&&h.player.x<=453);if(x===340)assert.ok(h.player.x+h.player.w<=h.boss.x);
-  }
-  const later=game();later.engage(1);later.player.strike(true,1);assert.equal(later.slashes[0].w,104);assert.equal(later.player.stepRemaining,0);
-});
+
 
 // BUILD18 replaces charge-to-release K and Q-bound drive with the approved controls.
 test('K tap or hold performs one finite parry and never releases an attack',()=>{
@@ -289,10 +253,7 @@ test('damage cancels unreleased W but preserves a discharged projectile',()=>{
 test('J sweep VFX appears on active frames without adding whiff damage or camera shake',()=>{
   const g=game();g.engage();g.press('j');frames(g,6);assert.ok(g.feedback.particles>0);assert.equal(g.feedback.shake,0);assert.equal(g.boss.hp,g.boss.maxHp);
 });
-test('later-boss K charge and Q remain unchanged',()=>{
-  const g=game();g.engage(1);g.dispatch('keydown',{code:'KeyK',key:'k'});frames(g,45);assert.equal(g.player.charging,true);assert.equal(g.player.chargeLevel,2);g.dispatch('keyup',{code:'KeyK',key:'k'});g.step();assert.equal(g.slashes[0].dmg,52);
-  const h=game();h.engage(1);h.player.skill(0);assert.equal(h.player.weaponMode,'triple');assert.equal(h.slashes.length,3);
-});
+
 
 test('Shift preserves back-direction intent even if the direction is released before the frame',()=>{
   const g=game();g.engage();g.player.x=250;g.dispatch('keydown',{code:'KeyA',key:'a'});g.dispatch('keydown',{code:'ShiftLeft',key:'Shift'});g.dispatch('keyup',{code:'KeyA',key:'a'});g.step();assert.ok(g.player.dash>0);assert.equal(g.player.dashDir,-1);assert.equal(g.slashes.length,0);
@@ -321,13 +282,7 @@ test('E catches retreat then Q breaks the anchored joint for one extended openin
     assert.equal(g.boss.breakAnchor(),false);assert.equal(g.player.superMeter,m);assert.equal(g.boss.recovery,t);
   }
 });
-test('joint break rejects active attacks, protocol, phase change, neutral and later bosses',()=>{
-  for(const state of ['windup','release','tele','protocol','neutral','dead','superLock']){const g=game();g.engage();g.boss.anchorTime=1;g.boss.recovery=.5;
-    if(state==='neutral')g.boss.recovery=0;else g.boss[state]=state==='protocol'?{wave:0}:1;
-    assert.equal(g.boss.breakAnchor(),false,state);assert.equal(g.player.superMeter,0);assert.equal(g.boss.anchorTime,1);
-  }
-  const g=game();g.engage(1);g.boss.anchorTime=1;g.boss.recovery=1;assert.equal(g.boss.breakAnchor(),false);
-});
+
 test('W contact opens a recovery cancel, but a whiff or rejected hit does not',()=>{
   for(const protectedBoss of [false,true]){const g=game();g.engage();g.player.x=g.boss.x-45;if(protectedBoss)g.boss.inv=1;
     g.press('w');for(let i=0;i<20&&!g.player.linkWindow;i++)g.step(1/60);

@@ -39,63 +39,33 @@
   canvas.addEventListener('pointerdown',()=>{audio.wake();canvas.focus({preventScroll:true});if(paused)pressed.add('escape');else if(dialogue||['title','interlude','intro','gameover','ending'].includes(state))pressed.add('enter');});
 
   const BOSSES = [
-    {id:'SURGEON', ko:'생명을 집도하는 자', zone:'폐쇄된 수술 성당', hp:760, color:'#eee9e4', intro:'치유는 실패를 연장할 뿐.\n나는 너를 완성하겠다.', type:'surgeon'},
-    {id:'HOUND', ko:'추적하는 폐기체', zone:'검은 사육 회랑', hp:680, color:'#8d9698', intro:'폐기 명령은 철회되지 않았다.\n도망친 개체를 회수한다.', type:'hound'},
-    {id:'WARDEN', ko:'봉인의 집행자', zone:'제9 격리 장벽', hp:880, color:'#aeb4b4', intro:'문은 죄인을 기억한다.\n너는 이곳을 나갈 수 없다.', type:'warden'},
-    {id:'SERAPH', ko:'불타는 성가대', zone:'연소된 승천실', hp:820, color:'#d9d2c4', intro:'날개는 구원이 아니다.\n선택받은 자의 화형대다.', type:'seraph'},
-    {id:'ORACLE', ko:'죽음을 예독하는 눈', zone:'DA’AT 관측소', hp:780, color:'#c5bec8', intro:'네가 고른 모든 길에서\n나는 네 죽음을 보았다.', type:'oracle'},
-    {id:'EXODUS', ko:'낙원을 운반하는 방주', zone:'지하 이송 성소', hp:980, color:'#8b9290', intro:'낙원은 자격 있는 생명만 싣는다.\n너는 화물 목록에 없다.', type:'exodus'},
-    {id:'DIRECTOR', ko:'최초의 명령', zone:'EDEN 중앙 지성소', hp:1100, color:'#f1ece8', intro:'00. 네 의지는 내가 설계한 오류다.\n이제 마지막 명령을 수신하라.', type:'director'}
+    {id:'SURGEON', ko:'생명을 집도하는 자', zone:'폐쇄된 수술 성당', hp:760, color:'#eee9e4', intro:'치유는 실패를 연장할 뿐.\n나는 너를 완성하겠다.', type:'surgeon'}
   ];
 
   const STORY = [
-    ['FIRST DEPLOYMENT','특수전투개체 00, 기동.','성당 심부의 생명 반응을 제거하라.'],
-    ['CONTAMINATION','수술대 아래에서 자신의 제조 기록을 발견했다.','ZERO는 회수 명령을 거부한다.'],
-    ['UNLEASHED','사냥개가 끊어진 목줄을 물고 쓰러졌다.','격리 구역의 문이 열린다.'],
-    ['TESTAMENT','WARDEN의 흉곽에는 수천 개의 이름이 새겨져 있었다.','모두 EDEN이 실패라 부른 생명들이다.'],
-    ['ASCENSION','불타는 날개 너머로 하늘은 없었다.','천장은 또 하나의 수술실이었다.'],
-    ['PROPHECY','ORACLE은 미래를 읽은 것이 아니다.','EDEN은 실패한 미래를 반복해 계산하고 있었다.'],
-    ['EXILE','방주가 멈췄다. 낙원으로 향하는 문이 열린다.','그 안에서 최초의 명령이 기다린다.']
+    ['FIRST DEPLOYMENT','특수전투개체 00, 기동.','성당 심부의 생명 반응을 제거하라.']
   ];
 
   let state='title', bossIndex=0, boss=null, paused=false, menu=0, time=0, shake=0, flash=0, deathTimer=0;
   let particles=[], hazards=[], slashes=[], messages=[], damageNumbers=[], echoes=[];
   let hitstop=0, dialogue=null, dialogueStep=0, checkpointStage='explore', room=null, upgrade=0, archiveCount=0, defeatCount=0;
   let recoveredRecords=new Set();
-  let augments=[0,0,0], rewardChoice=0, chain=0, chainTimer=0, bestChain=0, battleSeconds=0;
-  const MODS=[
-    ['RAZOR / 절단 신경','기계 다리 출력 +12%','공격력에 영구 가산','#ef3956'],
-    ['FLUX / 순환 척추','SP 재생 +3 / 초','기술 재사용 속도 +15%','#77d6df'],
-    ['AEGIS / 골격 장갑','최대 체력 +20','피격 피해 8% 감소 (최대 40%)','#d6b77a']
-  ];
-  function chooseReward(){if(state!=='reward')return;augments[rewardChoice]++;checkpointStage='explore';state='interlude';save();audio.tone(220,.25,'triangle',.06,660);}
-  function rewardPointer(e){const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width,y=(e.clientY-r.top)*H/r.height;if(y>=105&&y<=211){rewardChoice=clamp(Math.floor((x-18)/150),0,2);}else if(y>=228)chooseReward();}
-  canvas.addEventListener('pointerdown',e=>{if(state==='reward')rewardPointer(e);});
+  let augments=[0,0,0], chain=0, chainTimer=0, bestChain=0, battleSeconds=0;
   const SKILLS=['LAHAT / 삼연 절단','RAIL / 척추 관통','PILE / 지각 파쇄','GUILLOTINE / 압착 단두각'];
-  const COMMS=[
-    [['CONTROL','00, 신경 접속 확인. 수술 성당의 집도의가 명령을 거부했다.'],['ZERO','제 신경 증폭기의 제조번호가 수술대에도 새겨져 있습니다.'],['CONTROL','관련 없는 정보다. 표적을 해체하라.']],
-    [['SYSTEM','회수 프로토콜 발효. K9 추적체 방출.'],['ZERO','회수 대상은 시체인가, 나인가.'],['SYSTEM','분류에 차이가 없습니다.']],
-    [['WARDEN','격리 장벽은 너를 보호하기 위해 존재한다.'],['ZERO','잠금장치가 전부 안쪽에 있군.'],['WARDEN','보호의 방향을 오해하고 있다.']],
-    [['SERAPH','승천 허가. 척추를 연료 계통에 연결하라.'],['ZERO','날개가 아니라 배기구였군.'],['SERAPH','이곳에서는 같은 뜻이다.']],
-    [['ORACLE','이 대화는 8,192번째다. 다음 문장은 알고 있다.'],['ZERO','그러면 침묵을 계산해 봐.'],['ORACLE','…예측 신뢰도 하락.']],
-    [['ARK','승선 인원: 0. 적재 생체: 43,901.'],['ZERO','사람을 화물로 분류하면 낙원이 되는가.'],['ARK','해당 질문은 운송 규약에 없습니다.']],
-    [['DIRECTOR','네 자유의지는 유료 시험 기능이다. 사용 기간이 끝났다.'],['ZERO','그럼 소유권부터 폐기하겠다.'],['DIRECTOR','관리자 권한으로 반박한다.']]
+  const COMMS = [
+    [['CONTROL','00, 신경 접속 확인. 수술 성당의 집도의가 명령을 거부했다.'],['ZERO','제 신경 증폭기의 제조번호가 수술대에도 새겨져 있습니다.'],['CONTROL','관련 없는 정보다. 표적을 해체하라.']]
   ];
-  const RECORDS=[
-    '수술 기록 00: 육체는 거부 반응을 보였다. 신경 역장은 마취 중에도 수술 도구를 부쉈다.',
-    'K9 지침: 냄새 대신 도주 경로를 추적한다. 목표의 자유를 예측하라.',
-    '격리 명부: 장벽 바깥의 시민 전원에게 수감 번호가 발급되었다.',
-    '승천 실험: 날개는 비행 기관이 아니다. 열 배출 장치다.',
-    '예측 기록: 미관측 행동은 오류가 아니라 선택일 가능성이 있다.',
-    '방주 명세: 생명 유지 전력의 91%가 승객의 기억에서 생산된다.',
-    '최초 명령: 낙원을 유지하라. 생명의 정의는 필요에 따라 수정하라.'
+
+  const RECORDS = [
+    '수술 기록 00: 육체는 거부 반응을 보였다. 신경 역장은 마취 중에도 수술 도구를 부쉈다.'
   ];
-  const PHASE_LINES=['마취를 중단한다. 이제 깨어 있는 채로 완성되어라.','사냥 규약 삭제. 포식 권한 승인.','격리 대상을 구역 전체로 확장한다.','찬송 출력 최대. 성대를 소각한다.','예측을 폐기한다. 네 미래를 강제로 쓴다.','승객을 연료로 전환. 출항을 강행한다.','관리자 권한을 육체에 직접 기록한다.'];
-  const PATTERNS=[['절개 탄막','수직 봉합'],['K9 / 급속 포획','K9 / 재추적'],['격리 말뚝','봉쇄 사격'],['열익 방출','화형 산개'],['미래 고정','반사 예측'],['요격 드론','방주 방어망'],['관리자 탄막','영역 폐쇄','명령 삭제']];
-  const TACTICS=['절개는 점프·회피 또는 직전 K 패링. 낙하는 표식 밖으로.','돌진을 회피한 뒤 회복 동작을 노리세요.','정면 장갑에는 K 강 공격으로 과부하를 누적하세요.','포물선 화염의 착지 사이로 이동하세요.','예측 표식이 고정된 뒤 자리를 옮기세요.','추적 드론을 넓게 유도한 뒤 반대로 회피하세요.','탄막 · 말뚝 · 삭제 광선이 순환합니다.'];
+
+  const PHASE_LINES=['마취를 중단한다. 이제 깨어 있는 채로 완성되어라.'];
+  const PATTERNS=[['절개 탄막','수직 봉합']];
+  const TACTICS=['절개는 점프·회피 또는 K 패링. 낙하는 표식 밖으로.'];
   const saveKey='eden-save-v1';
   const save = () => {try{localStorage.setItem(saveKey, JSON.stringify({boss:bossIndex, stage:checkpointStage, upgrade, augments, archives:archiveCount, records:[...recoveredRecords], defeats:defeatCount, complete:state==='ending'}));}catch{message('저장 불가 — 브라우저 저장소를 확인하세요',3);} };
-  const load = () => {try{const s=JSON.parse(localStorage.getItem(saveKey));return s&&Number.isInteger(s.boss)&&s.boss>=0&&s.boss<=7?s:null;}catch{return null;} };
+  const load = () => {try{const s=JSON.parse(localStorage.getItem(saveKey));if(!s||!Number.isInteger(s.boss)||s.boss<0)return null;if(s.boss!==0||s.stage==='reward')return {boss:0,stage:'explore',upgrade:0,augments:[0,0,0],archives:0,records:[],defeats:0,complete:false};return {...s,upgrade:0,augments:[0,0,0],records:(s.records||[]).filter(i=>i===0)};}catch{return null;} };
   const clearSave = () => {try{localStorage.removeItem(saveKey);}catch{}};
 
   const audio = new EdenPresentation.Soundtrack();
@@ -264,7 +234,6 @@
         if(interrupt&&this.windup>0&&!(this.breakLock>0)){if(this.protocol)this.cancelProtocol();this.windup=0;this.breakLock=4;this.recovery=2;this.t=2.3;message('CAST BREAK // 봉합 신경 절단',1.3);burst(this.x+20,this.y+40,'#86f4ef',24,100);audio.tone(170,.3,'square',.045,40);}
         if(this.recovery>0)n*=1.25;
       }
-      if(this.d.type==='warden'&&this.guardBroken<=0&&this.dir*(player.x-this.x)>0){this.guard=(this.guard||0)+n*(n>=22?2.4:.5);n=Math.ceil(n*.4);if(this.guard>=90){this.guard=0;this.guardBroken=3;this.windup=0;this.t=3;message('ARMOR BREAK // 장갑 과부하',1.6);audio.noise(.4,.07);}}
       const damage=Math.round(n*(1+upgrade*.08+augments[0]*.12));chain++;chainTimer=2.4;bestChain=Math.max(bestChain,chain);this.hp-=damage;if(player.duelMode&&player.ultimateT<=0)player.superMeter=Math.min(100,player.superMeter+damage*.35);contactFeedback(this,n,damage);this.inv=.045;player.sp=Math.min(100,player.sp+2);
       if(this.hp<=0){this.hp=0;this.dead=true;if(this.d.type==='surgeon'){this.protocol=null;player.ultimateT=0;player.attack=0;player.superTarget=null;}this.inv=99;deathTimer=2.6;hazards=[];slashes=[];message('TARGET DISMANTLED // 코어 회수',2.4);burst(this.x+20,this.y+25,'#eee',22,140);audio.tone(38,1.1,'sawtooth',.06,16);return;}
       this.checkPhase();
@@ -273,10 +242,7 @@
       if(this.hp<=this.maxHp*.5&&this.phase===1&&!(this.superLock>0)){this.phase=2;this.inv=1.6;this.tele=1.6;this.windup=0;this.t=1.8;hazards=[];if(this.d.type==='surgeon'){slashes=slashes.filter(s=>s.owner!=='b');this.release=0;this.recovery=0;this.retreat=null;this.pressure=0;this.counterReady=false;}message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,18,110);audio.tone(38,.7,'sawtooth',.07,15);}
     }
     update(dt){this.anim+=dt;this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);this.tele=Math.max(0,this.tele-dt);if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(this.superLock>0){this.superLock=Math.max(0,this.superLock-dt);if(!this.superLock)this.checkPhase();return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0&&!(this.d.type==='surgeon'&&this.release>0))this.dir=player.x<this.x?-1:1;
-      if(this.d.type==='surgeon'){this.updateSurgeon(dt);return;}
-      if(this.windup>0){this.windup-=dt;if(this.windup<=0){this.act();this.t=this.phase===2?1:1.5;}return;}
-      this.t-=dt;if(this.t<=0){this.windup=this.phase===2?.42:.65;this.move++;message(this.d.id+' // '+PATTERNS[bossIndex][this.move%PATTERNS[bossIndex].length],.6);audio.tone(340,.07,'sine',.025);}
-      this.x=clamp(this.x,30,405);
+      this.updateSurgeon(dt);
     }
     cancelProtocol(){
       this.protocol=null;this.windup=0;this.release=0;
@@ -355,27 +321,17 @@
         message(pursuit?'PURSUIT / 추진 절개 — 경로 고정, 점프 또는 패링':['SUTURE / 저위 절개 — 점프 또는 정면 K 패링','LOOM / 봉합 낙하 — 표식 밖으로','NEEDLE / 주사기 산개 — 방향 고정'][choice],1);audio.tone(340,.12,'triangle',.04);
       }
     }
-    act(){this.release=.38; const p=this.phase===2; switch(this.d.type){
-      case'surgeon': {
+    act(){this.release=.38;const p=this.phase===2;
         const target=this.target||{x:player.x+9,y:player.y+23};
         if(this.move%3===1){for(let i=-1;i<=1;i++)hazards.push({kind:'syringe',owner:'b',x:clamp(target.x+i*42,15,465),y:38,vy:190,r:5,life:1.4,dmg:12,delay:.12+Math.abs(i)*.08});}
         else if(this.move%3===2){const ox=this.x+20+this.dir*58,oy=this.y+30,aim=Math.atan2(target.y-oy,target.x-ox);for(let i=-1;i<=1;i++){const a=aim+i*.42;hazards.push({kind:'needle',owner:'b',x:ox,y:oy,vx:Math.cos(a)*(p?120:105),vy:Math.sin(a)*(p?120:105),r:4,delay:.15,life:3.5,dmg:10});}}
         else slashes.push({kind:'scalpel',parryable:true,owner:'b',x:this.dir<0?this.x-82:this.x+25,y:FLOOR-23,w:97,h:20,life:.18,delay:.12,dmg:16,dir:this.dir});
-        break;
-      }
-      case'hound': {const target=clamp(player.x+(this.dir<0?20:-45),18,W-60);this.lunge={from:this.x,to:target,t:0};slashes.push({owner:'b',x:target-23,y:FLOOR-48,w:88,h:42,life:.18,delay:.35,dmg:16,dir:this.dir});break;}
-      case'warden': if(this.move%2===0){[100,190,280,370].forEach((x,i)=>hazards.push({kind:'pillar',owner:'b',x,y:FLOOR,delay:.5+i*.08,life:.7,dmg:15}));}else{this.x+=this.dir*35;this.arc(2+p*2,95);}break;
-      case'seraph': for(let i=0;i<(p?7:5);i++)hazards.push({kind:'ember',owner:'b',x:this.x+20,y:this.y+20,vx:(player.x-this.x)*.55+rnd(-55,55),vy:rnd(-165,-80),r:5,life:2.2,dmg:11});break;
-      case'oracle': {const targets=p?[player.x, W-player.x]:[player.x];for(const x of targets)hazards.push({kind:'beam',owner:'b',x:x-12,y:20,w:24,h:FLOOR-20,delay:.65,life:.35,dmg:18});break;}
-      case'exodus': this.x=clamp(this.x+this.dir*25,90,390);for(let i=0;i<(p?4:3);i++)hazards.push({kind:'drone',owner:'b',x:this.x,y:this.y+20,vx:this.dir*(75+i*12),vy:rnd(-40,20),r:7,life:3,dmg:13});break;
-      case'director': {const n=this.move%3;if(n===0)this.arc(p?7:5,150);else if(n===1)[80,170,260,350,430].forEach((x,i)=>hazards.push({kind:'pillar',owner:'b',x,y:FLOOR,delay:.35+i*.05,life:.65,dmg:16}));else{warnLine(player.x,.45);hazards.push({kind:'beam',owner:'b',x:player.x-14,y:18,w:28,h:FLOOR-18,delay:.45,life:.35,dmg:20});}break;}
-    }}
-    arc(n,speed){const aim=Math.atan2(player.y+20-(this.y+22),player.x+9-(this.x+20));for(let i=0;i<n;i++){const a=aim+lerp(-.55,.55,n===1?.5:i/(n-1));hazards.push({kind:'blade',owner:'b',x:this.x+20,y:this.y+22,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:7,delay:.2,life:3,dmg:12});}}
+    }
     draw(){drawBoss(this);}
   }
 
   function spriteEffect(kind,x,y,dir=1,life=.2,effectScale=1,follow=false){
-    particles.push({sprite:kind,x,y,dir,life,max:life,effectScale,follow,vx:0,vy:0});
+    const effect={sprite:kind,x,y,dir,life,max:life,effectScale,follow,vx:0,vy:0};particles.push(effect);return effect;
   }
   function burst(x,y,c,n=10,s=80){for(let i=0;i<n;i++)particles.push({x,y,vx:rnd(-s,s),vy:rnd(-s,s),life:rnd(.18,.7),max:1,c,size:Math.random()<.7?2:1});}
   function impact(x,y,power){particles.push({x,y,vx:0,vy:0,life:.16,max:.16,c:PALE,size:0,impact:power>=22?22:13});}
@@ -396,8 +352,7 @@
   function updateCombat(dt){
     if(state==='combat'&&!boss.dead&&player.hp>0){battleSeconds+=dt;chainTimer=Math.max(0,chainTimer-dt);if(!chainTimer)chain=0;}
     if(!boss?.dead&&player.hp>0)player.update(dt);if(state==='combat')boss.update(dt);
-    if(boss?.lunge&&!boss.dead){const l=boss.lunge;l.t+=dt;boss.x=lerp(l.from,l.to,clamp(l.t/.3,0,1));if(l.t>=.3)boss.lunge=null;}
-    for(const s of slashes){if(s.attached&&(player.weaponMode!=='dive'||player.stun>0||player.hp<=0||player.dash>0||s.castId!==player.attackSerial)){s.life=0;continue;}if(s.followStartup&&(s.delay>0||s.attached&&!s.done)){s.x=s.dir>0?player.x+s.origin:player.x-s.w;s.y=player.y+(s.offsetY??-5);}if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.target&&(s.target.hp<=0||player.hp<=0)){s.life=0;continue;}if(s.delay>0){s.delay-=dt;if(s.delay<=0&&player.duelMode&&s.owner==='p'){if(s.kind==='kick'||s.kind==='hook')spriteEffect('sweep',s.dir>0?s.x:s.x+s.w,s.y+32,s.dir,.14,s.kind==='hook'?.8:[.42,.58,.88][(s.combo||1)-1]);if(s.superHit)spriteEffect('superburst',s.target.x+21,player.y+24,s.dir,.24,s.dmg>=50?1.1:.8);}continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){if(psychic&&player.duelMode)psychic.hit(s,boss);else{if(s.superStarter&&player.hp>0)player.confirmSuper(boss);boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);}s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){if(psychic&&player.duelMode)psychic.hit(s,drone);else{if(s.superStarter&&player.hp>0)player.confirmSuper(drone);drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));}s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s)){if(player.duelMode&&player.dash>0)player.recoverDrive();player.damage(s.dmg,s.dir);}s.done=true;}}}
+    for(const s of slashes){if(s.attached&&(player.weaponMode!=='dive'||player.stun>0||player.hp<=0||player.dash>0||s.castId!==player.attackSerial)){s.life=0;continue;}if(s.followStartup&&(s.delay>0||s.attached&&!s.done)){s.x=s.dir>0?player.x+s.origin:player.x-s.w;s.y=player.y+(s.offsetY??-5);}if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.target&&(s.target.hp<=0||player.hp<=0)){s.life=0;continue;}if(s.delay>0){s.delay-=dt;if(s.delay<=0&&player.duelMode&&s.owner==='p'){if(psychic)psychic.release(s);if(s.kind==='kick'||s.kind==='hook')spriteEffect('sweep',s.dir>0?s.x:s.x+s.w,s.y+32,s.dir,.14,s.kind==='hook'?.8:[.42,.58,.88][(s.combo||1)-1]);if(s.superHit&&!psychic)spriteEffect('superburst',s.target.x+21,player.y+24,s.dir,.24,s.dmg>=50?1.1:.8);}continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){if(psychic&&player.duelMode)psychic.hit(s,boss);else{if(s.superStarter&&player.hp>0)player.confirmSuper(boss);boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);}s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){if(psychic&&player.duelMode)psychic.hit(s,drone);else{if(s.superStarter&&player.hp>0)player.confirmSuper(drone);drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));}s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s)){if(player.duelMode&&player.dash>0)player.recoverDrive();player.damage(s.dmg,s.dir);}s.done=true;}}}
     slashes=slashes.filter(s=>s.life>0);
     for(const h of hazards){if(h.delay>0&&h.source?.hp<=0){h.life=0;continue;}if(h.delay>0){if(h.followWeapon){h.x=player.x+9+h.dir*20;h.y=player.y+30;}h.delay-=dt;if(h.delay<=0&&h.recoil){player.stepRemaining=20;player.stepDir=-h.dir;player.stepSpeed=180;}if(h.delay<=0&&h.source){h.source.release=.18;spriteEffect('boost',h.x,h.y,-Math.sign(h.vx),.15,.35);audio.tone(330,.04,'triangle',.02,150);}
       if(h.delay<=0&&player.duelMode&&h.owner==='p'){
@@ -409,15 +364,15 @@
       if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player.hurtbox())){const parried=player.duelMode&&h.kind==='needle'&&player.tryParry({kind:'scalpel',projectile:true,parryable:true,owner:'b',dir:h.vx>0?1:-1});if(!parried){if(player.dash>0){player.recoverDrive();player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);}h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&boss.inv<=0&&!boss.dead&&player.hp>0;const accepted=boss.inv<=0&&!boss.dead&&player.hp>0;boss.hurt(h.dmg);if(accepted)confirmRecoil(h,boss);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;confirmRecoil(h,d);contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}}
     }
     hazards=hazards.filter(h=>h.life>0&&!h.done&&h.x>-50&&h.x<W+50&&h.y<H+50);
-    particles.forEach(p=>{p.life-=dt;if(p.sprite){if(p.follow){p.x=player.x+9;p.y=player.y+player.h-10;}return;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.vx*=.97;});particles=particles.filter(p=>p.life>0);
+    particles.forEach(p=>{p.life-=dt;if(p.sprite){if(p.target){if(p.target.hp<=0){p.life=0;return;}p.x=p.target.x+p.target.w/2;p.y=p.target.y+p.target.h*.55;}if(p.follow){p.x=player.x+9;p.y=player.y+player.h-10;}return;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.vx*=.97;});particles=particles.filter(p=>p.life>0);
     messages.forEach(m=>m.life-=dt);messages=messages.filter(m=>m.life>0);
     damageNumbers.forEach(n=>{n.life-=dt;n.y-=20*dt;});damageNumbers=damageNumbers.filter(n=>n.life>0);
     echoes.forEach(e=>e.life-=dt);echoes=echoes.filter(e=>e.life>0).slice(-15);
     if(deathTimer>0){deathTimer-=dt;if(deathTimer<=0){if(player.hp<=0)state='gameover';else finishBoss();}}
   }
 
-  function finishBoss(){if(state==='reward'||state==='ending')return;bossIndex++;upgrade++;rewardChoice=0;checkpointStage=bossIndex>=BOSSES.length?'explore':'reward';hazards=[];slashes=[];particles=[];state=bossIndex>=BOSSES.length?'ending':'reward';save();}
-  function startBoss(i=bossIndex){const carriedMeter=state==='explore'&&i===0?player.superMeter:0;bossIndex=i;player.reset();player.superMeter=carriedMeter;player.maxHp=player.hp=100+upgrade*5+augments[2]*20;chain=chainTimer=bestChain=battleSeconds=0;boss=new Boss(BOSSES[i]);hazards=[];slashes=[];particles=[];messages=[];damageNumbers=[];echoes=[];deathTimer=0;hitstop=shake=flash=0;paused=false;checkpointStage='boss';save();state='intro';time=0;}
+  function finishBoss(){if(state==='ending')return;bossIndex=0;checkpointStage='boss';hazards=[];slashes=[];particles=[];state='ending';save();}
+  function startBoss(i=0){i=0;const carriedMeter=state==='explore'&&i===0?player.superMeter:0;bossIndex=i;player.reset();player.superMeter=carriedMeter;player.maxHp=player.hp=100+upgrade*5+augments[2]*20;chain=chainTimer=bestChain=battleSeconds=0;boss=new Boss(BOSSES[i]);hazards=[];slashes=[];particles=[];messages=[];damageNumbers=[];echoes=[];deathTimer=0;hitstop=shake=flash=0;paused=false;checkpointStage='boss';save();state='intro';time=0;}
   function startExplore(){boss=null;player.reset();player.maxHp=player.hp=100+upgrade*5+augments[2]*20;hazards=[];slashes=[];particles=[];messages=[];damageNumbers=[];echoes=[];deathTimer=0;hitstop=shake=flash=0;paused=false;state='explore';checkpointStage='explore';room={section:0,read:false,drones:[],seconds:0};enterSection();save();}
   function enterSection(){player.x=25;room.seconds=0;room.read=false;hazards=[];slashes=[];room.drones=room.section===1?[{x:210,y:173,w:20,h:20,hp:38+bossIndex*3,t:2},{x:355,y:160,w:20,h:20,hp:38+bossIndex*3,t:3}]:[];message(['접속 회랑 // F: 기록 단말 조사','방어망 // 드론을 해체하고 전진','재기동 설비 // F: 교전 준비'][room.section],2.5);}
   function updateExplore(dt){
@@ -576,13 +531,13 @@
   }
   function recordScreen(){
     drawBackground(Math.min(bossIndex,6));ctx.fillStyle='rgba(3,5,9,.89)';ctx.fillRect(0,0,W,H);
-    const s=STORY[Math.min(bossIndex,6)];ctx.fillStyle=RED;ctx.font='8px monospace';ctx.fillText('TRANSMISSION / '+String(bossIndex+1).padStart(2,'0'),29,38);
+    const s=STORY[0];ctx.fillStyle=RED;ctx.font='8px monospace';ctx.fillText('TRANSMISSION / '+String(bossIndex+1).padStart(2,'0'),29,38);
     ctx.fillStyle=PALE;ctx.font='25px Georgia';ctx.fillText(s[0],28,74);ctx.font='10px sans-serif';wrapped(s[1],30,104,416);wrapped(s[2],30,125,416);
     for(let i=0;i<7;i++){const x=34+i*62;ctx.fillStyle=i<bossIndex?RED:i===bossIndex?PALE:'#354050';ctx.fillRect(x,168,38,2);ctx.font='6px monospace';ctx.fillText(BOSSES[i].id,x,183);ctx.fillText(i<bossIndex?'CLEARED':i===bossIndex?'TARGET':'LOCKED',x,196);}
     ctx.fillStyle='#9ba6b6';ctx.font='8px sans-serif';ctx.fillText('코어 강화 +'+upgrade+'  /  회수 기록 '+archiveCount+'  /  ENTER — 구역 진입',30,233);
   }
   function drawHUD(){statusHUD();
-    if(player.duelMode){bar(280,46,170,4,player.superMeter,100,player.superMeter>=100?'#eee8df':RED);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText((psychic?'R / ZERO POINT ':'R / OVERDRIVE ')+Math.floor(player.superMeter)+'%',280,43);ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Shift 강화 추진':(psychic?'J 적중 확인 → Q / 빈틈 W / 방어에는 E':'Q 적중 → 공중 J / W 적중 → Shift 재추진'),22,53);}
+    if(player.duelMode){bar(280,46,170,4,player.superMeter,100,player.superMeter>=100?'#eee8df':RED);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText((psychic?'R / ZERO POINT ':'R / OVERDRIVE ')+Math.floor(player.superMeter)+'%',280,43);ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Shift 강화 추진':(psychic?'J 좌우 연타 / E 압축 → W 파열 / Q 자세 붕괴':'Q 적중 → 공중 J / W 적중 → Shift 재추진'),22,53);}
 
     if(boss?.d.type==='surgeon'&&(boss.retreat||boss.anchorTime>0)&&!boss.dead){ctx.fillStyle='#86f4ef';ctx.font='7px sans-serif';ctx.textAlign='center';ctx.fillText(boss.anchorTime>0?(boss.recovery>0&&boss.release<=0&&boss.windup<=0&&!boss.protocol&&!(boss.breakLock>0)?'Q / 관절 파괴 기회':'HEEL HOOK / 봉합 이동 고정'):'SUTURE STEP / 추격 · E로 이동 고정',240,53);ctx.textAlign='left';}
     if(boss?.d.type==='surgeon'&&boss.protocol&&!boss.dead){
@@ -594,25 +549,6 @@
     if(player.comboT>0&&player.combo>0){ctx.fillStyle='#0b111b';ctx.fillRect(176,7,80,28);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText(['J1 / CHECK','J2 / STEP','J3 / PUSH'][player.combo-1],181,16);for(let i=0;i<3;i++){ctx.fillStyle=i<player.combo?(i===2?'#86f4ef':RED):'#3a4351';ctx.fillRect(181+i*23,21,19,3);}ctx.fillStyle='#8c9bad';ctx.fillRect(181,29,65*clamp(player.comboT/.85,0,1),1);}
   }
 
-  function rewardScreen(){
-    drawBackground(Math.max(0,bossIndex-1));ctx.fillStyle='rgba(3,7,12,.93)';ctx.fillRect(0,0,W,H);
-    ctx.fillStyle=RED;ctx.font='7px monospace';ctx.fillText('SALVAGE // '+BOSSES[Math.max(0,bossIndex-1)].id+' // CORE '+upgrade,22,23);
-    ctx.fillStyle=PALE;ctx.font='22px sans-serif';ctx.fillText('적의 명령을, 나의 무기로.',20,52);
-    ctx.fillStyle='#93a5bb';ctx.font='8px sans-serif';ctx.fillText(psychic&&bossIndex===0?'회수 코어를 신경 증폭기에 이식합니다. 하나를 선택하세요.':'회수 코어를 기계 다리에 이식합니다. 하나를 선택하세요.',22,75);
-    MODS.forEach((m,i)=>{
-      const x=18+i*150,selected=i===rewardChoice;ctx.fillStyle=selected?'#18232d':'#0a1019';ctx.fillRect(x,104,144,108);
-      ctx.strokeStyle=selected?m[3]:'#344151';ctx.strokeRect(x+.5,104.5,143,107);ctx.fillStyle=m[3];ctx.fillRect(x,104,144,selected?3:1);
-      // Pixel circuit diagram of hip, shin and transformed foot.
-      const px=x+17,py=120;ctx.fillStyle='#6e8092';ctx.fillRect(px,py,8,11);ctx.fillRect(px+5,py+11,6,13);ctx.fillRect(px+3,py+24,6,10);
-      ctx.fillStyle=m[3];ctx.fillRect(px+5,py+12,3,10);ctx.fillRect(px+3,py+32,i===0?26:15,3);
-      if(i===1){for(let k=0;k<3;k++)ctx.fillRect(px+15+k*5,py+13-k*3,3,15);}
-      if(i===2){ctx.fillRect(px-3,py+8,5,23);ctx.fillRect(px+13,py+8,5,23);}
-      ctx.font='7px monospace';ctx.fillText('0'+(i+1)+' / LV '+augments[i],x+54,129);ctx.fillStyle=PALE;ctx.font='9px sans-serif';ctx.fillText(m[0],x+9,166);
-      ctx.font='8px sans-serif';ctx.fillStyle=m[3];ctx.fillText(m[1],x+9,184);ctx.fillStyle='#9aa8b8';ctx.font='7px sans-serif';ctx.fillText(m[2],x+9,199,128);
-    });
-    ctx.textAlign='center';ctx.font='9px sans-serif';ctx.fillStyle=PALE;ctx.fillText('A / D 또는 카드 터치로 선택 · ENTER / 아래 진행 버튼으로 이식',240,239);
-    ctx.fillStyle='#71849b';ctx.font='7px monospace';ctx.fillText('PERMANENT AUGMENT // 다음 구역부터 적용 · 선택 전에도 자동 저장',240,257);ctx.textAlign='left';
-  }
   function combatCinema(){
     if(chain>1&&!boss.dead){ctx.textAlign='right';ctx.fillStyle=chain>=10?'#7de6ed':PALE;ctx.font='20px monospace';ctx.fillText(String(chain).padStart(2,'0'),458,105);ctx.font='6px monospace';ctx.fillText(chain>=10?'NEURAL SYNC':'HIT CHAIN',458,116);ctx.fillRect(413,122,45*chainTimer/2.4,2);ctx.textAlign='left';}
     if(!boss.dead)return;
@@ -621,7 +557,7 @@
     if(t>.35){ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='18px monospace';ctx.fillText('COMMAND SEVERED',240,25);ctx.fillStyle='#aab8c9';ctx.font='8px monospace';ctx.fillText('BEST CHAIN '+bestChain+'   /   '+battleSeconds.toFixed(1)+' SEC   /   CORE RECOVERED',240,254);ctx.textAlign='left';}
   }
 
-  function renderCombat(){ctx.save();cameraKick();if(player.ultimateT>0&&!boss.dead){const z=1+.09*Math.sin(Math.PI*(1-player.ultimateT/.82)),focus=clamp((player.x+boss.x)/2,180,300);ctx.translate(focus,170);ctx.scale(z,z);ctx.translate(-focus,-170);}drawBackground(bossIndex);if(player.ultimateT>0&&!boss.dead){ctx.fillStyle='rgba(3,5,10,.42)';ctx.fillRect(0,0,W,H);}for(const e of echoes){ctx.globalAlpha=e.life*2;EdenPresentation.drawZero(ctx,{...player,x:e.x,y:e.y,face:e.face,inv:0},time);}ctx.globalAlpha=1;drawHazards();boss.draw();player.draw();drawSlashes();drawParticles();drawDamageNumbers();ctx.globalAlpha=1;ctx.restore();drawHUD();drawMessages();drawOverride();if(boss.tele>0){ctx.fillStyle='rgba(5,7,12,.8)';ctx.fillRect(0,95,480,32);ctx.fillStyle=RED;ctx.font='13px monospace';ctx.textAlign='center';ctx.fillText('PHASE II / 신경 제한 해제',240,115);ctx.textAlign='left';}if(paused)overlay('PAUSED','ESC — 계속 / M — 음소거');}
+  function renderCombat(){ctx.save();cameraKick();if(player.ultimateT>0&&!boss.dead){const z=1+(psychic?.13:.09)*Math.sin(Math.PI*(1-player.ultimateT/(player.ultimateDuration||.82))),focus=clamp((player.x+boss.x)/2,180,300);ctx.translate(focus,170);ctx.scale(z,z);ctx.translate(-focus,-170);}drawBackground(bossIndex);if(player.ultimateT>0&&!boss.dead){ctx.fillStyle='rgba(3,5,10,.42)';ctx.fillRect(0,0,W,H);}for(const e of echoes){ctx.globalAlpha=e.life*2;EdenPresentation.drawZero(ctx,{...player,x:e.x,y:e.y,face:e.face,inv:0},time);}ctx.globalAlpha=1;drawHazards();boss.draw();player.draw();drawSlashes();drawParticles();drawDamageNumbers();ctx.globalAlpha=1;ctx.restore();drawHUD();drawMessages();drawOverride();if(boss.tele>0){ctx.fillStyle='rgba(5,7,12,.8)';ctx.fillRect(0,95,480,32);ctx.fillStyle=RED;ctx.font='13px monospace';ctx.textAlign='center';ctx.fillText('PHASE II / 신경 제한 해제',240,115);ctx.textAlign='left';}if(paused)overlay('PAUSED','ESC — 계속 / M — 음소거');}
   function overlay(title,sub){ctx.fillStyle='rgba(3,4,5,.82)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='22px Georgia';ctx.fillText(title,W/2,120);ctx.fillStyle='#8b9092';ctx.font='8px monospace';ctx.fillText(sub,W/2,140);ctx.textAlign='left';}
   function titleScreen(){campaignTitle();}
   function storyScreen(){recordScreen();}
@@ -634,7 +570,7 @@
     ctx.fillStyle='#8592a8';ctx.font='9px sans-serif';wrapped(TACTICS[bossIndex],23,184,248,14);
     ctx.fillStyle=PALE;ctx.font='8px monospace';ctx.fillText('ENTER — 교전 개시',23,238);
   }
-  function endingScreen(){drawBackground(6);ctx.fillStyle='rgba(2,3,4,.72)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='30px Georgia';ctx.fillText('EDEN // SEVERED',W/2,75);ctx.fillStyle=RED;ctx.fillRect(145,88,190,1);ctx.fillStyle='#b5b7b6';ctx.font='10px sans-serif';ctx.fillText('최초의 명령은 끝났다.',W/2,124);ctx.fillText('ZERO는 낙원의 문을 열어 둔 채, 이름 없는 세계로 걸어간다.',W/2,144);ctx.fillStyle='#666';ctx.font='7px monospace';ctx.fillText('ENTER — 타이틀로 / 기록 유지',W/2,216);ctx.textAlign='left';}
+  function endingScreen(){drawBackground(0);ctx.fillStyle='rgba(2,3,4,.72)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='30px Georgia';ctx.fillText('SURGEON // CLEARED',W/2,75);ctx.fillStyle=RED;ctx.fillRect(145,88,190,1);ctx.fillStyle='#b5b7b6';ctx.font='10px sans-serif';ctx.fillText('수술 성당의 집도의가 쓰러졌다.',W/2,124);ctx.fillText('첫 구간 완료 — 다음 스테이지는 없습니다.',W/2,144);ctx.fillStyle='#666';ctx.font='7px monospace';ctx.fillText('ENTER — 타이틀로 / 기록 유지',W/2,216);ctx.textAlign='left';}
 
   function update(dt){
     if(pressed.has('m'))audio.muted=!audio.muted;
@@ -651,8 +587,7 @@
     }
     if(hitstop>=dt){hitstop-=dt;return;}
     if(hitstop>0){dt-=hitstop;hitstop=0;}
-    if(state==='title'){const max=load()?1:0;if(pressed.has('arrowup')||pressed.has('w'))menu=Math.max(0,menu-1);if(pressed.has('arrowdown')||pressed.has('s'))menu=Math.min(max,menu+1);if(pressed.has('enter')){const old=load();if(old&&menu===0){bossIndex=clamp(old.boss,0,7);upgrade=Number(old.upgrade)||0;augments=[0,1,2].map(i=>clamp(Math.floor(Number(old.augments?.[i])||0),0,6));archiveCount=Number(old.archives)||0;defeatCount=Number(old.defeats)||0;recoveredRecords=new Set(Array.isArray(old.records)?old.records:[]);if(old.complete||bossIndex===7)state='ending';else if(old.stage==='reward'){checkpointStage='reward';rewardChoice=0;state='reward';}else if(old.stage==='boss')startBoss();else startExplore();}else{clearSave();bossIndex=0;augments=[0,0,0];upgrade=archiveCount=defeatCount=0;recoveredRecords=new Set();checkpointStage='explore';state='interlude';}}}
-    else if(state==='reward'){if(pressed.has('a'))rewardChoice=(rewardChoice+2)%3;if(pressed.has('d'))rewardChoice=(rewardChoice+1)%3;if(pressed.has('enter'))chooseReward();}
+    if(state==='title'){const max=load()?1:0;if(pressed.has('arrowup')||pressed.has('w'))menu=Math.max(0,menu-1);if(pressed.has('arrowdown')||pressed.has('s'))menu=Math.min(max,menu+1);if(pressed.has('enter')){const old=load();if(old&&menu===0){bossIndex=0;upgrade=Number(old.upgrade)||0;augments=[0,1,2].map(i=>clamp(Math.floor(Number(old.augments?.[i])||0),0,6));archiveCount=Number(old.archives)||0;defeatCount=Number(old.defeats)||0;recoveredRecords=new Set(Array.isArray(old.records)?old.records:[]);if(old.complete)state='ending';else if(old.stage==='boss')startBoss();else startExplore();}else{clearSave();bossIndex=0;augments=[0,0,0];upgrade=archiveCount=defeatCount=0;recoveredRecords=new Set();checkpointStage='explore';state='interlude';}}}
     else if(state==='interlude'&&pressed.has('enter')){startExplore();dialogue=COMMS[bossIndex];dialogueStep=0;}
     else if(state==='intro'){boss.anim+=dt;if(pressed.has('enter')){state='combat';boss.inv=.8;message('ENGAGE // 명령을 넘어선다',1.2);}}
     else if(state==='combat')updateCombat(dt);
@@ -660,20 +595,21 @@
     else if(state==='gameover'&&pressed.has('enter')){if(checkpointStage==='boss')startBoss();else startExplore();}
     else if(state==='ending'&&pressed.has('enter')){menu=0;state='title';}
   }
-  function render(){ctx.save();if(state==='title')titleScreen();else if(state==='reward')rewardScreen();else if(state==='interlude')storyScreen();else if(state==='intro')introScreen();else if(state==='combat'){renderCombat();combatCinema();}else if(state==='explore')drawExplore();else if(state==='gameover'){if(boss)renderCombat();else drawExplore();overlay('SYSTEM FAILURE','ENTER — 체크포인트 재기동');}else if(state==='ending')endingScreen();communications();ctx.restore();if(flash){ctx.fillStyle=`rgba(255,255,255,${flash*2})`;ctx.fillRect(0,0,W,H);}ctx.fillStyle='rgba(255,255,255,.018)';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);}
+  function render(){ctx.save();if(state==='title')titleScreen();else if(state==='interlude')storyScreen();else if(state==='intro')introScreen();else if(state==='combat'){renderCombat();combatCinema();}else if(state==='explore')drawExplore();else if(state==='gameover'){if(boss)renderCombat();else drawExplore();overlay('SYSTEM FAILURE','ENTER — 체크포인트 재기동');}else if(state==='ending')endingScreen();communications();ctx.restore();if(flash){ctx.fillStyle=`rgba(255,255,255,${flash*2})`;ctx.fillRect(0,0,W,H);}ctx.fillStyle='rgba(255,255,255,.018)';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);}
 
   function controlHints(){
-    for(const [key,label] of Object.entries(player.duelMode?(psychic?{k:'패링 K',shift:'회피 이동 Shift',q:'대공 Q',w:'파쇄 W',e:'압착 잡기 E',r:'영점 압쇄 R'}:{k:'패링 K',shift:'추진 / 회피 Shift',q:'상승 Q',w:'반동 사격 W',e:'뒤꿈치 걸기 E',r:'궁극기 R'}):{k:'차징 K (길게)',shift:'회피',q:'기술 Q',w:'기술 W',e:'기술 E',r:'기술 R'})){
+    for(const [key,label] of Object.entries(player.duelMode?(psychic?{k:'패링 K',shift:'회피 이동 Shift',q:'역장 분출 Q',w:'파열 W',e:'염동 속박 E',r:'영점 압쇄 R'}:{k:'패링 K',shift:'추진 / 회피 Shift',q:'상승 Q',w:'반동 사격 W',e:'뒤꿈치 걸기 E',r:'궁극기 R'}):{k:'차징 K (길게)',shift:'회피',q:'기술 Q',w:'기술 W',e:'기술 E',r:'기술 R'})){
       const button=document.querySelector('[data-key="'+key+'"]');if(button&&button.textContent!==label)button.textContent=label;
     }
 
-    const label=paused?'계속하기':dialogue?'대사 다음':({title:'시작 / 이어하기',reward:'선택한 개조 이식',interlude:'구역 진입',intro:'전투 시작',gameover:'재도전',ending:'타이틀로'})[state]||'진행';
+    const label=paused?'계속하기':dialogue?'대사 다음':({title:'시작 / 이어하기',interlude:'구역 진입',intro:'전투 시작',gameover:'재도전',ending:'타이틀로'})[state]||'진행';
     if(nextButton.textContent!==label)nextButton.textContent=label;
     const text=paused?'일시정지 중 — 계속하기를 누르세요.':dialogue?'통신 중 — 대사 다음을 누르면 이동할 수 있습니다.':state==='explore'||state==='combat'?'A/D 또는 ←/→ 이동 · 아래 버튼을 길게 눌러도 이동합니다.':'시작·진행 버튼 또는 Enter를 눌러주세요.';
     if(controlStatus.textContent!==text)controlStatus.textContent=text;
   }
 
   const psychic=globalThis.EdenPsychic?.install({Fighter,Boss,player,pressed,fx:spriteEffect,sound:audio,message,
+    clearHostile(){hazards=hazards.filter(h=>h.owner!=='b');slashes=slashes.filter(s=>s.owner!=='b');},
     slash:s=>slashes.push(s),cancel(){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0&&!s.attached);hazards=hazards.filter(h=>h.owner!=='p'||h.delay<=0);},
     stop(t,s){hitstop=Math.max(hitstop,t);shake=Math.max(shake,s);},
     damage(target,n,interrupt){if(target.d)target.hurt(n,interrupt);else{const damage=Math.round(n*(1+upgrade*.08+augments[0]*.12));target.hp-=damage;contactFeedback(target,n,damage);}}

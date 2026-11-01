@@ -14,7 +14,8 @@ function game(psychic=false){
     press(k){pressed.add(k);update(.016);pressed.clear();},
     engage(i=0){startBoss(i);state='combat';boss.inv=0;boss.t=999;},
     get boss(){return boss},get state(){return state},get hazards(){return hazards},get slashes(){return slashes},get room(){return room},get upgrade(){return upgrade},get paused(){return paused},get dialogue(){return dialogue},get checkpoint(){return checkpointStage},get archiveCount(){return archiveCount},
-    get augments(){return augments},get chain(){return chain},get sounds(){return audio.events},get feedback(){return {shake,hitstop,particles:particles.length,numbers:damageNumbers.length}},chooseReward,rewardPointer,freeze(t){hitstop=t},
+    get augments(){return augments},get chain(){return chain},get sounds(){return audio.events},get feedback(){return {shake,hitstop,particles:particles.length,numbers:damageNumbers.length}},freeze(t){hitstop=t},
+    setSave(value){localStorage.setItem(saveKey,JSON.stringify(value));},
     title(){state='title';dialogue=null;hitstop=0;menu=0},setUpgrade(v){upgrade=v},resume(){paused=false},};`;
   const source=fs.readFileSync(__dirname+'/../src/game.js','utf8').replace('})();',exports+'\n})();');
   if(psychic)vm.runInNewContext(fs.readFileSync(__dirname+'/../src/psychic.js','utf8'),world);

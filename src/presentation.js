@@ -2,7 +2,7 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={};
-  for(const [key,path] of Object.entries({psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
+  for(const [key,path] of Object.entries({psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
     const image=new Image();image.onload=()=>{art[key]=image;};image.src='assets/'+path;
   }
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
@@ -36,6 +36,17 @@ window.EdenPresentation = (() => {
     hit:[[100,590,260,300,190],[400,590,365,300,520],[785,590,365,300,925],[1180,590,355,300,1350]]
   };
   function drawCombatVFX(c,p){
+    const psiRows={psiRupture:0,psiBind:1,psiUp:2,psiFinal:3};
+    if(p.sprite in psiRows&&art.psiVFX){
+      const row=psiRows[p.sprite],start=p.frameStart||0,count=p.frameCount||4-start,col=Math.min(3,start+Math.floor((1-p.life/p.max)*count)),image=art.psiVFX;
+      const tops=[0,220,448,686],heights=[220,228,238,338],pivots=[126,345,656,850];
+      const finalFrames=[[0,382,190],[386,380,575],[750,445,970],[1196,340,1360]];
+      const [sx,sw,anchor]=row===3?finalFrames[col]:[col*384,384,col*384+192];
+      const scale=(row===3?.40:row===2?.33:.25)*(p.effectScale||1);
+      c.save();c.translate(Math.round(p.x),Math.round(p.y));c.scale(p.dir||1,1);c.globalAlpha*=row===3?.90:.85;
+      sprite(c,image,[sx,tops[row],sw,heights[row],anchor],scale,pivots[row]);c.restore();return;
+    }
+
     if((p.sprite==='sweep'||p.sprite==='superburst')&&art.sweepVFX){
       const phase=Math.min(3,Math.floor(Math.max(0,1-p.life/p.max)*4)),sweep=p.sprite==='sweep';
       const frames=sweep?[[0,180,370,180,20],[370,105,425,320,400],[800,65,470,420,800],[1265,120,270,330,1270]]:[[0,550,290,440,250],[300,545,450,445,535],[755,550,440,435,960],[1195,580,340,400,1380]];
@@ -153,7 +164,7 @@ window.EdenPresentation = (() => {
       sprite(c,art.surgeonLow,[0,0,1254,1254,833],.125,1063);c.restore();return;
     }
     if(b.d.type==='surgeon'&&art.surgeonDuel&&!b.dead){
-      const row=b.move%3===0?0:4,index=b.psiGuard>0||b.psiGuardWarn>0?5:b.hitFlash>0||b.retreat?.age>0||b.recovery>0&&b.release<=0?row+3:b.windup>0||b.retreat?row+1:b.release>0?row+2:row;
+      const row=b.move%3===0?0:4,index=b.psiGuard>0||b.psiGuardWarn>0?5:b.psiStagger>0||b.hitFlash>0||b.retreat?.age>0||b.recovery>0&&b.release<=0?row+3:b.windup>0||b.retreat?row+1:b.release>0?row+2:row;
       const frame=surgeonDuelFrames[index];let clip=null;
       if(index===2||index===6)clip=[[0,0],[465,0],[465,270],[540,340],[540,455],[130,455],[130,200],[0,140]];
       if(index===3||index===7)clip=[[0,0],[320,0],[320,465],[55,465],[55,310],[0,260]];
@@ -169,42 +180,6 @@ window.EdenPresentation = (() => {
       if(b.phase===2){ring(c,0,-94,21,C.red);for(let i=0;i<7;i++)rect(c,Math.sin(i*3+t)*40,-((t*22+i*13)%100),1,3,C.red);}
       c.restore();return;
     }
-    c.save();c.translate(Math.round(b.x+b.w/2),Math.round(b.y));
-    const a=b.anim, wind=b.windup>0, pulse=Math.sin(a*4), spread=b.phase===2?1.25:1;
-    if(b.dead){c.globalAlpha=Math.max(.1,b.deathOpacity??.6);c.translate(0,Math.min(14,(b.deathAge||0)*10));}
-    if(b.hitFlash>0)c.globalAlpha=.65;
-    const type=b.d.type;
-    if(type==='hound'){
-      c.scale(-b.dir,1);
-      for(let s of[-1,1]){limb(c,[-16,38],[-25+s*5+Math.sin(a*13)*4,53],6);limb(c,[-25+s*5,53],[-35+s*10,70],4);limb(c,[18,37],[25+s*6,51],6);limb(c,[25+s*6,51],[32+s*6,70],4);}
-      poly(c,[[-30,35],[-18,24],[13,22],[31,33],[19,48],[-19,46]],C.ink);
-      for(let i=0;i<7;i++)plate(c,-24+i*7,26+Math.abs(i-3)*2,10,14,i%2?C.steel:C.edge);
-      poly(c,[[20,24],[36,20],[49,31],[46,41],[26,40]],C.steel);line(c,27,35,47,36,C.ink,4);
-      for(let i=0;i<6;i++)poly(c,[[28+i*3,34],[30+i*3,34],[29+i*3,39]],C.white);
-      rect(c,35,27,9,2,C.red);line(c,-28,35,-40,17,C.steel,4);line(c,-40,17,-46,23,C.red,2);
-      for(let i=0;i<4;i++)poly(c,[[-21+i*10,26],[-24+i*10,14],[-16+i*10,24]],C.light);
-    }else if(type==='warden'||type==='exodus'){
-      const wide=type==='exodus';
-      for(let s of[-1,1]){limb(c,[s*12,44],[s*18,58],10);limb(c,[s*18,58],[s*23,70],8);plate(c,s*23-7,68,17,5);}
-      plate(c,-23,18,46,34,C.edge);for(let j=0;j<4;j++)for(let i=0;i<4;i++)plate(c,-21+i*11,20+j*7,10,6,j%2?C.steel:C.edge);
-      plate(c,-10,4,20,17,C.light);rect(c,-6,9,13,7,C.ink);rect(c,-5,11,10,2,C.red);
-      for(let s of[-1,1]){limb(c,[s*20,23],[s*31,37],8);limb(c,[s*31,37],[s*35,53],6);}
-      if(wide){for(let s of[-1,1])for(let i=0;i<3;i++){plate(c,s*(26+i*10)-5,8+i*4,10,27);rect(c,s*(26+i*10)-3,10+i*4,5,12,C.blood);line(c,s*(26+i*10),37+i*4,s*(26+i*10),45+i*4,C.red,2);}ring(c,0,33,12,C.red);}
-      else{plate(c,-46,24,20,48,C.edge);for(let i=0;i<6;i++)line(c,-43,28+i*6,-30,28+i*6,C.light);line(c,36,25,36,71,C.light,3);plate(c,24,20,27,14,C.steel);rect(c,-42,29,2,35,C.red);}
-    }else{
-      const surgeon=type==='surgeon',oracle=type==='oracle',director=type==='director';
-      cloth(c,-13,19,26,49,a*2,C.white);cloth(c,-19,28,10,39,a*2+.5,'#8c8b94');cloth(c,9,28,11,38,a*2+1,'#b2b0b5');
-      for(let i=0;i<11;i++){let y=31+i*3;rect(c,-4+Math.sin(i*5)*9,y,2+(i%3),2,C.blood);}line(c,0,24,0,63,C.red,2);
-      plate(c,-11,14,22,15,C.edge);for(let s of[-1,1]){const hand=[s*(wind?32:24),wind?18:42+pulse*2];limb(c,[s*13,21],[s*20,30],5);limb(c,[s*20,30],hand,4);for(let f=0;f<3;f++)line(c,hand[0]+f-1,hand[1],hand[0]+f-2,hand[1]+7,C.light);}
-      poly(c,[[-6,3],[5,3],[7,9],[2,16],[-5,12]],'#d4c9c6');cloth(c,-8,0,16,27,a,'#a3a0aa');poly(c,[[-4,3],[5,4],[4,12],[0,16],[-4,11]],'#d9c7c9');rect(c,-2,8,6,1,C.red);
-      ring(c,0,-2,18,C.steel);ring(c,0,-2,20,C.red);for(let i=0;i<8;i++){const q=i*Math.PI/4+a*.3;line(c,Math.cos(q)*18,Math.sin(q)*18-2,Math.cos(q)*23,Math.sin(q)*23-2,C.light);}
-      if(surgeon){for(let s of[-1,1])for(let i=0;i<3;i++){const x=s*(25+i*10)*spread,y=-12+i*20+Math.sin(a*2+i)*3;line(c,s*9,22,x,y,C.steel,2);plate(c,x-4,y,9,22,C.light);rect(c,x-2,y+4,4,13,C.blood);rect(c,x-1,y+7,2,9,C.red);line(c,x,y+22,x,y+34,C.light);line(c,x-6,y+1,x+6,y+1,C.light,2);}}
-      if(type==='seraph'){for(let s of[-1,1])for(let i=0;i<6;i++){const x=s*(25+i*7)*spread,y=5+i*4+Math.sin(a*2)*4;line(c,s*12,23,x,y,C.light,3);poly(c,[[x,y],[x+s*5,y-12],[x+s*8,y+25-i*2],[x,y+19]],i%2?C.light:C.steel);line(c,x,y+4,x+s*6,y+24-i*2,C.red);}}
-      if(oracle){for(let i=0;i<3;i++){ring(c,0,22,31+i*7,i%2?C.red:C.steel,a*(i%2?1:-1),a*(i%2?1:-1)+4.7);}for(let i=0;i<4;i++){const q=i*Math.PI/2+a;const x=Math.cos(q)*43,y=22+Math.sin(q)*30;plate(c,x-4,y-3,9,7);rect(c,x-2,y,4,1,C.red);}}
-      if(director){for(let s of[-1,1])for(let i=0;i<4;i++){const x=s*(24+i*9),y=-15+i*9;plate(c,x-5,y,10,28,C.edge);for(let j=0;j<4;j++)rect(c,x-3,y+4+j*5,5,1,j===2?C.red:C.light);line(c,x,y+28,s*9,48,C.blood);}ring(c,0,22,47,C.steel,0,Math.PI);}
-    }
-    if(b.phase===2){for(let i=0;i<12;i++){const x=Math.sin(i*5+a)*42,y=70-((a*30+i*11)%90);rect(c,x,y,1,3,i%3?C.red:C.white);}}
-    c.restore();
   }
   const caches=new Map();
   function background(c,zone,t){
@@ -222,23 +197,17 @@ window.EdenPresentation = (() => {
       for(let x=0;x<480;x+=12){rect(g,x,0,8,14,C.edge);rect(g,x+1,4,6,1,C.steel);}
       for(let i=0;i<13;i++){let x=i*39+5;for(let y=12;y<112+(i*17%65);y++)rect(g,x+Math.sin(y*.025+i)*8,y,2,1,i%3?'#24202b':'#44202d');joint(g,x+Math.sin((112+i*17%65)*.025+i)*8,112+i*17%65,2);}
       if(zone===0){for(let x of[38,137,314,421]){plate(g,x-12,130,25,80,C.edge);rect(g,x-9,137,18,58,'#25313c');rect(g,x-7,140,2,52,'#626676');poly(g,[[x-3,149],[x+3,149],[x+5,184],[x-5,184]],'#7c7482');rect(g,x-2,143,5,6,'#9a9199');for(let y=140;y<195;y+=8)rect(g,x+4,y,1,4,C.blood);plate(g,x-15,198,31,10);}}
-      if(zone===1){for(let x=10;x<480;x+=45){plate(g,x,143,34,67,C.edge);for(let i=0;i<6;i++)line(g,x+3+i*5,149,x+3+i*5,204,C.steel);rect(g,x+5,145,24,2,C.blood);}}
-      if(zone===2){plate(g,194,91,92,122,C.edge);for(let x=202;x<279;x+=10)plate(g,x,100,9,105);line(g,238,96,238,210,C.red,2);}
-      if(zone===3){for(let x=34;x<480;x+=70){plate(g,x,117,24,95,C.edge);for(let y=128;y<202;y+=9)rect(g,x+4,y,16,3,C.blood);}}
-      if(zone===4||zone===6){for(let x=10;x<480;x+=70){plate(g,x,114,58,39);rect(g,x+3,118,52,30,C.ink);for(let y=122;y<145;y+=5)rect(g,x+7,y,23+((x+y)%21),1,C.blue);}}
-      if(zone===5){for(let x=10;x<480;x+=55){plate(g,x,141,45,70,C.edge);for(let i=0;i<3;i++)plate(g,x+4+i*12,148,10,48);rect(g,x+7,156,29,2,C.blood);}}
       for(let x=0;x<480;x+=32){plate(g,x,212,31,14,C.edge);rect(g,x+3,215,19,1,C.light);rect(g,x+23,218,5,3,C.red);}
       rect(g,0,226,480,44,'#101620');for(let x=0;x<480;x+=30){line(g,x,229,x-24,270,'#41404b');line(g,x+1,229,x-23,270,'#080c13');}for(let y=232;y<270;y+=9)line(g,0,y,480,y,'#222b35');
       for(let i=0;i<70;i++)rect(g,(i*137)%480,228+(i*17)%40,2+(i%4),1,i%4?'#34313b':C.blood);
       caches.set(zone,tile);
     }
     c.drawImage(caches.get(zone),0,0);
-    if(art.cathedral&&(zone===0||zone===6)){
+    if(art.cathedral&&zone===0){
       c.drawImage(art.cathedral,0,7,480,270);
       c.fillStyle='rgba(5,8,15,.12)';c.fillRect(0,0,480,211);
-      if(zone===6){c.fillStyle='rgba(74,0,20,.2)';c.fillRect(0,0,480,270);}
     }
-    ring(c,240,108,46,zone===4?C.blue:'#4c2639');ring(c,240,108,39,'#353d49');
+    ring(c,240,108,46,'#4c2639');ring(c,240,108,39,'#353d49');
     for(let i=0;i<12;i++){const a=i*Math.PI/6+t*.08;rect(c,240+Math.cos(a)*43,108+Math.sin(a)*43,2,2,C.red);}
     c.font='6px monospace';c.fillStyle='#646c7b';c.fillText(['EDEN / BIO-SYNTHESIS','QUARANTINE / K9','LOCKDOWN / 09','THERMAL / ASCENT','DA’AT / PREDICTION','ARK / FREIGHT','ROOT / ADMIN'][zone],17,88);
     for(let i=0;i<22;i++){let x=(i*43+t*(2+i%3))%480,y=90+(i*29+t*(1+i%2))%120;rect(c,x,y,1,1,i%4?'#414050':'#be2543');}
@@ -279,6 +248,22 @@ window.EdenPresentation = (() => {
   function drawZero(c,p,t){
     if(globalThis.EdenPsychic&&p.duelMode&&art.psychic){
       const elapsed=(p.attackDuration||.3)-(p.attack||0);let frame=0;
+      if(p.hp>0&&p.stun<=0&&!p.charging&&p.parryFlash<=0&&art.psiMotion&&art.psiSkills){
+        let sheet=null,row=0,col=0,baseline=0,top=0,anchor=0,width=350;
+        if(p.attack>0&&p.weaponMode==='psiJab'){
+          sheet=art.psiMotion;row=2+(p.psiHand||0);col=elapsed<.035?0:elapsed<.055?1:elapsed<.14?2:3;
+        }else if(p.attack>0&&['psiRise','psiPalm','psiGrab','psiSuper'].includes(p.weaponMode)){
+          sheet=art.psiSkills;row=['psiRise','psiPalm','psiGrab','psiSuper'].indexOf(p.weaponMode);
+          if(row===3)col=p.ultimateT>0?(p.ultimateT>.8?0:p.ultimateT>.36?1:p.ultimateT>.12?2:3):0;
+          else{const active=[.14,.20,.22][row];col=elapsed<active*.4?0:elapsed<active-.018?1:elapsed<active+.13?2:3;if(row===2)col=[0,2,1,3][col];}
+        }else if(p.onGround&&p.attack<=0&&p.dash<=0&&Math.abs(p.vx)>25){const walk=Math.floor(p.stridePhase)%8;sheet=art.psiMotion;row=Math.floor(walk/4);col=walk%4;}
+        if(sheet){
+          if(sheet===art.psiMotion){top=[0,304,599,878][row];baseline=[300,594,875,1110][row];anchor=[[185,535,882,1235],[185,535,882,1235],[185,520,860,1220],[170,515,860,1220]][row][col];}
+          else{top=[0,329,591,851][row];baseline=[322,582,846,1108][row];anchor=[[200,565,925,1245],[190,555,925,1270],[180,565,900,1255],[195,540,875,1235]][row][col];if(col===2)width=390;if(row===2&&col===0)width=365;}
+          c.save();c.translate(Math.round(p.x+9),Math.round(p.y+p.h));c.scale(p.face,1);if(p.inv>0&&p.ultimateT<=0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.6;
+          sprite(c,sheet,[col*350,top,Math.min(width,sheet.width-col*350),baseline-top+1,anchor],.18,baseline);c.restore();return;
+        }
+      }
       if(p.hp<=0)frame=13;else if(p.stun>0)frame=12;else if(p.charging||p.parryFlash>0)frame=3;
       else if(p.attack>0){const mode=p.weaponMode;frame=mode==='psiJab'?(elapsed<.05?4:elapsed<.16?5:0):mode==='psiPalm'?(elapsed<.18?6:elapsed<.34?7:14):mode==='psiRise'?(elapsed<.08?8:9):mode==='psiGrab'?(elapsed<.16?10:11):mode==='super'?(p.ultimateT>0?15:6):1;}
       else if(!p.onGround)frame=2;else if(p.landing>0)frame=14;else if(Math.abs(p.vx)>25)frame=Math.floor(p.stridePhase)%2?1:0;
@@ -371,5 +356,5 @@ window.EdenPresentation = (() => {
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
   function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {psychic:'characters/zero/zero-psychic.png',sweepVFX:!!art.sweepVFX,mechanisms:!!art.mechanisms,sentry:!!art.sentry,ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
+  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:!!art.sweepVFX,mechanisms:!!art.mechanisms,sentry:!!art.sentry,ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
 })();

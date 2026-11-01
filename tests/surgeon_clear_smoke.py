@@ -25,12 +25,12 @@ with sync_playwright() as p:
  page=browser.new_page(viewport={'width':1280,'height':960});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
- page.goto('http://127.0.0.1:4173/',wait_until='networkidle');page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
+ page.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4173')+'/',wait_until='networkidle');page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
  page.evaluate('sliceTest.setup();window.sliceRun=true')
  page.wait_for_function('sliceTest.phase===2 || sliceTest.state!=="combat"',timeout=45000)
  page.screenshot(path='/tmp/eden-surgeon-phase2.png')
  page.wait_for_function('sliceTest.state!=="combat"',timeout=45000)
- assert page.evaluate('sliceTest.state')=='reward'
+ assert page.evaluate('sliceTest.state')=='ending'
  assert page.evaluate('sliceTest.hp')>0
  page.screenshot(path='/tmp/eden-surgeon-clear.png')
  assert not errors,errors

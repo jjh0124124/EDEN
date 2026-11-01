@@ -17,7 +17,7 @@ function resetPause(g){g.freeze(0);}
 function opening(g){g.p.x=g.b.x-40;g.p.face=1;g.b.recovery=2;g.press('j');for(let i=0;i<25&&g.p.lab.grip<=0;i++)g.step();resetPause(g);}
 for(const concept of ['pressure','thermal','clamp']){
  test(`${concept}: Shift moves without free attack damage and J is a single poke`,()=>{const g=lab(concept);g.p.x=g.b.x-65;g.press('shift');frames(g,30);assert.equal(g.b.hp,g.b.maxHp);assert.equal(g.slashes.length,0);g.p.x=g.b.x-35;g.p.face=1;g.press('j');frames(g,25);assert.ok(g.b.hp<g.b.maxHp);assert.equal(g.p.combo,1);});
- test(`${concept}: restart clears resource state and victory cannot advance to another boss`,()=>{const g=lab(concept);g.p.lab.heat=80;g.p.lab.pressure=2;g.p.lab.pin=.5;g.setState('reward');g.press('enter');assert.equal(g.state,'combat');assert.equal(g.b.d.type,'surgeon');assert.equal(g.p.lab.heat,0);assert.equal(g.p.lab.pressure,0);assert.equal(g.p.lab.pin,0);});
+ test(`${concept}: restart clears resource state and victory cannot advance to another boss`,()=>{const g=lab(concept);g.p.lab.heat=80;g.p.lab.pressure=2;g.p.lab.pin=.5;g.setState('ending');g.press('enter');assert.equal(g.state,'combat');assert.equal(g.b.d.type,'surgeon');assert.equal(g.p.lab.heat,0);assert.equal(g.p.lab.pressure,0);assert.equal(g.p.lab.pin,0);});
 }
 test('pressure: stationary/wall brakes cannot farm; actual travel can be stored and expires',()=>{
  const g=lab('pressure');g.press('e');assert.equal(g.p.lab.pressure,0);g.p.x=453;g.keys.add('d');frames(g,30);g.press('e');assert.equal(g.p.lab.pressure,0);
