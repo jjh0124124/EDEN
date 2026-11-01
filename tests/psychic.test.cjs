@@ -156,10 +156,10 @@ test('both relays can be reached and destroyed using only movement and J from ei
  }
 });
 
-test('dash afterimages clear when J, Q, W or E begins',()=>{
- for(const key of ['j','q','w','e']){
-  const g=game(true);g.engage();g.player.x=80;g.keys.add('d');g.press('shift');until(g,()=>g.player.dash<=0);assert.ok(g.echoes.length>0);
-  g.press(key);assert.equal(g.player.weaponMode,{j:'psiJab',q:'psiRise',w:'psiPalm',e:'psiGrab'}[key]);assert.equal(g.echoes.length,0);
+test('dash afterimages clear when J, Q, W, E or R begins',()=>{
+ for(const key of ['j','q','w','e','r']){
+  const g=game(true);g.engage();g.player.x=80;g.player.superMeter=100;g.keys.add('d');g.press('shift');until(g,()=>g.player.dash<=0);assert.ok(g.echoes.length>0);
+  g.press(key);assert.equal(g.player.weaponMode,{j:'psiJab',q:'psiRise',w:'psiPalm',e:'psiGrab',r:'psiSuper'}[key]);assert.equal(g.echoes.length,0);
  }
 });
 

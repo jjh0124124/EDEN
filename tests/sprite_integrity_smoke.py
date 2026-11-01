@@ -14,15 +14,15 @@ with sync_playwright() as p:
   const base={duelMode:true,x:-9,y:-48,w:19,h:48,hp:100,stun:0,charging:false,parryFlash:0,inv:0,dash:0,face:1,attack:0,onGround:true,vx:0,stridePhase:0,landing:0,vy:0,ultimateT:0};
   function render(opts){const c=document.createElement('canvas');c.width=500;c.height=400;const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.translate(250,350);ctx.scale(4,4);EdenPresentation.drawZero(ctx,{...base,...opts},0);return ctx.getImageData(0,0,500,400).data;}
   function parts(data){const seen=new Uint8Array(200000),sizes=[];for(let i=0;i<seen.length;i++){if(seen[i]||data[i*4+3]<32)continue;let q=[i],size=0;seen[i]=1;while(q.length){let pos=q.pop(),x=pos%500,y=Math.floor(pos/500);size++;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){let xx=x+dx,yy=y+dy,j=yy*500+xx;if(xx<0||xx>=500||yy<0||yy>=400||seen[j]||data[j*4+3]<32)continue;seen[j]=1;q.push(j);}}if(size>10)sizes.push(size);}return sizes.sort((a,b)=>b-a);}
-  const rows=[['J1','psiJab',.24,0,[.01,.045,.095,.18]],['J2','psiJab',.24,1,[.01,.045,.095,.18]],['Q','psiRise',.42,0,[.02,.08,.18,.32]],['W','psiPalm',.50,0,[.03,.12,.24,.40]],['E','psiGrab',.48,0,[.03,.14,.26,.40]]],bad=[];
+  const rows=[['J1','psiJab',.24,0,[.01,.045,.095,.18]],['J2','psiJab',.24,1,[.01,.045,.095,.18]],['Q','psiRise',.42,0,[.02,.08,.18,.32]],['W','psiPalm',.50,0,[.03,.12,.24,.40]],['E','psiGrab',.48,0,[.03,.14,.26,.40]],['R','psiSuper',1.55,0,[.01,.5,.9,1.35]]],bad=[];
   for(const face of [-1,1]){
    const idle=render({face});for(let frame=0;frame<8;frame++){const walk=render({face,vx:100,stridePhase:frame});for(let i=0;i<500*242*4;i++)if(idle[i]!==walk[i]){bad.push('walk upper body '+face+'/'+frame);break;}}
-   for(const [name,mode,dur,hand,times] of rows)for(const t of times){const sizes=parts(render({face,weaponMode:mode,psiHand:hand,attackDuration:dur,attack:dur-t}));if(!sizes.length||sizes.length>1&&sizes[1]>sizes[0]*.005)bad.push(name+'/'+t+'/'+face+': '+sizes.join(','));}
+   for(const [name,mode,dur,hand,times] of rows)for(const t of times){const sizes=parts(render({face,weaponMode:mode,psiHand:hand,attackDuration:dur,attack:dur-t,ultimateT:name==='R'?dur-t:0,ultimateDuration:dur}));if(!sizes.length||sizes.length>1&&sizes[1]>sizes[0]*.005)bad.push(name+'/'+t+'/'+face+': '+sizes.join(','));}
   }
   return bad;
  }''')
  assert not result,result
  page.evaluate('spriteTest.setup()');page.keyboard.down('d');page.keyboard.press('Shift');page.wait_for_function('spriteTest.p.dash>0');page.wait_for_function('spriteTest.p.dash<=0');page.keyboard.press('j');page.wait_for_function('spriteTest.p.weaponMode==="psiJab"');assert page.evaluate('spriteTest.echoes.length')==0;page.keyboard.up('d')
  assert not errors,errors
- print('PASS: walk keeps the exact idle upper body; J/Q/W/E frames contain no detached fragments in either direction; dash→J clears afterimages')
+ print('PASS: walk keeps the exact idle upper body; J/Q/W/E/R frames contain no detached fragments in either direction; dash→J clears afterimages')
  browser.close()
