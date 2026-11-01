@@ -235,10 +235,10 @@ test('R whiff spends meter without invulnerability or a cinematic lock',()=>{
   const g=game();g.engage();g.player.superMeter=100;g.press('r');assert.equal(g.player.superMeter,0);assert.equal(g.player.inv,0);frames(g,40);assert.equal(g.player.ultimateT,0);assert.equal(g.boss.hp,g.boss.maxHp);assert.equal(g.player.attack,0);
 });
 test('confirmed R performs four contacts and defers the phase transition until recovery',()=>{
-  const g=game();g.engage();g.player.x=g.boss.x-35;g.player.superMeter=100;g.boss.hp=430;g.press('r');
+  const g=game();g.engage();g.player.x=g.boss.x-35;g.player.superMeter=100;g.boss.hp=g.boss.maxHp*.5+50;g.press('r');
   for(let i=0;i<30&&g.player.ultimateT<=0;i++)g.step();assert.ok(g.player.ultimateT>0);assert.ok(g.boss.superLock>0);assert.equal(g.boss.phase,1);
   let deferred=false;for(let i=0;i<110;i++){g.step();if(g.boss.hp<g.boss.maxHp*.5&&g.boss.superLock>0){deferred=true;assert.equal(g.boss.phase,1);}}
-  assert.equal(deferred,true);assert.ok(g.boss.hp<=320);assert.equal(g.boss.phase,2);assert.equal(g.player.ultimateT,0);assert.equal(g.player.superMeter,0);
+  assert.equal(deferred,true);assert.ok(g.boss.hp<=g.boss.maxHp*.5-60);assert.equal(g.boss.phase,2);assert.equal(g.player.ultimateT,0);assert.equal(g.player.superMeter,0);
 });
 test('R startup can be interrupted and boss death clears the confirmed sequence',()=>{
   const g=game();g.engage();g.player.x=g.boss.x-35;g.player.superMeter=100;g.press('r');g.player.damage(10,-1);frames(g,65);assert.equal(g.boss.hp,g.boss.maxHp);assert.equal(g.player.ultimateT,0);

@@ -66,10 +66,10 @@ window.EdenPresentation = (() => {
   function drawOrdnance(c,h){
     if(!art.ordnance)return false;
     const frames={syringe:[245,30,140,565],needle:[655,260,565,115],pillar:[235,650,160,550],rail:[645,860,590,150]};
-    const f=frames[h.kind];if(!f)return false;
+    const f=frames[h.heavyLance?'rail':h.kind];if(!f)return false;
     c.save();c.translate(Math.round(h.x),Math.round(h.y));
     if(h.kind==='needle'||h.kind==='rail')c.rotate(Math.atan2(h.vy||0,h.vx||1));
-    const scale=h.heavyCore ? .10 : h.kind==='pillar'?.115:h.kind==='syringe'?.055:h.kind==='rail'?.07:.055;
+    const scale=h.heavyLance ? .105 : h.heavyCore ? .10 : h.kind==='pillar'?.115:h.kind==='syringe'?.055:h.kind==='rail'?.07:.055;
     const w=f[2]*scale,height=f[3]*scale;
     if(h.kind==='pillar'){
       // Extend from the floor without changing the authored silhouette.
@@ -248,6 +248,17 @@ window.EdenPresentation = (() => {
     if(Math.abs(p.vx||0)<=12)return {row:0,frame:0};
     return null;
   }
+  function drawPsychicWalk(c,p,frame){
+    const row=Math.floor(frame/4),col=frame%4,sx=[0,443,887,1330][col],width=[443,444,443,444][col];
+    const top=[0,443][row],baseline=[439,857][row],anchor=[[242,687,1119,1563],[226,670,1128,1573]][row][col];
+    c.save();c.translate(Math.round(p.x+9),Math.round(p.y+p.h));c.scale(p.face,1);
+    if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.6;
+    // The original idle upper body stays in guard while the eight leg poses advance.
+    c.save();c.beginPath();c.moveTo(-7,-23);c.lineTo(8,-23);c.lineTo(8,-18.7);c.lineTo(100,-18.7);c.lineTo(100,40);c.lineTo(-100,40);c.lineTo(-100,-18.7);c.lineTo(-7,-18.7);c.closePath();c.clip();c.scale(.9,1);
+    sprite(c,art.psiWalk,[sx,top,width,baseline-top+1,anchor],.123,baseline);c.restore();
+    c.save();c.beginPath();c.moveTo(-100,-100);c.lineTo(100,-100);c.lineTo(100,-27);c.lineTo(6,-25);c.lineTo(6,-21.6);c.lineTo(-100,-21.6);c.closePath();c.clip();
+    sprite(c,art.psychic,[0,0,350,281,185],.19,280);c.restore();c.restore();
+  }
   function drawZero(c,p,t){
     if(globalThis.EdenPsychic&&p.duelMode&&art.psychic){
       const elapsed=(p.attackDuration||.3)-(p.attack||0);let frame=0;
@@ -259,12 +270,11 @@ window.EdenPresentation = (() => {
           sheet=art.psiSkills;row=['psiRise','psiPalm','psiGrab','psiSuper'].indexOf(p.weaponMode);
           if(row===3){const progress=1-p.ultimateT/(p.ultimateDuration||1.3);col=p.ultimateT>0?(progress<.3?0:progress<.56?1:progress<.82?2:3):0;}
           else{const active=[.14,.20,.22][row];col=elapsed<active*.4?0:elapsed<active-.018?1:elapsed<active+.13?2:3;if(row===2)col=[0,2,1,3][col];}
-        }else if(p.onGround&&p.attack<=0&&p.dash<=0&&Math.abs(p.vx)>25){const walk=Math.floor(p.stridePhase)%8;sheet=art.psiWalk;row=Math.floor(walk/4);col=walk%4;}
+        }else if(p.onGround&&p.attack<=0&&p.dash<=0&&Math.abs(p.vx)>25){drawPsychicWalk(c,p,Math.floor(p.stridePhase)%8);return;}
         if(sheet){
           let sourceX=col*350,scale=.18;
-          if(sheet===art.psiWalk){sourceX=[0,443,887,1330][col];width=[443,444,443,444][col];top=[0,443][row];baseline=[439,857][row];anchor=[[242,687,1119,1563],[226,670,1128,1573]][row][col];scale=.123;}
-          else if(sheet===art.psiMotion){top=[0,304,599,878][row];baseline=[300,594,875,1110][row];anchor=[[185,535,882,1235],[185,535,882,1235],[185,520,860,1220],[170,515,860,1220]][row][col];}
-          else{top=[0,329,591,851][row];baseline=[322,582,846,1108][row];anchor=[[200,565,925,1245],[190,555,925,1270],[180,565,900,1255],[195,540,875,1235]][row][col];if(col===2)width=390;if(row===2&&col===0)width=365;}
+          if(sheet===art.psiMotion){top=[0,304,599,878][row];baseline=[300,594,875,1110][row];anchor=[[185,535,882,1235],[185,535,882,1235],[185,520,860,1220],[170,515,860,1220]][row][col];}
+          else{top=[0,329,591,851][row];baseline=[322,582,846,1108][row];anchor=[[200,565,925,1245],[190,555,925,1270],[180,565,900,1255],[195,540,875,1235]][row][col];if(col===2)width=390;if(row===2&&col===0)width=365;if(row===1&&col===3){sourceX=1090;width=312;}if(row===2&&col===1){sourceX=365;width=335;}if(row===2&&col===3){sourceX=1080;width=322;}}
           c.save();c.translate(Math.round(p.x+9),Math.round(p.y+p.h));c.scale(p.face,1);if(p.inv>0&&p.ultimateT<=0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.6;
           sprite(c,sheet,[sourceX,top,Math.min(width,sheet.width-sourceX),baseline-top+1,anchor],scale,baseline);c.restore();return;
         }

@@ -18,11 +18,11 @@ with sync_playwright() as p:
   page.keyboard.press('j');page.wait_for_function(f'animTest.p.attack>0&&animTest.p.psiHand==={hand}');page.wait_for_function('animTest.p.attack<.15&&animTest.p.attack>.07');page.screenshot(path=f'/tmp/eden22-j{hand+1}.png');page.wait_for_function('animTest.p.attack<=0')
  page.evaluate('animTest.setup();animTest.b.recovery=1')
  page.keyboard.press('q');page.wait_for_function('animTest.b.psiStagger>0');assert page.evaluate('animTest.b.y')==126;page.screenshot(path='/tmp/eden22-q.png')
- page.evaluate('animTest.setup();animTest.b.psiGuard=.8;animTest.b.dir=-1');page.keyboard.press('e');page.wait_for_function('animTest.b.psiCompression>0');page.screenshot(path='/tmp/eden22-e.png');page.keyboard.press('w');page.wait_for_function('animTest.b.psiCompression===0&&animTest.b.hp<700');page.screenshot(path='/tmp/eden22-ew.png')
+ page.evaluate('animTest.setup();animTest.b.psiGuard=.8;animTest.b.dir=-1');page.keyboard.press('e');page.wait_for_function('animTest.b.psiCompression>0');page.screenshot(path='/tmp/eden22-e.png');page.keyboard.press('w');page.wait_for_function('animTest.b.psiCompression===0&&animTest.b.hp<animTest.b.maxHp-60');page.screenshot(path='/tmp/eden22-ew.png')
  page.evaluate('animTest.setup();animTest.p.superMeter=100');page.keyboard.press('r');page.wait_for_function('animTest.p.ultimateT>0')
  page.wait_for_function('animTest.p.ultimateT<1.15');page.screenshot(path='/tmp/eden22-r-charge.png')
  page.wait_for_function('animTest.p.ultimateT<.25&&animTest.p.ultimateT>0');page.screenshot(path='/tmp/eden22-r-final.png')
- page.wait_for_function('animTest.p.ultimateT===0');assert page.evaluate('animTest.b.hp<650')
+ page.wait_for_function('animTest.p.ultimateT===0');assert page.evaluate('animTest.b.hp<animTest.b.maxHp-110')
  # Legacy completed saves beyond the first encounter cannot enter removed content.
  page.unroute('**/src/game.js*');page.evaluate('localStorage.setItem("eden-save-v1",JSON.stringify({boss:5,stage:"boss",upgrade:12}))');page.reload(wait_until='networkidle');page.keyboard.press('Enter');page.wait_for_timeout(300);assert not errors,errors
  print('PASS: all 8 walk frames rendered; alternating hands; grounded Q stagger; E→W rupture; dedicated R charge/final; obsolete save loads without errors')

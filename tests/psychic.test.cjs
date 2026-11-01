@@ -44,7 +44,7 @@ test('skills require SP and do not create free effects or attacks on rejected in
  const g=duel();g.player.sp=0;for(const key of ['q','w','e'])g.player.skill(['q','w','e'].indexOf(key));assert.equal(g.slashes.length,0);assert.equal(g.player.attack,0);
 });
 test('new ultimate locks only after contact, defers phase change, and cancels hostile attacks',()=>{
- const g=duel();g.boss.hp=400;g.player.superMeter=100;g.press('r');for(let i=0;i<30&&g.player.ultimateT<=0;i++)g.step();assert.ok(g.player.ultimateT>1.2);assert.equal(g.boss.phase,1);assert.equal(g.slashes.filter(s=>s.superHit).length,3);frames(g,65);assert.equal(g.boss.phase,1);frames(g,65);assert.equal(g.boss.phase,2);assert.equal(g.player.ultimateT,0);
+ const g=duel();g.boss.hp=g.boss.maxHp*.5+20;g.player.superMeter=100;g.press('r');for(let i=0;i<30&&g.player.ultimateT<=0;i++)g.step();assert.ok(g.player.ultimateT>1.2);assert.equal(g.boss.phase,1);assert.equal(g.slashes.filter(s=>s.superHit).length,3);frames(g,65);assert.equal(g.boss.phase,1);frames(g,65);assert.equal(g.boss.phase,2);assert.equal(g.player.ultimateT,0);
  const h=duel();h.player.x=65;h.player.superMeter=100;h.press('r');frames(h,50);assert.equal(h.player.ultimateT,0);assert.equal(h.boss.hp,h.boss.maxHp);assert.equal(h.player.superMeter,0);
 });
 
@@ -113,7 +113,7 @@ test('guard counter remains jumpable at both walls at 30 and 60 fps',()=>{
  });
 
 function operationDuel(dt=1/60){
- const g=game(true);g.engage();g.boss.hp=560;g.boss.t=0;g.player.x=65;g.step(dt);assert.ok(g.boss.operation);return g;
+ const g=game(true);g.engage();g.boss.hp=g.boss.maxHp*.74;g.boss.t=0;g.player.x=65;g.step(dt);assert.ok(g.boss.operation);return g;
 }
 test('SURGEON operation: attacking both relays interrupts the ultimate and opens a punish',()=>{
  for(const dt of [1/30,1/60]){
@@ -132,7 +132,7 @@ test('SURGEON operation wave damages idle players, but a broken relay or a jump 
  }
 });
 test('SURGEON operation clears on boss death and retry',()=>{
- const g=operationDuel();g.boss.hurt(1000);assert.equal(g.boss.operation,null);frames(g,50);assert.ok(g.slashes.every(s=>s.kind!=='operationWave'));g.startBoss();assert.equal(g.boss.operation,undefined);
+ const g=operationDuel();g.boss.hurt(g.boss.maxHp*2);assert.equal(g.boss.operation,null);frames(g,50);assert.ok(g.slashes.every(s=>s.kind!=='operationWave'));g.startBoss();assert.equal(g.boss.operation,undefined);
 });
 
 function secondCut(dt=1/60,x=120){
@@ -148,10 +148,46 @@ test('parrying a phase-two low incision cancels its follow-up',()=>{
  const g=secondCut(1/60,290);g.press('k');until(g,()=>!g.boss.followup);assert.equal(g.player.hp,100);assert.ok(g.player.superMeter>=14);frames(g,100);assert.ok(g.hazards.every(h=>h.kind!=='syringe'));
 });
 
-test('both relays can be reached and destroyed using only movement and J from either wall or center',()=>{
- for(const bx of [55,200,395])for(const dt of [1/30,1/60]){
-  const g=game(true);g.engage();g.boss.x=bx;g.boss.hp=560;g.boss.t=0;g.player.x=bx;g.step(dt);let steps=0;
+test('both relays can be reached and destroyed using only movement and J from either wall or center in both phases',()=>{
+ for(const phase of [1,2])for(const bx of [55,200,395])for(const dt of [1/30,1/60]){
+  const g=game(true);g.engage();g.boss.x=bx;g.boss.hp=g.boss.maxHp*(phase===1?.74:.29);g.boss.phase=phase;g.boss.protocolUsed=phase===2;g.boss.operationUsed=phase===2;g.boss.t=0;g.player.x=bx;g.step(dt);let steps=0;
   while(g.boss.operation&&steps++<500){const nodes=g.boss.operation.nodes.filter(n=>n.hp>0);const n=nodes.reduce((a,b)=>Math.abs(a.x-g.player.x)<Math.abs(b.x-g.player.x)?a:b);const dx=n.x+14-(g.player.x+9);g.keys.clear();if(Math.abs(dx)>32)g.keys.add(dx>0?'d':'a');if(Math.abs(dx)<55&&g.player.attack<=0&&g.player.face===(Math.sign(dx)||g.player.face))g.press('j');else g.step(dt);}
   assert.equal(g.boss.operation,null);assert.ok(g.boss.recovery>1.9);assert.equal(g.player.hp,100);
  }
+});
+
+test('dash afterimages clear when J, Q, W or E begins',()=>{
+ for(const key of ['j','q','w','e']){
+  const g=game(true);g.engage();g.player.x=80;g.keys.add('d');g.press('shift');until(g,()=>g.player.dash<=0);assert.ok(g.echoes.length>0);
+  g.press(key);assert.equal(g.player.weaponMode,{j:'psiJab',q:'psiRise',w:'psiPalm',e:'psiGrab'}[key]);assert.equal(g.echoes.length,0);
+ }
+});
+
+test('SURGEON has 1800 HP and launches the long lance with readable jump and K responses',()=>{
+ for(const side of [-1,1])for(const dt of [1/30,1/60])for(const response of ['none','jump','parry']){
+  const g=game(true);g.engage();assert.equal(g.boss.maxHp,1800);g.boss.x=side<0?330:100;g.player.x=side<0?130:300;g.player.face=-side;g.boss.t=0;g.boss.lanceCasts=1;g.boss.lastPattern=0;g.step(dt);
+  assert.equal(g.boss.move,3);assert.ok(g.boss.windup>.7);assert.equal(g.hazards.length,0);until(g,()=>g.hazards.some(h=>h.heavyLance),dt);
+  let acted=false,seen=false;for(let i=0;i<180;i++){
+   const h=g.hazards.find(x=>x.heavyLance);if(h){seen=true;const distance=Math.abs(h.x-(g.player.x+9));if(!acted&&response==='jump'&&distance<75){g.press(' ');acted=true;continue;}if(!acted&&response==='parry'&&distance<30){g.press('k');acted=true;continue;}}
+   if(seen&&!h)break;g.step(dt);
+  }
+  assert.equal(g.player.hp,response==='none'?82:100);if(response==='parry')assert.ok(g.player.superMeter>=14);
+ }
+});
+test('cross-stitch drops the sides before the center and can be escaped after the first wave',()=>{
+ for(const dt of [1/30,1/60])for(const response of ['none','move']){
+  const g=game(true);g.engage();g.boss.x=330;g.player.x=205;g.boss.t=0;g.boss.loomCasts=2;g.step(dt);assert.equal(g.boss.move,4);const target=g.boss.target.x;
+  let moved=false,spawn=false;for(let i=0;i<250;i++){
+   const shots=g.hazards.filter(h=>h.crossStitch);if(shots.length)spawn=true;const sides=shots.filter(h=>h.x!==target);
+   if(response==='move'&&!moved&&spawn&&sides.length&&sides.every(h=>h.y>226)){g.keys.add('a');moved=true;}
+   g.step(dt);if(spawn&&!g.hazards.some(h=>h.crossStitch))break;
+  }
+  assert.equal(g.player.hp,response==='none'?88:100);if(response==='move')assert.ok(moved);
+ }
+});
+test('cross-stitch keeps its three lanes distinct near either wall',()=>{
+ for(const [px,bx] of [[8,130],[453,330]]){const g=game(true);g.engage();g.player.x=px;g.boss.x=bx;g.boss.t=0;g.boss.loomCasts=2;g.step();assert.equal(g.boss.move,4);until(g,()=>g.hazards.some(h=>h.crossStitch));const lanes=g.hazards.filter(h=>h.crossStitch).map(h=>h.x);assert.equal(new Set(lanes).size,3);assert.ok(lanes.every(x=>x>=15&&x<=465));}
+});
+test('the surgical operation returns once in phase two with a shorter warning',()=>{
+ const g=operationDuel();g.boss.endOperation(true);g.freeze(0);g.boss.recovery=0;g.boss.phase=2;g.boss.protocolUsed=true;g.boss.hp=g.boss.maxHp*.29;g.boss.t=0;g.step();assert.ok(g.boss.operation);assert.ok(g.boss.operation.time<=5.8);assert.ok(g.boss.phase2OperationUsed);
 });

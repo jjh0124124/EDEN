@@ -39,7 +39,7 @@
   canvas.addEventListener('pointerdown',()=>{audio.wake();canvas.focus({preventScroll:true});if(paused)pressed.add('escape');else if(dialogue||['title','interlude','intro','gameover','ending'].includes(state))pressed.add('enter');});
 
   const BOSSES = [
-    {id:'SURGEON', ko:'생명을 집도하는 자', zone:'폐쇄된 수술 성당', hp:760, color:'#eee9e4', intro:'치유는 실패를 연장할 뿐.\n나는 너를 완성하겠다.', type:'surgeon'}
+    {id:'SURGEON', ko:'생명을 집도하는 자', zone:'폐쇄된 수술 성당', hp:1800, color:'#eee9e4', intro:'치유는 실패를 연장할 뿐.\n나는 너를 완성하겠다.', type:'surgeon'}
   ];
 
   const STORY = [
@@ -62,7 +62,7 @@
 
   const PHASE_LINES=['마취를 중단한다. 이제 깨어 있는 채로 완성되어라.'];
   const PATTERNS=[['절개 탄막','수직 봉합']];
-  const TACTICS=['절개는 점프·회피 또는 K 패링. 낙하는 표식 밖으로.'];
+  const TACTICS=['절개·관통은 점프 또는 K 패링. 낙하는 표식 확인.'];
   const saveKey='eden-save-v1';
   const save = () => {try{localStorage.setItem(saveKey, JSON.stringify({boss:bossIndex, stage:checkpointStage, upgrade, augments, archives:archiveCount, records:[...recoveredRecords], defeats:defeatCount, complete:state==='ending'}));}catch{message('저장 불가 — 브라우저 저장소를 확인하세요',3);} };
   const load = () => {try{const s=JSON.parse(localStorage.getItem(saveKey));if(!s||!Number.isInteger(s.boss)||s.boss<0)return null;if(s.boss!==0||s.stage==='reward')return {boss:0,stage:'explore',upgrade:0,augments:[0,0,0],archives:0,records:[],defeats:0,complete:false};return {...s,upgrade:0,augments:[0,0,0],records:(s.records||[]).filter(i=>i===0)};}catch{return null;} };
@@ -137,7 +137,7 @@
         if(this.buffer&&(this.attack<=0||((this.buffer.key==='q'||this.duelMode&&this.buffer.key==='e')&&this.linkWindow>0)||(this.buffer.key==='r'&&this.finishWindow>0))&&!this.charging&&this.dash<=0){const key=this.buffer.key;this.buffer=null;if(key==='j')this.strike(false);else this.skill(['q','w','e','r'].indexOf(key));}
         }
       }
-      if(this.dash>0)echoes.push({x:this.x,y:this.y,face:this.face,life:.18});
+      if(this.dash>0)echoes.push({x:this.x,y:this.y,face:this.face,onGround:this.onGround,life:.18});
       this.dash=Math.max(0,this.dash-dt);this.vy+=470*dt;this.x+=this.vx*dt;this.y+=this.vy*dt;
       if(this.y+this.h>=FLOOR){if(this.duelMode&&!this.onGround&&this.vy>80)this.landing=.10;this.y=FLOOR-this.h;this.vy=0;this.onGround=true;this.diveUsed=false;}
       if(this.stepRemaining>0&&this.stun<=0&&this.dash<=0){let step=Math.min(this.stepRemaining,(this.stepSpeed||180)*dt);
@@ -293,10 +293,11 @@
     }
     beginOperation(){
       const positions=this.x<180?[235,390]:this.x>260?[65,225]:[40,380];
-      this.operationUsed=true;this.operation={time:6.5,nodes:positions.map(x=>({x,y:FLOOR-60,w:28,h:60,hp:36,maxHp:36}))};
-      this.windup=this.windupMax=6.5;this.move=0;this.counterCast=false;this.release=0;this.recovery=0;
+      this.operationUsed=true;if(this.phase===2)this.phase2OperationUsed=true;
+      const duration=this.phase===2?5.8:6.5;this.operation={time:duration,nodes:positions.map(x=>({x,y:FLOOR-60,w:28,h:60,hp:36,maxHp:36}))};
+      this.windup=this.windupMax=duration;this.move=0;this.counterCast=false;this.release=0;this.recovery=0;
       hazards=hazards.filter(h=>h.owner!=='b');slashes=slashes.filter(s=>s.owner!=='b');
-      message('OPERATING FIELD / 장치 2개 파괴 또는 점프 회피',2.5);audio.tone(75,.3,'triangle',.045,35);
+      message(this.phase===2?'FINAL OPERATION / 수술 장치 재전개':'OPERATING FIELD / 장치 2개 파괴 또는 점프 회피',2.5);audio.tone(75,.3,'triangle',.045,35);
     }
     endOperation(broken){
       const op=this.operation;if(!op)return;this.operation=null;this.windup=0;this.release=broken?0:.45;this.recovery=broken?2:1.65;this.t=this.recovery+.55;
@@ -320,8 +321,9 @@
       if(this.phase===2&&!this.protocolUsed&&this.windup<=0&&this.recovery<=0){
         this.protocolUsed=true;this.beginProtocolCast(0);return;
       }
-      if(psychic&&!this.operationUsed&&!this.followup&&this.hp<=this.maxHp*.75&&this.windup<=0&&this.recovery<=0&&this.release<=0&&!(this.superLock>0)&&!(player.weaponMode==='psiSuper'&&player.attack>0)){this.beginOperation();return;}
-      if(this.windup>0){this.windup-=dt;if(this.approach){const a=this.approach;this.x=lerp(a.from,a.to,clamp((this.windupMax-this.windup-.3)/.4,0,1));}if(this.windup<=0){this.approach=null;this.act();this.recovery=[1.2,1.45,1.35][this.move%3];if(this.move%3===2){const muzzle=this.x+20+this.dir*58;this.recovery+=clamp(Math.abs((this.target?.x??muzzle)-muzzle)/(this.phase===2?120:105)-.4,0,1.25);}this.t=this.recovery+.55-(this.phase===2?.15:0);}return;}
+      const operationDue=!this.operationUsed&&this.hp<=this.maxHp*.75||this.phase===2&&this.operationUsed&&!this.phase2OperationUsed&&this.hp<=this.maxHp*.30;
+      if(psychic&&operationDue&&!this.followup&&this.windup<=0&&this.recovery<=0&&this.release<=0&&!(this.superLock>0)&&!(player.weaponMode==='psiSuper'&&player.attack>0)){this.beginOperation();return;}
+      if(this.windup>0){this.windup-=dt;if(this.approach){const a=this.approach;this.x=lerp(a.from,a.to,clamp((this.windupMax-this.windup-.3)/.4,0,1));}if(this.windup<=0){this.approach=null;this.act();this.recovery=this.move===3?1.55:this.move===4?1.9:[1.2,1.45,1.35][this.move%3];if(this.move===2){const muzzle=this.x+20+this.dir*58;this.recovery+=clamp(Math.abs((this.target?.x??muzzle)-muzzle)/(this.phase===2?120:105)-.4,0,1.25);}this.t=this.recovery+.55-(this.phase===2?.15:0);}return;}
       if(this.counterReady&&!(this.recovery>0)&&!this.protocol){
         this.counterReady=false;this.move=2;this.target={x:player.x+9,y:player.y+23};this.dir=this.target.x<this.x?-1:1;
         this.windup=this.windupMax=.7;message('RESECTION // 후퇴 후 견제 — 발사 방향 고정',.8);audio.tone(390,.1,'triangle',.025);return;
@@ -337,16 +339,20 @@
         const range=Math.abs(player.x-this.x);let choice=range<92?0:range>175?2:1;
         if(choice===this.lastPattern&&this.patternRepeat>=1)choice=choice===1?2:1;
         const pursuit=range>140&&this.lastPattern===2&&this.anchorTime<=0;if(pursuit)choice=0;
+        if(psychic&&choice===1&&((this.loomCasts=(this.loomCasts||0)+1)%3===0))choice=4;
+        if(psychic&&choice===2&&((this.lanceCasts=(this.lanceCasts||0)+1)%2===0))choice=3;
         this.counterCast=!!psychic&&choice===1&&((this.coreCasts=(this.coreCasts||0)+1)%2===1);
         this.patternRepeat=choice===this.lastPattern?(this.patternRepeat||0)+1:0;this.lastPattern=choice;this.move=choice;
-        this.target={x:player.x+9,y:player.y+23};this.windup=this.phase===2?.8:1;this.windupMax=this.windup;this.dir=this.target.x<this.x?-1:1;
+        this.target={x:choice===4?clamp(player.x+9,57,423):player.x+9,y:player.y+23};this.windup=this.phase===2?.8:1;this.windupMax=this.windup;this.dir=this.target.x<this.x?-1:1;
         this.approach=pursuit?{from:this.x,to:clamp(this.x+this.dir*Math.min(120,Math.max(0,range-62)),45,395)}:null;if(pursuit)this.windup=this.windupMax=1.1;
-        message(this.counterCast?'CORE / 마취 코어 낙하 — 표식 밖으로 회피':pursuit?'PURSUIT / 추진 절개 — 경로 고정, 점프 또는 패링':['SUTURE / 저위 절개 — 점프 또는 정면 K 패링','LOOM / 봉합 낙하 — 표식 밖으로','NEEDLE / 주사기 산개 — 방향 고정'][choice],this.counterCast?2:1);audio.tone(340,.12,'triangle',.04);
+        message(this.counterCast?'CORE / 마취 코어 낙하 — 표식 밖으로 회피':pursuit?'PURSUIT / 추진 절개 — 경로 고정, 점프 또는 패링':['SUTURE / 저위 절개 — 점프 또는 정면 K 패링','LOOM / 봉합 낙하 — 표식 밖으로','NEEDLE / 주사기 산개 — 방향 고정','LANCE / 관통 주사 — 점프 또는 정면 K','CROSS STITCH / 양옆 다음 중앙 — 위치 이동'][choice],this.counterCast?2:1);audio.tone(340,.12,'triangle',.04);
       }
     }
     act(){this.release=.38;const p=this.phase===2;
         const target=this.target||{x:player.x+9,y:player.y+23};
-        if(this.move%3===1&&this.counterCast&&!this.protocol){hazards.push({kind:'syringe',owner:'b',heavyCore:true,x:clamp(target.x,15,465),y:42,vy:145,r:8,life:1.6,dmg:14,delay:.16});}
+        if(this.move===3){hazards.push({kind:'needle',owner:'b',heavyLance:true,x:this.x+20+this.dir*58,y:FLOOR-14,vx:this.dir*220,vy:0,r:6,delay:.12,life:2.5,dmg:18});}
+        else if(this.move===4){const x=clamp(target.x,57,423);for(const i of [-1,1])hazards.push({kind:'syringe',owner:'b',crossStitch:true,x:x+i*42,y:38,vy:190,r:5,life:1.4,dmg:12,delay:.1});hazards.push({kind:'syringe',owner:'b',crossStitch:true,x,y:38,vy:190,r:5,life:1.4,dmg:12,delay:.65});}
+        else if(this.move%3===1&&this.counterCast&&!this.protocol){hazards.push({kind:'syringe',owner:'b',heavyCore:true,x:clamp(target.x,15,465),y:42,vy:145,r:8,life:1.6,dmg:14,delay:.16});}
         else if(this.move%3===1){for(let i=-1;i<=1;i++)hazards.push({kind:'syringe',owner:'b',x:clamp(target.x+i*42,15,465),y:38,vy:190,r:5,life:1.4,dmg:12,delay:.12+Math.abs(i)*.08});}
         else if(this.move%3===2){const ox=this.x+20+this.dir*58,oy=this.y+30,aim=Math.atan2(target.y-oy,target.x-ox);for(let i=-1;i<=1;i++){const a=aim+i*.42;hazards.push({kind:'needle',owner:'b',x:ox,y:oy,vx:Math.cos(a)*(p?120:105),vy:Math.sin(a)*(p?120:105),r:4,delay:.15,life:3.5,dmg:10});}}
         else {slashes.push({kind:'scalpel',parryable:true,owner:'b',x:this.dir<0?this.x-82:this.x+25,y:FLOOR-23,w:97,h:20,life:.18,delay:.12,dmg:16,dir:this.dir});if(psychic&&p&&!this.protocol)this.followup={time:.95,x:null};}
@@ -390,7 +396,7 @@
     if(!boss?.dead&&player.hp>0)player.update(dt);if(state==='combat')boss.update(dt);
     for(const s of slashes){if(s.attached&&(player.weaponMode!=='dive'||player.stun>0||player.hp<=0||player.dash>0||s.castId!==player.attackSerial)){s.life=0;continue;}if(s.followStartup&&(s.delay>0||s.attached&&!s.done)){s.x=s.dir>0?player.x+s.origin:player.x-s.w;s.y=player.y+(s.offsetY??-5);}if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.target&&(s.target.hp<=0||player.hp<=0)){s.life=0;continue;}if(s.delay>0){s.delay-=dt;if(s.delay<=0&&player.duelMode&&s.owner==='p'){if(psychic)psychic.release(s);if(s.kind==='kick'||s.kind==='hook')spriteEffect('sweep',s.dir>0?s.x:s.x+s.w,s.y+32,s.dir,.14,s.kind==='hook'?.8:[.42,.58,.88][(s.combo||1)-1]);if(s.superHit&&!psychic)spriteEffect('superburst',s.target.x+21,player.y+24,s.dir,.24,s.dmg>=50?1.1:.8);}continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&hitOperationNode(s,box))s.done=true;if(s.owner==='p'&&!s.done&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){if(psychic&&player.duelMode)psychic.hit(s,boss);else{if(s.superStarter&&player.hp>0)player.confirmSuper(boss);boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);}s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){if(psychic&&player.duelMode)psychic.hit(s,drone);else{if(s.superStarter&&player.hp>0)player.confirmSuper(drone);drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));}s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s)){if(player.duelMode&&player.dash>0)player.recoverDrive();player.damage(s.dmg,s.dir);}s.done=true;}}}
     slashes=slashes.filter(s=>s.life>0);
-    for(const h of hazards){if(h.delay>0&&h.source?.hp<=0){h.life=0;continue;}if(h.delay>0){if(h.followWeapon){h.x=player.x+9+h.dir*20;h.y=player.y+30;}h.delay-=dt;if(h.delay<=0&&h.recoil){player.stepRemaining=20;player.stepDir=-h.dir;player.stepSpeed=180;}if(h.delay<=0&&h.source){h.source.release=.18;spriteEffect('boost',h.x,h.y,-Math.sign(h.vx),.15,.35);audio.tone(330,.04,'triangle',.02,150);}
+    for(const h of hazards){if(h.delay>0&&h.source?.hp<=0){h.life=0;continue;}if(h.delay>0){if(h.followWeapon){h.x=player.x+9+h.dir*20;h.y=player.y+30;}h.delay-=dt;if(h.delay<=0&&h.recoil){player.stepRemaining=20;player.stepDir=-h.dir;player.stepSpeed=180;}if(h.delay<=0&&h.source){h.source.release=.18;spriteEffect('boost',h.x,h.y,-Math.sign(h.vx),.15,.35);audio.tone(330,.04,'triangle',.02,150);}if(h.delay<=0&&h.heavyLance){audio.noise(.045,.025);audio.tone(155,.1,'triangle',.035,95);}
       if(h.delay<=0&&player.duelMode&&h.owner==='p'){
         if(h.kind==='rail'){spriteEffect('boost',h.x,h.y,-Math.sign(h.vx),.15,.45);audio.tone(340,.06,'triangle',.025,180);}
         if(h.kind==='pillar'){spriteEffect('hit',h.x,FLOOR-8,player.face,.24,.85);audio.tone(95,.09,'triangle',.03,60);}
@@ -443,13 +449,16 @@
     if(state==='combat'&&boss?.d.type==='surgeon'&&boss.windup>0&&!boss.operation){
       const b=boss,target=b.target||{x:player.x+9,y:player.y+23},kind=b.move%3;
       ctx.save();ctx.globalAlpha=.22;ctx.fillStyle=RED;
-      if(kind===0)ctx.fillRect(b.dir<0?b.x-82:b.x+25,FLOOR-23,97,20);
-      if(kind===1&&!b.counterCast)for(let i=-1;i<=1;i++)ctx.fillRect(clamp(target.x+i*42,15,465)-6,38,12,FLOOR-38);
+      if(kind===0&&b.move!==3)ctx.fillRect(b.dir<0?b.x-82:b.x+25,FLOOR-23,97,20);
+      if(kind===1&&!b.counterCast&&b.move!==4)for(let i=-1;i<=1;i++)ctx.fillRect(clamp(target.x+i*42,15,465)-6,38,12,FLOOR-38);
       if(kind===1&&b.counterCast)ctx.fillRect(clamp(target.x,15,465)-8,38,16,FLOOR-38);
+      if(b.move===4){for(const i of [-1,1])ctx.fillRect(clamp(target.x+i*42,15,465)-6,38,12,FLOOR-38);ctx.globalAlpha=.10;ctx.fillRect(clamp(target.x,15,465)-6,38,12,FLOOR-38);}
       ctx.globalAlpha=1;
-      if(kind===0)P.line(ctx,b.dir<0?b.x-82:b.x+25,FLOOR-4,b.dir<0?b.x+15:b.x+122,FLOOR-4,RED,2);
+      if(kind===0&&b.move!==3)P.line(ctx,b.dir<0?b.x-82:b.x+25,FLOOR-4,b.dir<0?b.x+15:b.x+122,FLOOR-4,RED,2);
+      if(b.move===3){const muzzle=b.x+20+b.dir*58;P.line(ctx,muzzle,FLOOR-14,b.dir<0?10:470,FLOOR-14,RED,2);}
       if(kind===1&&b.counterCast){const x=clamp(target.x,15,465);P.line(ctx,x-10,FLOOR,x+10,FLOOR,RED,2);}
-      if(kind===1&&!b.counterCast)for(let i=-1;i<=1;i++){const x=clamp(target.x+i*42,15,465);P.line(ctx,x-8,FLOOR,x+8,FLOOR,RED,2);P.line(ctx,x-5,45,x,51,PALE);P.line(ctx,x,51,x+5,45,PALE);}
+      if(b.move===4){for(const i of [-1,1]){const x=clamp(target.x+i*42,15,465);P.line(ctx,x-8,FLOOR,x+8,FLOOR,RED,2);}const x=clamp(target.x,15,465);P.line(ctx,x-8,FLOOR,x+8,FLOOR,'#ffc67a',2);}
+      if(kind===1&&!b.counterCast&&b.move!==4)for(let i=-1;i<=1;i++){const x=clamp(target.x+i*42,15,465);P.line(ctx,x-8,FLOOR,x+8,FLOOR,RED,2);P.line(ctx,x-5,45,x,51,PALE);P.line(ctx,x,51,x+5,45,PALE);}
       if(kind===2){const ox=b.x+20+b.dir*58,oy=b.y+30,aim=Math.atan2(target.y-oy,target.x-ox);for(let i=-1;i<=1;i++){const a=aim+i*.42;for(let j=1;j<=12;j++)P.rect(ctx,ox+Math.cos(a)*j*12,oy+Math.sin(a)*j*12,2,2,RED);}}
       P.rect(ctx,b.x-3,b.y-9,48,3,'#161b25');P.rect(ctx,b.x-3,b.y-9,48*(1-b.windup/(b.windupMax||1)),3,'#ffc67a');ctx.restore();
     }
@@ -604,7 +613,7 @@
     if(t>.35){ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='18px monospace';ctx.fillText('COMMAND SEVERED',240,25);ctx.fillStyle='#aab8c9';ctx.font='8px monospace';ctx.fillText('BEST CHAIN '+bestChain+'   /   '+battleSeconds.toFixed(1)+' SEC   /   CORE RECOVERED',240,254);ctx.textAlign='left';}
   }
 
-  function renderCombat(){ctx.save();cameraKick();if(player.ultimateT>0&&!boss.dead){const z=1+(psychic?.18:.09)*Math.sin(Math.PI*(1-player.ultimateT/(player.ultimateDuration||.82))),focus=clamp((player.x+boss.x)/2,180,300);ctx.translate(focus,170);ctx.scale(z,z);ctx.translate(-focus,-170);}drawBackground(bossIndex);if(player.ultimateT>0&&!boss.dead){ctx.fillStyle='rgba(3,5,10,.5)';ctx.fillRect(0,0,W,H);}for(const e of echoes){ctx.globalAlpha=e.life*2;EdenPresentation.drawZero(ctx,{...player,x:e.x,y:e.y,face:e.face,inv:0},time);}ctx.globalAlpha=1;drawHazards();boss.draw();player.draw();drawSlashes();drawParticles();drawDamageNumbers();ctx.globalAlpha=1;ctx.restore();if(psychic&&player.ultimateT>0&&!boss.dead)EdenPresentation.superCutin(ctx,player);drawHUD();drawMessages();drawOverride();if(boss.tele>0){ctx.fillStyle='rgba(5,7,12,.8)';ctx.fillRect(0,95,480,32);ctx.fillStyle=RED;ctx.font='13px monospace';ctx.textAlign='center';ctx.fillText('PHASE II / 신경 제한 해제',240,115);ctx.textAlign='left';}if(paused)overlay('PAUSED','ESC — 계속 / M — 음소거');}
+  function renderCombat(){ctx.save();cameraKick();if(player.ultimateT>0&&!boss.dead){const z=1+(psychic?.18:.09)*Math.sin(Math.PI*(1-player.ultimateT/(player.ultimateDuration||.82))),focus=clamp((player.x+boss.x)/2,180,300);ctx.translate(focus,170);ctx.scale(z,z);ctx.translate(-focus,-170);}drawBackground(bossIndex);if(player.ultimateT>0&&!boss.dead){ctx.fillStyle='rgba(3,5,10,.5)';ctx.fillRect(0,0,W,H);}for(const e of echoes){ctx.globalAlpha=e.life*2;EdenPresentation.drawZero(ctx,{...player,x:e.x,y:e.y,face:e.face,onGround:e.onGround,inv:0,stun:0,charging:false,parryFlash:0,attack:0,dash:.01,vx:e.face*132},time);}ctx.globalAlpha=1;drawHazards();boss.draw();player.draw();drawSlashes();drawParticles();drawDamageNumbers();ctx.globalAlpha=1;ctx.restore();if(psychic&&player.ultimateT>0&&!boss.dead)EdenPresentation.superCutin(ctx,player);drawHUD();drawMessages();drawOverride();if(boss.tele>0){ctx.fillStyle='rgba(5,7,12,.8)';ctx.fillRect(0,95,480,32);ctx.fillStyle=RED;ctx.font='13px monospace';ctx.textAlign='center';ctx.fillText('PHASE II / 신경 제한 해제',240,115);ctx.textAlign='left';}if(paused)overlay('PAUSED','ESC — 계속 / M — 음소거');}
   function overlay(title,sub){ctx.fillStyle='rgba(3,4,5,.82)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle=PALE;ctx.font='22px Georgia';ctx.fillText(title,W/2,120);ctx.fillStyle='#8b9092';ctx.font='8px monospace';ctx.fillText(sub,W/2,140);ctx.textAlign='left';}
   function titleScreen(){campaignTitle();}
   function storyScreen(){recordScreen();}
@@ -658,7 +667,7 @@
   const psychic=globalThis.EdenPsychic?.install({Fighter,Boss,player,pressed,fx:spriteEffect,sound:audio,message,
     clearHostile(){hazards=hazards.filter(h=>h.owner!=='b');slashes=slashes.filter(s=>s.owner!=='b');},
     get boss(){return boss;},
-    slash:s=>slashes.push(s),cancel(){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0&&!s.attached);hazards=hazards.filter(h=>h.owner!=='p'||h.delay<=0);},
+    slash:s=>slashes.push(s),cancel(){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0&&!s.attached);hazards=hazards.filter(h=>h.owner!=='p'||h.delay<=0);echoes=[];},
     stop(t,s){hitstop=Math.max(hitstop,t);shake=Math.max(shake,s);},
     damage(target,n,interrupt){if(target.d)target.hurt(n,interrupt);else{const damage=Math.round(n*(1+upgrade*.08+augments[0]*.12));target.hp-=damage;contactFeedback(target,n,damage);}}
   });

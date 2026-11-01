@@ -28,7 +28,7 @@ with sync_playwright() as p:
  page.keyboard.press('e')
  page.wait_for_function('coreTest.b.psiCompression>0')
  page.keyboard.press('w')
- page.wait_for_function('coreTest.b.psiCompression===0 && coreTest.b.hp<710')
+ page.wait_for_function('coreTest.b.psiCompression===0 && coreTest.b.hp<coreTest.b.maxHp-50')
  page.evaluate('coreTest.setup();coreTest.b.t=999;coreTest.p.x=coreTest.b.x-55')
  page.keyboard.press('e')
  page.wait_for_function('coreTest.b.psiCompression>0')

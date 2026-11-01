@@ -13,7 +13,7 @@ function game(psychic=false){
     step(dt=.016){update(dt);pressed.clear();},
     press(k){pressed.add(k);update(.016);pressed.clear();},
     engage(i=0){startBoss(i);state='combat';boss.inv=0;boss.t=999;},
-    get boss(){return boss},get state(){return state},get hazards(){return hazards},get slashes(){return slashes},get room(){return room},get upgrade(){return upgrade},get paused(){return paused},get dialogue(){return dialogue},get checkpoint(){return checkpointStage},get archiveCount(){return archiveCount},
+    get boss(){return boss},get state(){return state},get hazards(){return hazards},get slashes(){return slashes},get echoes(){return echoes},get room(){return room},get upgrade(){return upgrade},get paused(){return paused},get dialogue(){return dialogue},get checkpoint(){return checkpointStage},get archiveCount(){return archiveCount},
     get augments(){return augments},get chain(){return chain},get sounds(){return audio.events},get feedback(){return {shake,hitstop,particles:particles.length,numbers:damageNumbers.length}},freeze(t){hitstop=t},
     setSave(value){localStorage.setItem(saveKey,JSON.stringify(value));},
     title(){state='title';dialogue=null;hitstop=0;menu=0},setUpgrade(v){upgrade=v},resume(){paused=false},};`;
