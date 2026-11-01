@@ -533,7 +533,7 @@
     drawBackground(Math.min(bossIndex,6));ctx.fillStyle='rgba(3,5,9,.89)';ctx.fillRect(0,0,W,H);
     const s=STORY[0];ctx.fillStyle=RED;ctx.font='8px monospace';ctx.fillText('TRANSMISSION / '+String(bossIndex+1).padStart(2,'0'),29,38);
     ctx.fillStyle=PALE;ctx.font='25px Georgia';ctx.fillText(s[0],28,74);ctx.font='10px sans-serif';wrapped(s[1],30,104,416);wrapped(s[2],30,125,416);
-    for(let i=0;i<7;i++){const x=34+i*62;ctx.fillStyle=i<bossIndex?RED:i===bossIndex?PALE:'#354050';ctx.fillRect(x,168,38,2);ctx.font='6px monospace';ctx.fillText(BOSSES[i].id,x,183);ctx.fillText(i<bossIndex?'CLEARED':i===bossIndex?'TARGET':'LOCKED',x,196);}
+    for(let i=0;i<BOSSES.length;i++){const x=34+i*62;ctx.fillStyle=i<bossIndex?RED:i===bossIndex?PALE:'#354050';ctx.fillRect(x,168,38,2);ctx.font='6px monospace';ctx.fillText(BOSSES[i].id,x,183);ctx.fillText(i<bossIndex?'CLEARED':i===bossIndex?'TARGET':'LOCKED',x,196);}
     ctx.fillStyle='#9ba6b6';ctx.font='8px sans-serif';ctx.fillText('코어 강화 +'+upgrade+'  /  회수 기록 '+archiveCount+'  /  ENTER — 구역 진입',30,233);
   }
   function drawHUD(){statusHUD();
