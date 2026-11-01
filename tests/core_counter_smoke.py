@@ -1,4 +1,4 @@
-"""Exercise SURGEON's core with browser keyboard input and the production renderer."""
+"""Exercise SURGEON's core and skill interactions using browser keyboard input."""
 import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -20,20 +20,15 @@ with sync_playwright() as p:
  page.wait_for_function('coreTest.b.counterCast && coreTest.b.windup>.3')
  page.wait_for_timeout(150)
  page.screenshot(path='/tmp/eden23-core-warning.png')
- page.wait_for_function('coreTest.hazards.some(h=>h.counterable&&h.delay<=0&&h.y>=110)')
+ page.wait_for_function('coreTest.hazards.some(h=>h.heavyCore&&h.delay<=0&&h.y>=110)')
  page.keyboard.press('q')
- page.wait_for_function('coreTest.hazards.some(h=>h.psiReturn)')
- page.screenshot(path='/tmp/eden23-core-return.png')
- page.wait_for_function('coreTest.b.hp<coreTest.b.maxHp && coreTest.b.recovery>1')
- assert page.evaluate('coreTest.p.hp') == 100
- page.keyboard.down('d')
- page.wait_for_function('coreTest.p.x>=coreTest.b.x-55 && coreTest.p.attack<=0')
- page.keyboard.up('d')
+ page.wait_for_function('coreTest.p.hp<100')
+ assert page.evaluate('coreTest.p.hp===86 && coreTest.b.hp===coreTest.b.maxHp && coreTest.hazards.every(h=>h.owner!=="p")')
+ page.evaluate('coreTest.setup();coreTest.b.t=999;coreTest.p.x=coreTest.b.x-55')
  page.keyboard.press('e')
  page.wait_for_function('coreTest.b.psiCompression>0')
  page.keyboard.press('w')
- page.wait_for_function('coreTest.b.psiCompression===0 && coreTest.b.hp<690')
- page.screenshot(path='/tmp/eden23-core-followup.png')
+ page.wait_for_function('coreTest.b.psiCompression===0 && coreTest.b.hp<710')
  page.evaluate('coreTest.setup();coreTest.b.t=999;coreTest.p.x=coreTest.b.x-55')
  page.keyboard.press('e')
  page.wait_for_function('coreTest.b.psiCompression>0')
@@ -46,7 +41,7 @@ with sync_playwright() as p:
  page.wait_for_function('coreTest.b.counterCast && coreTest.b.windup>.3')
  locked = page.evaluate('coreTest.b.target.x')
  page.keyboard.down('a')
- page.wait_for_function('coreTest.hazards.some(h=>h.counterable&&h.y>215)')
+ page.wait_for_function('coreTest.hazards.some(h=>h.heavyCore&&h.y>215)')
  page.keyboard.up('a')
  assert page.evaluate('coreTest.b.target.x') == locked
  assert page.evaluate('coreTest.p.hp') == 100
@@ -58,5 +53,5 @@ with sync_playwright() as p:
  page.wait_for_timeout(350)
  assert page.evaluate('coreTest.p.hp') == 100
  assert not errors, errors
- print('PASS: rendered core warning; Q reflection into E→W; E→Q spacing; core dodge; guard counter jump; no JS errors')
+ print('PASS: rendered core warning; Q does not parry; E→W and E→Q; core dodge; guard counter jump; no JS errors')
  browser.close()

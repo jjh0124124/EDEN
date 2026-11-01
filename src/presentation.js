@@ -1,10 +1,13 @@
 /* Original layered pixel artwork and synthesis. No downloaded production assets. */
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
-  const art={};
-  for(const [key,path] of Object.entries({psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'})){
-    const image=new Image();image.onload=()=>{art[key]=image;};image.src='assets/'+path;
+  const art={},loads={};
+  const assetPaths={psiWalk:'characters/zero/zero-walk-v25.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
+  for(const [key,path] of Object.entries(assetPaths)){
+    loads[key]=new Promise(resolve=>{const image=new Image();image.onload=()=>{art[key]=image;resolve(true);};image.onerror=()=>resolve(false);image.src='assets/'+path;});
   }
+  const required=['psiWalk','ultimateCutin','psiMotion','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
+  const ready=Promise.race([Promise.all(required.map(key=>loads[key])).then(results=>results.every(Boolean)),new Promise(resolve=>setTimeout(()=>resolve(false),20000))]);
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
   // have a reliable uniform grid. Never use concept-sheet fragments as sprites.
   const zeroFrames=[
@@ -66,7 +69,7 @@ window.EdenPresentation = (() => {
     const f=frames[h.kind];if(!f)return false;
     c.save();c.translate(Math.round(h.x),Math.round(h.y));
     if(h.kind==='needle'||h.kind==='rail')c.rotate(Math.atan2(h.vy||0,h.vx||1));
-    const scale=h.telegraph ? .16 : (h.counterable||h.psiReturn) ? .10 : h.kind==='pillar'?.115:h.kind==='syringe'?.055:h.kind==='rail'?.07:.055;
+    const scale=h.heavyCore ? .10 : h.kind==='pillar'?.115:h.kind==='syringe'?.055:h.kind==='rail'?.07:.055;
     const w=f[2]*scale,height=f[3]*scale;
     if(h.kind==='pillar'){
       // Extend from the floor without changing the authored silhouette.
@@ -75,7 +78,7 @@ window.EdenPresentation = (() => {
       c.drawImage(art.ordnance,...f,-w/2,-height,w,height);
     }else{
       // Keep the sharp tip at the collision core, not half a sprite ahead of it.
-      c.filter=h.telegraph?'brightness(1.8) sepia(1) saturate(4) hue-rotate(305deg)':h.counterable?'brightness(1.6)':'brightness(1.25)';
+      c.filter=h.heavyCore?'brightness(1.6)':'brightness(1.25)';
       const x=h.kind==='syringe'?-w/2:-w+(h.kind==='rail'?8:4);
       const y=h.kind==='syringe'?-height+5:-height/2;
       c.drawImage(art.ordnance,...f,x,y,w,height);
@@ -248,20 +251,22 @@ window.EdenPresentation = (() => {
   function drawZero(c,p,t){
     if(globalThis.EdenPsychic&&p.duelMode&&art.psychic){
       const elapsed=(p.attackDuration||.3)-(p.attack||0);let frame=0;
-      if(p.hp>0&&p.stun<=0&&!p.charging&&p.parryFlash<=0&&art.psiMotion&&art.psiSkills){
+      if(p.hp>0&&p.stun<=0&&!p.charging&&p.parryFlash<=0&&art.psiWalk&&art.psiMotion&&art.psiSkills){
         let sheet=null,row=0,col=0,baseline=0,top=0,anchor=0,width=350;
         if(p.attack>0&&p.weaponMode==='psiJab'){
           sheet=art.psiMotion;row=2+(p.psiHand||0);col=elapsed<.035?0:elapsed<.055?1:elapsed<.14?2:3;
         }else if(p.attack>0&&['psiRise','psiPalm','psiGrab','psiSuper'].includes(p.weaponMode)){
           sheet=art.psiSkills;row=['psiRise','psiPalm','psiGrab','psiSuper'].indexOf(p.weaponMode);
-          if(row===3)col=p.ultimateT>0?(p.ultimateT>.8?0:p.ultimateT>.36?1:p.ultimateT>.12?2:3):0;
+          if(row===3){const progress=1-p.ultimateT/(p.ultimateDuration||1.3);col=p.ultimateT>0?(progress<.3?0:progress<.56?1:progress<.82?2:3):0;}
           else{const active=[.14,.20,.22][row];col=elapsed<active*.4?0:elapsed<active-.018?1:elapsed<active+.13?2:3;if(row===2)col=[0,2,1,3][col];}
-        }else if(p.onGround&&p.attack<=0&&p.dash<=0&&Math.abs(p.vx)>25){const walk=Math.floor(p.stridePhase)%8;sheet=art.psiMotion;row=Math.floor(walk/4);col=walk%4;}
+        }else if(p.onGround&&p.attack<=0&&p.dash<=0&&Math.abs(p.vx)>25){const walk=Math.floor(p.stridePhase)%8;sheet=art.psiWalk;row=Math.floor(walk/4);col=walk%4;}
         if(sheet){
-          if(sheet===art.psiMotion){top=[0,304,599,878][row];baseline=[300,594,875,1110][row];anchor=[[185,535,882,1235],[185,535,882,1235],[185,520,860,1220],[170,515,860,1220]][row][col];}
+          let sourceX=col*350,scale=.18;
+          if(sheet===art.psiWalk){sourceX=[0,443,887,1330][col];width=[443,444,443,444][col];top=[0,443][row];baseline=[439,857][row];anchor=[[242,687,1119,1563],[226,670,1128,1573]][row][col];scale=.123;}
+          else if(sheet===art.psiMotion){top=[0,304,599,878][row];baseline=[300,594,875,1110][row];anchor=[[185,535,882,1235],[185,535,882,1235],[185,520,860,1220],[170,515,860,1220]][row][col];}
           else{top=[0,329,591,851][row];baseline=[322,582,846,1108][row];anchor=[[200,565,925,1245],[190,555,925,1270],[180,565,900,1255],[195,540,875,1235]][row][col];if(col===2)width=390;if(row===2&&col===0)width=365;}
           c.save();c.translate(Math.round(p.x+9),Math.round(p.y+p.h));c.scale(p.face,1);if(p.inv>0&&p.ultimateT<=0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.6;
-          sprite(c,sheet,[col*350,top,Math.min(width,sheet.width-col*350),baseline-top+1,anchor],.18,baseline);c.restore();return;
+          sprite(c,sheet,[sourceX,top,Math.min(width,sheet.width-sourceX),baseline-top+1,anchor],scale,baseline);c.restore();return;
         }
       }
       if(p.hp<=0)frame=13;else if(p.stun>0)frame=12;else if(p.charging||p.parryFlash>0)frame=3;
@@ -355,6 +360,11 @@ window.EdenPresentation = (() => {
     c.save();c.translate(Math.round(p.x+9),Math.round(p.y));c.scale(p.face,1);if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.55;
     c.drawImage(atlas,frame*256,zeroStates.indexOf(name)*192,256,192,-33,-20,128,96);c.restore();
   }
-  function portrait(c,x,y){if(art.zero)c.drawImage(art.zero,175,3,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
-  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,get assetStatus(){return {psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:!!art.sweepVFX,mechanisms:!!art.mechanisms,sentry:!!art.sentry,ordnance:!!art.ordnance,zero:!!art.zero,surgeon:!!art.surgeon,cathedral:!!art.cathedral,zeroDuel:!!art.zeroDuel,surgeonDuel:!!art.surgeonDuel,surgeonLow:!!art.surgeonLow,zeroDrive:!!art.zeroDrive,combatVFX:!!art.combatVFX};}};
+  function portrait(c,x,y){if(art.psychic)c.drawImage(art.psychic,165,8,90,88,x,y,26,26);else{rect(c,x,y,26,26,C.edge);rect(c,x+9,y+8,8,2,C.red);}}
+  function superCutin(c,p){
+    const elapsed=(p.ultimateDuration||1.55)-p.ultimateT;if(!art.ultimateCutin||elapsed<0||elapsed>.48)return;
+    c.save();c.globalAlpha=Math.min(1,elapsed/.08,(.48-elapsed)/.12);if(p.face<0){c.translate(480,0);c.scale(-1,1);}
+    c.drawImage(art.ultimateCutin,-24+Math.min(24,elapsed*120),54,230,153);c.restore();
+  }
+  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,superCutin,ready,get assetStatus(){return Object.fromEntries(Object.keys(assetPaths).map(key=>[key,!!art[key]]));}};
 })();

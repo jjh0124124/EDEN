@@ -38,7 +38,7 @@ test('J alternates lead and rear hands without mirroring facing, resets after a 
  const g=duel();g.player.x=65;for(const hand of [0,1,0,1]){g.press('j');assert.equal(g.player.psiHand,hand);assert.equal(g.player.face,1);frames(g,17);}frames(g,60);g.press('j');assert.equal(g.player.psiHand,0);g.player.damage(1,-1);frames(g,40);g.press('j');assert.equal(g.player.psiHand,0);
 });
 test('E binds at midrange and W consumes compression for a single stronger rupture',()=>{
- const g=duel();g.player.x=g.boss.x-55;g.boss.psiGuard=.8;g.boss.dir=-1;g.press('e');for(let i=0;i<30&&!g.boss.psiCompression;i++)g.step();assert.ok(g.boss.psiCompression>0);assert.equal(g.boss.psiGuard,0);g.freeze(0);const hp=g.boss.hp;g.press('w');frames(g,28);assert.equal(g.boss.psiCompression,0);assert.ok(hp-g.boss.hp>=50);const again=g.boss.hp;g.boss.recovery=0;g.boss.inv=0;g.player.skill(1);frames(g,28);assert.equal(again-g.boss.hp,32);
+ const g=duel();g.player.x=g.boss.x-55;g.boss.psiGuard=.8;g.boss.dir=-1;g.press('e');for(let i=0;i<30&&!g.boss.psiCompression;i++)g.step();assert.ok(g.boss.psiCompression>0);assert.equal(g.boss.psiGuard,0);g.freeze(0);const hp=g.boss.hp;g.press('w');frames(g,28);assert.equal(g.boss.psiCompression,0);assert.ok(hp-g.boss.hp>=50);const again=g.boss.hp;g.boss.t=999;until(g,()=>g.player.cool[1]<=0);g.player.x=g.boss.x-40;g.boss.recovery=0;g.boss.inv=0;g.player.skill(1);frames(g,28);assert.equal(again-g.boss.hp,32);
 });
 test('skills require SP and do not create free effects or attacks on rejected input',()=>{
  const g=duel();g.player.sp=0;for(const key of ['q','w','e'])g.player.skill(['q','w','e'].indexOf(key));assert.equal(g.slashes.length,0);assert.equal(g.player.attack,0);
@@ -59,26 +59,18 @@ function coreDuel(side=-1,dt=1/60){
 }
 function until(g,predicate,dt=1/60){for(let i=0;i<300&&!predicate();i++)g.step(dt);assert.ok(predicate(),'expected combat event did not occur');}
 
-test('SURGEON core can be reflected with timed Q from either side at 30 and 60 fps',()=>{
- for(const side of [-1,1])for(const dt of [1/30,1/60]){
-  const g=coreDuel(side,dt);until(g,()=>g.hazards.some(h=>h.counterable&&h.delay<=0&&h.y>=110),dt);
-  g.press('q');until(g,()=>g.hazards.some(h=>h.psiReturn),dt);until(g,()=>g.boss.hp<g.boss.maxHp,dt);
-  assert.equal(g.player.hp,100);assert.ok(g.boss.recovery>=1.5);assert.ok(g.player.superMeter>10);
-  const hp=g.boss.hp;frames(g,15,dt);assert.equal(g.boss.hp,hp,'return hits only once');
+test('only K is a parry: offensive skills do not reflect the falling core',()=>{
+ for(const key of ['q','w','e','r'])for(const dt of [1/30,1/60]){
+  const g=coreDuel(-1,dt);g.player.superMeter=100;until(g,()=>g.hazards.some(h=>h.heavyCore&&h.delay<=0&&h.y>=110),dt);
+  g.press(key);until(g,()=>g.player.hp<100,dt);
+  assert.equal(g.player.hp,86);assert.equal(g.boss.hp,g.boss.maxHp);assert.ok(g.hazards.every(h=>h.owner!=='p'));
  }
 });
-test('the core locks its target, can be dodged, and punishes a premature Q',()=>{
+test('the core locks its target, can be dodged, and phase-two protocol keeps ordinary needles',()=>{
  const g=coreDuel(),locked=g.boss.target.x;g.keys.add('a');frames(g,110);g.keys.clear();
  assert.equal(g.boss.target.x,locked);assert.equal(g.player.hp,100);
- const h=coreDuel();until(h,()=>h.hazards.some(x=>x.counterable));h.press('q');until(h,()=>h.player.hp<100);
- assert.equal(h.player.hp,86);assert.equal(h.boss.hp,h.boss.maxHp);
-});
-test('phase-two surgical protocol keeps its normal needles and cannot be interrupted by a late reflected core',()=>{
- const g=coreDuel();g.boss.beginProtocolCast(0);until(g,()=>g.hazards.some(h=>h.protocol));
- assert.equal(g.hazards.filter(h=>h.protocol).length,3);assert.ok(g.hazards.every(h=>!h.counterable));
- const h=coreDuel();until(h,()=>h.hazards.some(x=>x.counterable&&x.delay<=0&&x.y>=110));h.press('q');until(h,()=>h.hazards.some(x=>x.psiReturn));
- const returned=h.hazards.find(x=>x.psiReturn);h.boss.beginProtocolCast(0);returned.x=h.boss.x-1;returned.y=h.boss.y+35;returned.vx=220;returned.vy=0;h.freeze(0);h.step();
- assert.ok(h.boss.protocol);assert.ok(h.boss.windup>0);assert.ok((h.boss.recovery||0)<1);
+ const h=coreDuel();h.boss.beginProtocolCast(0);until(h,()=>h.hazards.some(x=>x.protocol));
+ assert.equal(h.hazards.filter(x=>x.protocol).length,3);assert.ok(h.hazards.every(x=>!x.heavyCore));
 });
 
 test('E compression offers Q for grounded spacing instead of W damage, without pushing through arena walls',()=>{
@@ -113,5 +105,53 @@ test('guard counter remains jumpable at both walls at 30 and 60 fps',()=>{
   const g=game(true);g.engage();g.boss.x=bossX;g.player.x=playerX;g.player.face=Math.sign(bossX-playerX);g.boss.psiGuard=.1;
   until(g,()=>g.boss.windup>0,dt);until(g,()=>g.boss.windup>0&&g.boss.windup<.37,dt);g.press(' ');until(g,()=>g.boss.release>0,dt);frames(g,10,dt);
   assert.equal(g.player.hp,100);
+ }
+});
+
+ test('Q W E have independent cooldowns and rejected repeats do not spend SP',()=>{
+ for(const key of ['q','w','e']){const g=game(true);g.engage();g.player.x=80;const i=['q','w','e'].indexOf(key);g.press(key);assert.ok(g.player.cool[i]>0);frames(g,35);const serial=g.player.attackSerial,sp=g.player.sp;g.press(key);assert.equal(g.player.attackSerial,serial);assert.ok(g.player.sp>=sp);until(g,()=>g.player.cool[i]<=0);g.press(key);assert.equal(g.player.attackSerial,serial+1);}
+ });
+
+function operationDuel(dt=1/60){
+ const g=game(true);g.engage();g.boss.hp=560;g.boss.t=0;g.player.x=65;g.step(dt);assert.ok(g.boss.operation);return g;
+}
+test('SURGEON operation: attacking both relays interrupts the ultimate and opens a punish',()=>{
+ for(const dt of [1/30,1/60]){
+  const g=operationDuel(dt),op=g.boss.operation;assert.equal(op.nodes.length,2);
+  const hp=g.boss.hp;g.player.x=g.boss.x-30;g.press('j');frames(g,20,dt);assert.equal(g.boss.hp,hp,'boss is protected while relays are active');
+  for(const node of op.nodes){g.player.x=node.x-30;g.player.face=1;while(node.hp>0){until(g,()=>g.player.attack<=0,dt);g.press('j');frames(g,14,dt);}}
+  assert.equal(g.boss.operation,null);assert.ok(g.boss.recovery>1);assert.ok(g.boss.operationUsed);assert.equal(g.slashes.filter(s=>s.kind==='operationWave').length,0);
+ }
+});
+test('SURGEON operation wave damages idle players, but a broken relay or a jump provides safety',()=>{
+ for(const dt of [1/30,1/60])for(const response of ['none','safe','jump']){
+  const g=operationDuel(dt),op=g.boss.operation;g.player.x=120;
+  if(response==='safe'){op.nodes[0].hp=0;g.player.x=op.nodes[0].x+8;}
+  op.time=.25;if(response==='jump')g.press(' ');
+  frames(g,35,dt);assert.equal(g.player.hp,response==='none'?76:100,response);
+ }
+});
+test('SURGEON operation clears on boss death and retry',()=>{
+ const g=operationDuel();g.boss.hurt(1000);assert.equal(g.boss.operation,null);frames(g,50);assert.ok(g.slashes.every(s=>s.kind!=='operationWave'));g.startBoss();assert.equal(g.boss.operation,undefined);
+});
+
+function secondCut(dt=1/60,x=120){
+ const g=game(true);g.engage();g.boss.phase=2;g.boss.protocolUsed=true;g.boss.operationUsed=true;g.boss.x=330;g.boss.move=0;g.boss.dir=-1;g.boss.windup=.01;g.boss.windupMax=.7;g.player.x=x;g.player.face=1;g.step(dt);assert.ok(g.boss.followup);return g;
+}
+test('phase two follows a low incision with a locked, dodgeable surgical drop',()=>{
+ for(const dt of [1/30,1/60]){
+  const g=secondCut(dt);until(g,()=>g.boss.followup&&g.boss.followup.x!==null,dt);const locked=g.boss.followup.x;g.keys.add('d');until(g,()=>g.hazards.some(h=>h.kind==='syringe'),dt);assert.equal(g.hazards.find(h=>h.kind==='syringe').x,locked);frames(g,55,dt);g.keys.clear();assert.equal(g.player.hp,100);
+  const h=secondCut(dt);until(h,()=>h.player.hp<100,dt);assert.equal(h.player.hp,88);
+ }
+});
+test('parrying a phase-two low incision cancels its follow-up',()=>{
+ const g=secondCut(1/60,290);g.press('k');until(g,()=>!g.boss.followup);assert.equal(g.player.hp,100);assert.ok(g.player.superMeter>=14);frames(g,100);assert.ok(g.hazards.every(h=>h.kind!=='syringe'));
+});
+
+test('both relays can be reached and destroyed using only movement and J from either wall or center',()=>{
+ for(const bx of [55,200,395])for(const dt of [1/30,1/60]){
+  const g=game(true);g.engage();g.boss.x=bx;g.boss.hp=560;g.boss.t=0;g.player.x=bx;g.step(dt);let steps=0;
+  while(g.boss.operation&&steps++<500){const nodes=g.boss.operation.nodes.filter(n=>n.hp>0);const n=nodes.reduce((a,b)=>Math.abs(a.x-g.player.x)<Math.abs(b.x-g.player.x)?a:b);const dx=n.x+14-(g.player.x+9);g.keys.clear();if(Math.abs(dx)>32)g.keys.add(dx>0?'d':'a');if(Math.abs(dx)<55&&g.player.attack<=0&&g.player.face===(Math.sign(dx)||g.player.face))g.press('j');else g.step(dt);}
+  assert.equal(g.boss.operation,null);assert.ok(g.boss.recovery>1.9);assert.equal(g.player.hp,100);
  }
 });

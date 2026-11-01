@@ -11,7 +11,7 @@ with sync_playwright() as p:
  page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
  page.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4175')+'/',wait_until='networkidle')
  page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
- page.evaluate('''animTest.setup(80);window.walkFrames=new Set();const draw=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(im,...a){if(im.src?.includes('zero-motion')&&animTest.p.attack<=0&&Math.abs(animTest.p.vx)>25)walkFrames.add(a[0]+','+a[1]);return draw.call(this,im,...a)};void 0;''')
+ page.evaluate('''animTest.setup(80);window.walkFrames=new Set();const draw=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(im,...a){if(im.src?.includes('zero-walk-v25')&&animTest.p.attack<=0&&Math.abs(animTest.p.vx)>25)walkFrames.add(a[0]+','+a[1]);return draw.call(this,im,...a)};void 0;''')
  page.keyboard.down('d');page.wait_for_function('walkFrames.size===8');page.keyboard.up('d')
  page.evaluate('animTest.setup(80)')
  for hand in [0,1]:
@@ -25,5 +25,5 @@ with sync_playwright() as p:
  page.wait_for_function('animTest.p.ultimateT===0');assert page.evaluate('animTest.b.hp<650')
  # Legacy completed saves beyond the first encounter cannot enter removed content.
  page.unroute('**/src/game.js*');page.evaluate('localStorage.setItem("eden-save-v1",JSON.stringify({boss:5,stage:"boss",upgrade:12}))');page.reload(wait_until='networkidle');page.keyboard.press('Enter');page.wait_for_timeout(300);assert not errors,errors
- print('PASS: all8 walk frames rendered; alternating hands; grounded Q stagger; E→W rupture; dedicated R charge/final; obsolete save loads without errors')
+ print('PASS: all 8 walk frames rendered; alternating hands; grounded Q stagger; E→W rupture; dedicated R charge/final; obsolete save loads without errors')
  b.close()
