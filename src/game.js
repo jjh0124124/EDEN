@@ -73,7 +73,7 @@
   canvas.addEventListener('pointerdown',e=>{if(state==='reward')rewardPointer(e);});
   const SKILLS=['LAHAT / 삼연 절단','RAIL / 척추 관통','PILE / 지각 파쇄','GUILLOTINE / 압착 단두각'];
   const COMMS=[
-    [['CONTROL','00, 신경 접속 확인. 수술 성당의 집도의가 명령을 거부했다.'],['ZERO','제 다리의 제조번호가 수술대에도 새겨져 있습니다.'],['CONTROL','관련 없는 정보다. 표적을 해체하라.']],
+    [['CONTROL','00, 신경 접속 확인. 수술 성당의 집도의가 명령을 거부했다.'],['ZERO','제 신경 증폭기의 제조번호가 수술대에도 새겨져 있습니다.'],['CONTROL','관련 없는 정보다. 표적을 해체하라.']],
     [['SYSTEM','회수 프로토콜 발효. K9 추적체 방출.'],['ZERO','회수 대상은 시체인가, 나인가.'],['SYSTEM','분류에 차이가 없습니다.']],
     [['WARDEN','격리 장벽은 너를 보호하기 위해 존재한다.'],['ZERO','잠금장치가 전부 안쪽에 있군.'],['WARDEN','보호의 방향을 오해하고 있다.']],
     [['SERAPH','승천 허가. 척추를 연료 계통에 연결하라.'],['ZERO','날개가 아니라 배기구였군.'],['SERAPH','이곳에서는 같은 뜻이다.']],
@@ -82,7 +82,7 @@
     [['DIRECTOR','네 자유의지는 유료 시험 기능이다. 사용 기간이 끝났다.'],['ZERO','그럼 소유권부터 폐기하겠다.'],['DIRECTOR','관리자 권한으로 반박한다.']]
   ];
   const RECORDS=[
-    '수술 기록 00: 육체는 거부 반응을 보였다. 기계 다리만 명령을 기억했다.',
+    '수술 기록 00: 육체는 거부 반응을 보였다. 신경 역장은 마취 중에도 수술 도구를 부쉈다.',
     'K9 지침: 냄새 대신 도주 경로를 추적한다. 목표의 자유를 예측하라.',
     '격리 명부: 장벽 바깥의 시민 전원에게 수감 번호가 발급되었다.',
     '승천 실험: 날개는 비행 기관이 아니다. 열 배출 장치다.',
@@ -107,7 +107,7 @@
     const tier=power>=50?2:power>=22?1:0,dir=target.x>=player.x?1:-1;
     hitstop=Math.max(hitstop,(player.duelMode?[.035,.05,.065]:[.022,.042,.065])[tier]);shake=Math.max(shake,[.65,1.2,1.8][tier]);
     target.recoil=dir*(player.duelMode?[2.5,3.5,4.5]:[1.5,2.5,3.5])[tier];target.contactFlash=.055;target.hitFlash=.055;
-    const x=player.duelMode?clamp(player.x+9+player.face*28,target.x+4,target.x+target.w-4):target.x+target.w*.5,y=player.duelMode?clamp(player.y+25,target.y+8,target.y+target.h-8):target.y+target.h*.6;
+    const x=player.duelMode?clamp(player.x+9+player.face*28,target.x+4,target.x+target.w-4):target.x+target.w*.5,y=player.duelMode?clamp(player.y+(globalThis.EdenPsychic?12:25),target.y+8,target.y+target.h-8):target.y+target.h*.6;
     if(player.duelMode)spriteEffect('hit',x,y,dir,.18+tier*.025,.7+tier*.18);else{impact(x,y,power);burst(x,y,tier?'#ffd7a0':PALE,4+tier*2,45+tier*15);}
     damageNumbers.push({x:x+(chain%3-1)*7,y:target.y-4,life:.55,text:damage,strong:tier>0});damageNumbers=damageNumbers.slice(-8);
     audio.noise(.025+tier*.015,.025+tier*.006);audio.tone([145,85,58][tier],.055+tier*.025,'triangle',.035+tier*.008,[65,48,30][tier]);
@@ -134,7 +134,7 @@
       hitstop=Math.max(hitstop,.045);shake=Math.max(shake,.65);
       spriteEffect('hit',this.x+9+this.face*12,this.y+32,this.face,.2,.9);
       audio.noise(.025,.025);audio.tone(880,.07,'triangle',.04,330);
-      message(s.protocolFinal?'REVERSE SUTURE // 봉합 역류 — 반격':'PARRY // Shift 추진 반격 · J/Q 연계',s.protocolFinal?1:.65);
+      message(s.protocolFinal?'REVERSE SUTURE // 봉합 역류 — 반격':(psychic?'PARRY // J 확인 · W 반격':'PARRY // Shift 추진 반격 · J/Q 연계'),s.protocolFinal?1:.65);
       return true;
     }
     hurtbox(){return {x:this.x+4,y:this.y+8,w:11,h:this.h-12};}
@@ -209,7 +209,7 @@
       if(i<0||this.ultimateT>0||this.stun>0||this.hp<=0)return;
       const costs=[14,16,12,0,this.reverseDrive?8:12];
       if(this.sp<costs[i]||(i<3&&this.cool[i]>0))return;
-      if(i===3&&this.superMeter<100){message('OVERDRIVE / 공격·방어로 게이지 충전',.7);return;}
+      if(i===3&&this.superMeter<100){message('ZERO POINT / 공격·방어로 게이지 충전',.7);return;}
       this.charging=false;this.parryWindow=0;this.buffer=null;this.linkWindow=0;this.finishWindow=0;this.stepRemaining=0;
       this.sp-=costs[i];if(i<3)this.cool[i]=[.65,.9,.8][i];
       this.attackSerial++;this.weaponMode=['riser','recoil','hook','super','drive'][i];this.attackDuration=[.48,.42,.4,.48,.44][i];this.attack=this.attackDuration;this.attackKind=3;
@@ -397,7 +397,7 @@
     if(state==='combat'&&!boss.dead&&player.hp>0){battleSeconds+=dt;chainTimer=Math.max(0,chainTimer-dt);if(!chainTimer)chain=0;}
     if(!boss?.dead&&player.hp>0)player.update(dt);if(state==='combat')boss.update(dt);
     if(boss?.lunge&&!boss.dead){const l=boss.lunge;l.t+=dt;boss.x=lerp(l.from,l.to,clamp(l.t/.3,0,1));if(l.t>=.3)boss.lunge=null;}
-    for(const s of slashes){if(s.attached&&(player.weaponMode!=='dive'||player.stun>0||player.hp<=0||player.dash>0||s.castId!==player.attackSerial)){s.life=0;continue;}if(s.followStartup&&(s.delay>0||s.attached&&!s.done)){s.x=s.dir>0?player.x+s.origin:player.x-s.w;s.y=player.y+(s.offsetY??-5);}if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.target&&(s.target.hp<=0||player.hp<=0)){s.life=0;continue;}if(s.delay>0){s.delay-=dt;if(s.delay<=0&&player.duelMode&&s.owner==='p'){if(s.kind==='kick'||s.kind==='hook')spriteEffect('sweep',s.dir>0?s.x:s.x+s.w,s.y+32,s.dir,.14,s.kind==='hook'?.8:[.42,.58,.88][(s.combo||1)-1]);if(s.superHit)spriteEffect('superburst',s.target.x+21,player.y+24,s.dir,.24,s.dmg>=50?1.1:.8);}continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){if(s.superStarter&&player.hp>0)player.confirmSuper(boss);boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){if(s.superStarter&&player.hp>0)player.confirmSuper(drone);drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s)){if(player.duelMode&&player.dash>0)player.recoverDrive();player.damage(s.dmg,s.dir);}s.done=true;}}}
+    for(const s of slashes){if(s.attached&&(player.weaponMode!=='dive'||player.stun>0||player.hp<=0||player.dash>0||s.castId!==player.attackSerial)){s.life=0;continue;}if(s.followStartup&&(s.delay>0||s.attached&&!s.done)){s.x=s.dir>0?player.x+s.origin:player.x-s.w;s.y=player.y+(s.offsetY??-5);}if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}if(s.target&&(s.target.hp<=0||player.hp<=0)){s.life=0;continue;}if(s.delay>0){s.delay-=dt;if(s.delay<=0&&player.duelMode&&s.owner==='p'){if(s.kind==='kick'||s.kind==='hook')spriteEffect('sweep',s.dir>0?s.x:s.x+s.w,s.y+32,s.dir,.14,s.kind==='hook'?.8:[.42,.58,.88][(s.combo||1)-1]);if(s.superHit)spriteEffect('superburst',s.target.x+21,player.y+24,s.dir,.24,s.dmg>=50?1.1:.8);}continue;}s.life-=dt;if(!s.done){const box={x:s.x,y:s.y,w:s.w,h:s.h};if(s.owner==='p'&&boss&&!boss.dead&&hit(box,boss)){if(boss.inv<=0){if(psychic&&player.duelMode)psychic.hit(s,boss);else{if(s.superStarter&&player.hp>0)player.confirmSuper(boss);boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);}s.done=true;}}if(s.owner==='p'&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&hit(box,drone)){if(psychic&&player.duelMode)psychic.hit(s,drone);else{if(s.superStarter&&player.hp>0)player.confirmSuper(drone);drone.hp-=Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12));confirmHit(s,drone);contactFeedback(drone,s.dmg,Math.round(s.dmg*(1+upgrade*.08+augments[0]*.12)));}s.done=true;}}if(s.owner==='b'&&hit(box,player.hurtbox())){if(!player.tryParry(s)){if(player.duelMode&&player.dash>0)player.recoverDrive();player.damage(s.dmg,s.dir);}s.done=true;}}}
     slashes=slashes.filter(s=>s.life>0);
     for(const h of hazards){if(h.delay>0&&h.source?.hp<=0){h.life=0;continue;}if(h.delay>0){if(h.followWeapon){h.x=player.x+9+h.dir*20;h.y=player.y+30;}h.delay-=dt;if(h.delay<=0&&h.recoil){player.stepRemaining=20;player.stepDir=-h.dir;player.stepSpeed=180;}if(h.delay<=0&&h.source){h.source.release=.18;spriteEffect('boost',h.x,h.y,-Math.sign(h.vx),.15,.35);audio.tone(330,.04,'triangle',.02,150);}
       if(h.delay<=0&&player.duelMode&&h.owner==='p'){
@@ -549,21 +549,21 @@
     ctx.fillStyle='#a4b1c6';ctx.font='5px monospace';ctx.fillText(Math.ceil(player.hp)+' HP',134,35);
     if(boss){
       ctx.fillStyle='rgba(5,8,13,.87)';ctx.fillRect(272,5,192,36);ctx.textAlign='right';ctx.fillStyle=PALE;ctx.font='7px monospace';ctx.fillText(boss.d.id+' / '+boss.d.ko,458,14);
-      bar(279,19,179,6,boss.hp,boss.maxHp,RED);ctx.fillStyle=boss.windup>0?RED:'#a9b4c4';ctx.font='6px monospace';ctx.fillText('PHASE '+boss.phase+' / '+(boss.windup>0?(boss.d.type==='surgeon'?(boss.breakLock>0?'CAST / 신경 잠금':'CAST / 강화 Shift 절단'):'공격 준비'):boss.recovery>0?'EXPOSED / 피해 +25%':'ACTIVE'),458,35);ctx.textAlign='left';
+      bar(279,19,179,6,boss.hp,boss.maxHp,RED);ctx.fillStyle=boss.windup>0?RED:'#a9b4c4';ctx.font='6px monospace';ctx.fillText('PHASE '+boss.phase+' / '+(boss.psiGuardWarn>0?'BRACE / 방어 준비':boss.psiGuard>0?'GUARD / 근접 E 잡기':boss.windup>0?(boss.d.type==='surgeon'?(boss.breakLock>0?'CAST / 신경 잠금':(psychic?'CAST / 공격 준비':'CAST / 강화 Shift 절단')):'공격 준비'):boss.recovery>0?'EXPOSED / 피해 +25%':'ACTIVE'),458,35);ctx.textAlign='left';
     }
     ['Q','W','E','R'].forEach((k,i)=>{
-      const x=17+i*43,y=237,drive=i===0&&player.duelMode&&player.reverseDrive>0,ready=player.duelMode?(i===3?player.superMeter>=100:player.cool[i]<=0&&player.sp>=[14,16,12][i]):(player.cool[i]<=0||(i===0&&player.linkWindow>0)||drive)&&player.sp>=[drive?12:24,30,24,55][i];
+      const x=17+i*43,y=237,drive=i===0&&player.duelMode&&player.reverseDrive>0,ready=player.duelMode&&psychic?psychic.ready(i):player.duelMode?(i===3?player.superMeter>=100:player.cool[i]<=0&&player.sp>=[14,16,12][i]):(player.cool[i]<=0||(i===0&&player.linkWindow>0)||drive)&&player.sp>=[drive?12:24,30,24,55][i];
       ctx.fillStyle='rgba(7,11,18,.94)';ctx.fillRect(x,y,39,24);ctx.strokeStyle=ready?(i===3&&player.finishWindow>0?'#86f4ef':'#a4a7b1'):'#3d4553';ctx.strokeRect(x+.5,y+.5,38,23);
       const icon=ready?(i===0||i===3?RED:'#86f4ef'):'#5c6676';
       if(i===0)for(let j=0;j<3;j++)P.line(ctx,x+3+j*3,y+15,x+7+j*3,y+6,icon);
       if(i===1){P.line(ctx,x+3,y+11,x+12,y+11,icon,2);P.line(ctx,x+8,y+7,x+12,y+11,PALE);}
       if(i===2)for(let j=0;j<3;j++)P.rect(ctx,x+3+j*4,y+8-(j%2)*3,2,9+(j%2)*3,icon);
       if(i===3){P.line(ctx,x+4,y+5,x+4,y+13,icon,2);P.line(ctx,x+4,y+13,x+12,y+16,icon,2);P.line(ctx,x+7,y+5,x+7,y+11,PALE);}
-      ctx.fillStyle=ready?PALE:'#7b8492';ctx.font='7px monospace';ctx.fillText(k,x+18,y+9);ctx.font='5px monospace';ctx.fillText(player.duelMode?['RISE','RECOIL','HOOK','OVERDRIVE'][i]:['LAHAT','RAIL','PILE','GUIL'][i],x+14,y+16);
+      ctx.fillStyle=ready?PALE:'#7b8492';ctx.font='7px monospace';ctx.fillText(k,x+18,y+9);ctx.font='5px monospace';ctx.fillText(player.duelMode?(psychic?psychic.labels[i]:['RISE','RECOIL','HOOK','OVERDRIVE'][i]):['LAHAT','RAIL','PILE','GUIL'][i],x+14,y+16);
       ctx.fillStyle=ready?RED:'#444d5b';ctx.fillRect(x+3,y+20,33*(player.cool[i]>0?1-player.cool[i]/(player.duelMode?[.65,.9,.8,1]:[3.5,5,3,11])[i]:1),1);
       if(player.cool[i]>0&&!drive){ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText(player.cool[i].toFixed(1),x+21,y+10);}
     });
-    ctx.fillStyle='#8e9bab';ctx.font='6px monospace';ctx.fillText(player.duelMode?'Shift 추진 / 뒤+Shift 회피 / K 패링':'J/K → Q   Q 적중 → R   K 0.65초 / 절단',204,252);
+    ctx.fillStyle='#8e9bab';ctx.font='6px monospace';ctx.fillText(player.duelMode?(psychic?'Shift 이동 / K 패링 / E 잡기':'Shift 추진 / 뒤+Shift 회피 / K 패링'):'J/K → Q   Q 적중 → R   K 0.65초 / 절단',204,252);
   }
   function campaignTitle(){
     drawBackground(0);ctx.fillStyle='rgba(3,5,9,.64)';ctx.fillRect(0,0,254,H);
@@ -582,7 +582,7 @@
     ctx.fillStyle='#9ba6b6';ctx.font='8px sans-serif';ctx.fillText('코어 강화 +'+upgrade+'  /  회수 기록 '+archiveCount+'  /  ENTER — 구역 진입',30,233);
   }
   function drawHUD(){statusHUD();
-    if(player.duelMode){bar(280,46,170,4,player.superMeter,100,player.superMeter>=100?'#eee8df':RED);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText('R / OVERDRIVE '+Math.floor(player.superMeter)+'%',280,43);ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Shift 강화 추진':'Q 적중 → 공중 J / W 적중 → Shift 재추진',22,53);}
+    if(player.duelMode){bar(280,46,170,4,player.superMeter,100,player.superMeter>=100?'#eee8df':RED);ctx.fillStyle=PALE;ctx.font='6px monospace';ctx.fillText((psychic?'R / ZERO POINT ':'R / OVERDRIVE ')+Math.floor(player.superMeter)+'%',280,43);ctx.fillStyle=player.reverseDrive?'#86f4ef':'#a9b4c4';ctx.font='6px sans-serif';ctx.fillText(player.reverseDrive?'REVERSE DRIVE / Shift 강화 추진':(psychic?'J 적중 확인 → Q / 빈틈 W / 방어에는 E':'Q 적중 → 공중 J / W 적중 → Shift 재추진'),22,53);}
 
     if(boss?.d.type==='surgeon'&&(boss.retreat||boss.anchorTime>0)&&!boss.dead){ctx.fillStyle='#86f4ef';ctx.font='7px sans-serif';ctx.textAlign='center';ctx.fillText(boss.anchorTime>0?(boss.recovery>0&&boss.release<=0&&boss.windup<=0&&!boss.protocol&&!(boss.breakLock>0)?'Q / 관절 파괴 기회':'HEEL HOOK / 봉합 이동 고정'):'SUTURE STEP / 추격 · E로 이동 고정',240,53);ctx.textAlign='left';}
     if(boss?.d.type==='surgeon'&&boss.protocol&&!boss.dead){
@@ -598,7 +598,7 @@
     drawBackground(Math.max(0,bossIndex-1));ctx.fillStyle='rgba(3,7,12,.93)';ctx.fillRect(0,0,W,H);
     ctx.fillStyle=RED;ctx.font='7px monospace';ctx.fillText('SALVAGE // '+BOSSES[Math.max(0,bossIndex-1)].id+' // CORE '+upgrade,22,23);
     ctx.fillStyle=PALE;ctx.font='22px sans-serif';ctx.fillText('적의 명령을, 나의 무기로.',20,52);
-    ctx.fillStyle='#93a5bb';ctx.font='8px sans-serif';ctx.fillText('회수 코어를 기계 다리에 이식합니다. 하나를 선택하세요.',22,75);
+    ctx.fillStyle='#93a5bb';ctx.font='8px sans-serif';ctx.fillText(psychic&&bossIndex===0?'회수 코어를 신경 증폭기에 이식합니다. 하나를 선택하세요.':'회수 코어를 기계 다리에 이식합니다. 하나를 선택하세요.',22,75);
     MODS.forEach((m,i)=>{
       const x=18+i*150,selected=i===rewardChoice;ctx.fillStyle=selected?'#18232d':'#0a1019';ctx.fillRect(x,104,144,108);
       ctx.strokeStyle=selected?m[3]:'#344151';ctx.strokeRect(x+.5,104.5,143,107);ctx.fillStyle=m[3];ctx.fillRect(x,104,144,selected?3:1);
@@ -663,7 +663,7 @@
   function render(){ctx.save();if(state==='title')titleScreen();else if(state==='reward')rewardScreen();else if(state==='interlude')storyScreen();else if(state==='intro')introScreen();else if(state==='combat'){renderCombat();combatCinema();}else if(state==='explore')drawExplore();else if(state==='gameover'){if(boss)renderCombat();else drawExplore();overlay('SYSTEM FAILURE','ENTER — 체크포인트 재기동');}else if(state==='ending')endingScreen();communications();ctx.restore();if(flash){ctx.fillStyle=`rgba(255,255,255,${flash*2})`;ctx.fillRect(0,0,W,H);}ctx.fillStyle='rgba(255,255,255,.018)';for(let y=0;y<H;y+=3)ctx.fillRect(0,y,W,1);}
 
   function controlHints(){
-    for(const [key,label] of Object.entries(player.duelMode?{k:'패링 K',shift:'추진 / 회피 Shift',q:'상승 Q',w:'반동 사격 W',e:'뒤꿈치 걸기 E',r:'궁극기 R'}:{k:'차징 K (길게)',shift:'회피',q:'기술 Q',w:'기술 W',e:'기술 E',r:'기술 R'})){
+    for(const [key,label] of Object.entries(player.duelMode?(psychic?{k:'패링 K',shift:'회피 이동 Shift',q:'대공 Q',w:'파쇄 W',e:'압착 잡기 E',r:'영점 압쇄 R'}:{k:'패링 K',shift:'추진 / 회피 Shift',q:'상승 Q',w:'반동 사격 W',e:'뒤꿈치 걸기 E',r:'궁극기 R'}):{k:'차징 K (길게)',shift:'회피',q:'기술 Q',w:'기술 W',e:'기술 E',r:'기술 R'})){
       const button=document.querySelector('[data-key="'+key+'"]');if(button&&button.textContent!==label)button.textContent=label;
     }
 
@@ -672,5 +672,11 @@
     const text=paused?'일시정지 중 — 계속하기를 누르세요.':dialogue?'통신 중 — 대사 다음을 누르면 이동할 수 있습니다.':state==='explore'||state==='combat'?'A/D 또는 ←/→ 이동 · 아래 버튼을 길게 눌러도 이동합니다.':'시작·진행 버튼 또는 Enter를 눌러주세요.';
     if(controlStatus.textContent!==text)controlStatus.textContent=text;
   }
+
+  const psychic=globalThis.EdenPsychic?.install({Fighter,Boss,player,pressed,fx:spriteEffect,sound:audio,message,
+    slash:s=>slashes.push(s),cancel(){slashes=slashes.filter(s=>s.owner!=='p'||s.delay<=0&&!s.attached);hazards=hazards.filter(h=>h.owner!=='p'||h.delay<=0);},
+    stop(t,s){hitstop=Math.max(hitstop,t);shake=Math.max(shake,s);},
+    damage(target,n,interrupt){if(target.d)target.hurt(n,interrupt);else{const damage=Math.round(n*(1+upgrade*.08+augments[0]*.12));target.hp-=damage;contactFeedback(target,n,damage);}}
+  });
   let last=performance.now();function loop(now){const dt=Math.max(0,Math.min(.033,(now-last)/1000));last=now;update(dt);render();controlHints();pressed.clear();requestAnimationFrame(loop);}requestAnimationFrame(loop);document.querySelector('#boot').classList.add('ready');
 })();

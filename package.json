@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4173 --strictPort --open",
-    "test": "node --test tests/combat.test.cjs tests/combat_lab.test.cjs",
+    "test": "node --test tests/combat.test.cjs tests/combat_lab.test.cjs tests/psychic.test.cjs",
     "build:pages": "node tools/build-pages.cjs"
   },
   "devDependencies": {
