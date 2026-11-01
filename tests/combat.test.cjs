@@ -55,7 +55,7 @@ test('whiff has no camera kick and contact scales without moving boss hitbox',()
 test('burst hits cap shake, labels and pause instead of accumulating them',()=>{const g=game();g.engage();g.boss.hp=g.boss.maxHp=10000;for(let i=0;i<20;i++){g.boss.inv=0;g.boss.hurt(12);}assert.ok(g.feedback.shake<=1.8);assert.ok(g.feedback.hitstop<=.065);assert.ok(g.feedback.numbers<=8);});
 test('rapid repeated presses cannot overlap attack startups',()=>{const g=game();g.engage();for(let i=0;i<8;i++)g.press('j');assert.equal(g.player.combo,1);assert.equal(g.slashes.length,1);frames(g,15);assert.equal(g.player.combo,2);});
 test('both walls contain dash and attacks without trapping the player',()=>{for(const [x,face,key] of [[8,-1,'d'],[453,1,'a']]){const g=game();g.engage();g.player.x=x;g.player.face=face;g.press('shift');g.press('j');frames(g,25);assert.ok(g.player.x>=8&&g.player.x<=453);g.keys.add(key);frames(g,20);assert.ok(face<0?g.player.x>30:g.player.x<430);}});
-test('air attack preserves horizontal control and returns to floor',()=>{const g=game();g.engage();const x=g.player.x;g.press(' ');g.keys.add('d');frames(g,6);g.press('j');frames(g,8);assert.equal(g.player.onGround,false);assert.ok(g.player.x>x+15);assert.ok(g.player.attack>0);frames(g,80);assert.equal(g.player.onGround,true);assert.equal(g.player.y+g.player.h,226);});
+test('air attack preserves horizontal control and returns to floor',()=>{const g=game();g.engage();const x=g.player.x;g.press(' ');g.keys.add('d');frames(g,6);g.press('j');frames(g,2);assert.equal(g.player.onGround,false);assert.ok(g.player.x>x+15);assert.ok(g.player.attack>0);frames(g,80);assert.equal(g.player.onGround,true);assert.equal(g.player.y+g.player.h,226);});
 test('hit during attack clears reservation and respects damage invulnerability',()=>{const g=game();g.engage();g.press('j');frames(g,6);g.press('j');g.player.damage(10,-1);assert.equal(g.player.buffer,null);assert.ok(g.player.stun>0);g.player.damage(10,1);assert.equal(g.player.hp,90);frames(g,42);g.player.damage(10,1);assert.equal(g.player.hp,80);});
 test('boss dies during windup without emitting a late attack',()=>{const g=game();g.engage();g.boss.windup=.2;g.boss.move=1;g.boss.hurt(2000);frames(g,180);assert.equal(g.state,'reward');assert.equal(g.hazards.length,0);assert.equal(g.upgrade,1);});
 test('restart resets input, particles and camera feedback',()=>{const g=game();g.engage();g.player.damage(100,1);frames(g,100);assert.equal(g.state,'gameover');g.press('enter');assert.equal(g.state,'intro');assert.equal(g.player.hp,g.player.maxHp);assert.equal(g.player.buffer,null);assert.equal(g.feedback.shake,0);assert.equal(g.feedback.hitstop,0);assert.equal(g.feedback.particles,0);});
@@ -356,7 +356,7 @@ test('W contact opens a recovery cancel, but a whiff or rejected hit does not',(
 });
 test('late W projectile cannot grant a cancel to a different attack',()=>{
   const g=game();g.engage();g.player.x=g.boss.x-150;g.press('w');
-  frames(g,27);g.player.strike(false);const hp=g.boss.hp;frames(g,9);
+  frames(g,12);const shot=g.hazards[0];g.player.strike(false);shot.x=g.boss.x+4;shot.y=g.boss.y+30;shot.delay=0;const hp=g.boss.hp;g.step();
   assert.ok(g.boss.hp<hp);assert.equal(g.player.linkWindow,0);
 });
 
@@ -365,4 +365,24 @@ test('a projectile from an older W cannot confirm a newer W cast',()=>{
   g.player.cool[1]=0;g.player.skill(1);assert.notEqual(old.castId,g.player.attackSerial);
   old.x=g.boss.x+5;old.y=g.boss.y+30;old.delay=0;const hp=g.boss.hp;g.step();
   assert.ok(g.boss.hp<hp);assert.equal(g.player.linkWindow,0);
+});
+
+
+test('neutral movement faces travel on either side; attacks retain committed facing',()=>{
+ for(const x of [120,420])for(const key of ['a','d']){const g=game();g.engage();g.player.x=x;g.keys.add(key);g.step();assert.equal(g.player.face,key==='a'?-1:1);g.player.strike(false);g.keys.clear();g.keys.add(key==='a'?'d':'a');g.step();assert.equal(g.player.face,key==='a'?-1:1);}
+});
+test('back evade uses opponent position even after turning to run away',()=>{
+ for(const [x,key,dir] of [[200,'a',-1],[430,'d',1]]){const g=game();g.engage();g.player.x=x;g.keys.add(key);frames(g,3);assert.equal(g.player.face,dir);g.press('shift');assert.ok(g.player.dash>0);assert.equal(g.player.dashDir,dir);}
+});
+test('Q contact branches into one aerial J dive and confirmed rebound',()=>{
+ for(const dt of [1/30,1/60]){const g=game();g.engage();g.player.x=g.boss.x-40;g.press('q');for(let i=0;i<20&&g.player.linkWindow<=0;i++)g.step(dt);assert.ok(g.player.linkWindow>0);g.freeze(0);g.press('j');assert.equal(g.player.weaponMode,'dive');const hp=g.boss.hp;for(let i=0;i<16&&g.boss.hp===hp;i++)g.step(dt);assert.ok(g.boss.hp<hp);assert.ok(g.player.vy<0);assert.equal(g.player.reverseDrive,1);const serial=g.player.attackSerial;g.player.strike(false);assert.equal(g.player.attackSerial,serial);frames(g,90);assert.equal(g.player.onGround,true);assert.equal(g.player.diveUsed,false);}
+});
+test('dive contact cannot persist through damage or a dash cancel',()=>{
+ for(const cancel of ['hit','dash']){const g=game();g.engage();g.player.x=200;g.player.y=120;g.player.onGround=false;g.player.strike(false);g.slashes[0].delay=0;if(cancel==='hit')g.player.damage(10,-1);else{g.keys.add('a');g.press('shift');}g.step();assert.equal(g.slashes.filter(s=>s.kind==='dive').length,0);}
+});
+test('W has short range and confirms propulsion only on contact',()=>{
+ for(const distance of [55,220]){const g=game();g.engage();g.player.x=g.boss.x-distance;g.player.skill(1);frames(g,32);assert.equal(g.boss.hp<g.boss.maxHp,distance===55);assert.equal(g.player.reverseDrive,distance===55?1:0);assert.equal(g.hazards.filter(h=>h.owner==='p').length,0);}
+});
+test('SURGEON pursues after distant fan with locked destination and punish recovery',()=>{
+ for(const dt of [1/30,1/60]){const g=game();g.engage();g.player.x=65;g.boss.lastPattern=2;g.boss.t=0;g.step(dt);assert.equal(g.boss.move,0);assert.equal(g.boss.windupMax,1.1);const a=g.boss.approach;assert.ok(a);const start=g.boss.x;g.player.x=450;for(let i=0;i<Math.floor(.2/dt);i++)g.boss.update(dt);assert.equal(g.boss.x,start);for(let i=0;i<Math.ceil(1/dt);i++)g.boss.update(dt);assert.equal(g.boss.x,a.to);assert.ok(g.boss.recovery>.8);assert.ok(g.slashes.some(s=>s.owner==='b'&&s.kind==='scalpel'));}
 });

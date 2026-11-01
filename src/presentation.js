@@ -278,9 +278,9 @@ window.EdenPresentation = (() => {
   }
   function drawZero(c,p,t){
     if(p.duelMode&&p.weaponMode==='recoil')p={...p,weaponMode:'rail'};
-    if(p.duelMode&&art.zeroDrive&&art.mechanisms&&p.attack>0&&p.stun<=0&&p.hp>0&&p.dash<=0&&['riser','hook','super'].includes(p.weaponMode)){
+    if(p.duelMode&&art.zeroDrive&&art.mechanisms&&p.attack>0&&p.stun<=0&&p.hp>0&&p.dash<=0&&['riser','dive','hook','super'].includes(p.weaponMode)){
       const elapsed=(p.attackDuration||.48)-p.attack;let image,frame,scale,baseline;
-      if(p.weaponMode==='riser'){const f=elapsed<.11?1:elapsed<.28?3:5;image=art.zeroDrive;frame=driveFrames[f];scale=.13;baseline=f<4?474:970;}
+      if(p.weaponMode==='riser'||p.weaponMode==='dive'){const f=p.weaponMode==='dive'?(elapsed<.07?3:5):elapsed<.11?1:elapsed<.28?3:5;image=art.zeroDrive;frame=driveFrames[f];scale=.13;baseline=f<4?474:970;}
       else if(p.weaponMode==='hook'){const f=elapsed<.06?0:elapsed<.14?1:elapsed<.28?2:3;image=art.zeroDuel;frame=duelFrames[1][f];scale=.17;baseline=667;}
       else if(p.ultimateT>.66){image=art.zeroDrive;frame=driveFrames[4];scale=.13;baseline=970;}
       else{const f=p.ultimateT>0?(p.ultimateT>.48?1:p.ultimateT>.30?2:p.ultimateT>.23?1:p.ultimateT>.08?2:3):(elapsed<.07?0:1);image=art.mechanisms;frame=mechanismFrames[2][f];scale=.17;baseline=985;}
