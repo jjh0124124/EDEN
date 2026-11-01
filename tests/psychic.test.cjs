@@ -52,3 +52,43 @@ test('single-boss victory terminates progression and obsolete saves restart in t
  const g=duel();assert.equal(g.BOSSES.length,1);g.boss.hurt(2000);frames(g,200);assert.equal(g.state,'ending');assert.equal(g.load().boss,0);assert.equal(g.load().complete,true);g.finishBoss();assert.equal(g.upgrade,0);
  for(const old of [{boss:4,stage:'boss',upgrade:5},{boss:1,stage:'reward',complete:true}]){const h=game(true);h.setSave(old);h.title();h.press('enter');assert.equal(h.state,'explore');assert.equal(h.player.hp,100);assert.equal(h.load().boss,0);}
 });
+
+function coreDuel(side=-1,dt=1/60){
+ const g=game(true);g.engage();g.boss.x=side<0?330:120;g.player.x=g.boss.x+side*125;g.player.face=-side;g.boss.t=0;g.step(dt);
+ assert.equal(g.boss.counterCast,true);return g;
+}
+function until(g,predicate,dt=1/60){for(let i=0;i<300&&!predicate();i++)g.step(dt);assert.ok(predicate(),'expected combat event did not occur');}
+
+test('SURGEON core can be reflected with timed Q from either side at 30 and 60 fps',()=>{
+ for(const side of [-1,1])for(const dt of [1/30,1/60]){
+  const g=coreDuel(side,dt);until(g,()=>g.hazards.some(h=>h.counterable&&h.delay<=0&&h.y>=110),dt);
+  g.press('q');until(g,()=>g.hazards.some(h=>h.psiReturn),dt);until(g,()=>g.boss.hp<g.boss.maxHp,dt);
+  assert.equal(g.player.hp,100);assert.ok(g.boss.recovery>=1.5);assert.ok(g.player.superMeter>10);
+  const hp=g.boss.hp;frames(g,15,dt);assert.equal(g.boss.hp,hp,'return hits only once');
+ }
+});
+test('the core locks its target, can be dodged, and punishes a premature Q',()=>{
+ const g=coreDuel(),locked=g.boss.target.x;g.keys.add('a');frames(g,110);g.keys.clear();
+ assert.equal(g.boss.target.x,locked);assert.equal(g.player.hp,100);
+ const h=coreDuel();until(h,()=>h.hazards.some(x=>x.counterable));h.press('q');until(h,()=>h.player.hp<100);
+ assert.equal(h.player.hp,86);assert.equal(h.boss.hp,h.boss.maxHp);
+});
+test('phase-two surgical protocol keeps its normal needles and cannot be interrupted by a late reflected core',()=>{
+ const g=coreDuel();g.boss.beginProtocolCast(0);until(g,()=>g.hazards.some(h=>h.protocol));
+ assert.equal(g.hazards.filter(h=>h.protocol).length,3);assert.ok(g.hazards.every(h=>!h.counterable));
+ const h=coreDuel();until(h,()=>h.hazards.some(x=>x.counterable&&x.delay<=0&&x.y>=110));h.press('q');until(h,()=>h.hazards.some(x=>x.psiReturn));
+ const returned=h.hazards.find(x=>x.psiReturn);h.boss.beginProtocolCast(0);returned.x=h.boss.x-1;returned.y=h.boss.y+35;returned.vx=220;returned.vy=0;h.freeze(0);h.step();
+ assert.ok(h.boss.protocol);assert.ok(h.boss.windup>0);assert.ok((h.boss.recovery||0)<1);
+});
+
+test('E compression offers Q for grounded spacing instead of W damage, without pushing through arena walls',()=>{
+ for(const side of [-1,1]){
+  const g=game(true);g.engage();g.boss.x=side<0?260:190;g.player.x=g.boss.x+side*55;g.player.face=-side;
+  g.press('e');until(g,()=>g.boss.psiCompression>0);g.freeze(0);g.press('q');until(g,()=>g.boss.psiCompression===0);
+  const x=g.boss.x,hp=g.boss.hp;frames(g,22);assert.ok((g.boss.x-x)*-side>25);assert.equal(g.boss.y,126);assert.ok(g.boss.recovery>0);assert.ok(g.boss.maxHp-hp<70);
+ }
+ for(const [x,side] of [[395,-1],[45,1]]){
+  const g=game(true);g.engage();g.boss.x=x;g.player.x=x+side*55;g.player.face=-side;g.press('e');until(g,()=>g.boss.psiCompression>0);g.freeze(0);g.press('q');until(g,()=>g.boss.psiCompression===0);frames(g,22);
+  assert.ok(g.boss.x>=45&&g.boss.x<=395);assert.equal(g.boss.y,126);
+ }
+});

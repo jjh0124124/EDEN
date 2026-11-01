@@ -23,7 +23,7 @@ window.EdenPsychic={install(api){
   if(i===3){if(this.superMeter<100){this.buffer=null;return;}this.superMeter=0;pose(this,'psiSuper',.55);contact(this,'psiSuper',8,.22,80,64,{superStarter:true});sound.tone(75,.18,'triangle',.04,210);return;}
   if(i===2&&!this.onGround){this.buffer=null;return;}
   const cost=[12,18,16][i];if(this.sp<cost){this.buffer=null;return;}this.sp-=cost;pose(this,['psiRise','psiPalm','psiGrab'][i],[.42,.50,.48][i]);
-  if(i===0){if(!this.onGround)this.vy=Math.max(35,this.vy);contact(this,'psiRise',23,.14,48,110,{offsetY:-62});}
+  if(i===0){if(!this.onGround)this.vy=Math.max(35,this.vy);contact(this,'psiRise',23,.14,60,110,{offsetY:-62});}
   if(i===1)contact(this,'psiPalm',32,.20,72);
   if(i===2)contact(this,'psiGrab',18,.22,60);
  };
@@ -47,12 +47,31 @@ window.EdenPsychic={install(api){
   if(this.d.type!=='surgeon')return old.update.call(this,dt);
   this.psiCompression=Math.max(0,(this.psiCompression||0)-dt);this.psiStagger=Math.max(0,(this.psiStagger||0)-dt);
   this.psiGrabLock=Math.max(0,(this.psiGrabLock||0)-dt);this.psiGuardLock=Math.max(0,(this.psiGuardLock||0)-dt);this.psiLaunchLock=Math.max(0,(this.psiLaunchLock||0)-dt);
-  if(this.dead||this.tele>0||this.superLock>0||api.player.hp<=0){this.psiGuard=0;this.psiGuardWarn=0;this.psiGuardPending=false;if(this.dead||this.tele>0){this.psiLift=0;this.psiCompression=0;this.y=226-this.h;}old.update.call(this,dt);return;}
+  if(this.dead||this.tele>0||this.superLock>0||api.player.hp<=0){this.psiGuard=0;this.psiGuardWarn=0;this.psiGuardPending=false;this.psiPush=0;if(this.dead||this.tele>0){this.psiLift=0;this.psiCompression=0;this.y=226-this.h;}old.update.call(this,dt);return;}
+  if(this.psiPush>0){const step=Math.min(this.psiPush,180*dt);this.x=Math.max(45,Math.min(395,this.x+this.psiPushDir*step));this.psiPush-=step;}
   if(this.psiGuard>0||this.psiGuardWarn>0){this.anim+=dt;this.inv=Math.max(0,this.inv-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);if(this.psiGuardWarn>0){this.psiGuardWarn=Math.max(0,this.psiGuardWarn-dt);if(!this.psiGuardWarn)this.psiGuard=.65;}else{this.psiGuard=Math.max(0,this.psiGuard-dt);if(!this.psiGuard){this.recovery=.32;this.t=.65;}}return;}
   old.update.call(this,dt);
   this.y=226-this.h;
   if(this.psiGuardPending&&this.windup<=0&&this.release<=0&&!(this.recovery>0)&&!this.protocol&&!this.retreat&&this.tele<=0){this.psiGuardPending=false;this.psiGuardWarn=.28;this.psiGuardLock=3.5;this.dir=api.player.x+9<this.x+21?-1:1;api.message('SURGEON / 방어 준비 — 접근 E 잡기 또는 뒤로 이동',1);}
  };
+ function counter(s){
+  const p=api.player,b=api.boss;if(!b||b.dead||p.hp<=0||p.stun>0||p.weaponMode!=='psiRise')return;
+  for(const h of api.hazards){
+   if(!h.counterable||h.owner!=='b'||h.delay>0||h.done||h.life<=0)continue;
+   const left=s.dir>0?s.x-12:s.x,right=s.dir>0?s.x+s.w:s.x+s.w+21;
+   if(h.x+h.r<=left||h.x-h.r>=right||h.y+h.r<=s.y||h.y-h.r>=s.y+s.h)continue;
+   const dx=b.x+b.w/2-h.x,dy=b.y+b.h*.55-h.y,length=Math.hypot(dx,dy)||1;
+   h.owner='p';h.kind='needle';h.psiReturn=true;h.counterable=false;h.vx=dx/length*220;h.vy=dy/length*220;h.life=2;h.dmg=32;h.r=7;s.countered=true;
+   fx('psiRupture',h.x,h.y,Math.sign(dx)||1,.2,.65);api.stop(.035,.6);sound.tone(620,.09,'triangle',.04,220);api.message('REVERSE SUTURE / 염동 반사',.8);break;
+  }
+ }
+ function counterHit(target){
+  if(target.dead||target.tele>0||target.protocol||target.superLock>0||target.release>0||api.player.hp<=0)return;
+  target.windup=0;target.approach=null;target.retreat=null;target.counterReady=false;target.pressure=0;
+  target.psiGuard=target.psiGuardWarn=0;target.psiGuardPending=false;target.psiStagger=.5;
+  target.recovery=Math.max(target.recovery||0,1.6);target.t=Math.max(target.t,1.95);api.player.superMeter=Math.min(100,api.player.superMeter+10);
+  api.message('CORE RUPTURE / 봉합 장치 파손 — E → Q/W 기회',1);api.stop(.055,1);sound.tone(65,.13,'triangle',.04,25);
+ }
  function hit(s,target){
   const p=api.player,isBoss=target.d?.type==='surgeon';
   if(target.dead||target.hp<=0||p.hp<=0||target.inv>0)return false;
@@ -64,16 +83,18 @@ window.EdenPsychic={install(api){
   }
   if(s.superStarter)p.confirmSuper(target);
   const detonate=s.kind==='psiPalm'&&target.psiCompression>0;
-  if(detonate)target.psiCompression=0;
+  const repulse=isBoss&&s.kind==='psiRise'&&target.psiCompression>0;
+  if(detonate||repulse)target.psiCompression=0;
   api.damage(target,s.dmg+(detonate?18:0),s.interrupt);
   if(detonate){const effect=fx('psiFinal',target.x+target.w/2,target.y+target.h*.55,s.dir,.25,.75);effect.frameStart=2;api.stop(.07,1.5);sound.tone(48,.13,'triangle',.05,22);}
   if(target.dead||target.hp<=0)return true;
   if(['psiJab','psiRise','psiGrab'].includes(s.kind)){p.linkWindow=.24;if(s.kind==='psiRise')p.finishWindow=.28;}
   if(isBoss&&s.kind==='psiJab'&&!(target.recovery>0)&&target.psiGuardLock<=0){target.psiChecks=(target.psiChecks||0)+1;if(target.psiChecks>=2){target.psiChecks=0;target.psiGuardPending=true;}}
   if(isBoss&&s.kind==='psiRise'&&target.recovery>0&&target.psiLaunchLock<=0){target.psiStagger=.4;target.psiLaunchLock=3;target.recovery=Math.max(.65,target.recovery);target.t=Math.max(.95,target.t);target.recoil=s.dir*5;}
+  if(repulse&&target.tele<=0){target.psiPush=32;target.psiPushDir=s.dir;target.psiStagger=.5;target.recovery=Math.max(target.recovery||0,1.05);target.t=Math.max(target.t,1.4);fx('psiRupture',target.x+target.w/2,target.y+target.h*.7,s.dir,.2,.55);api.message('REPULSE / 압축 해방 — 거리 확보',.9);sound.tone(110,.12,'triangle',.035,45);}
   if(s.kind==='psiPalm'){api.stop(.065,1.4);target.recoil=s.dir*5;}
-  if(s.kind==='psiGrab'){const e=fx('psiBind',target.x+target.w/2,target.y+target.h*.55,s.dir,.55,.9);e.target=target;api.stop(.05,.8);}
+  if(s.kind==='psiGrab'){const e=fx('psiBind',target.x+target.w/2,target.y+target.h*.55,s.dir,.55,.9);e.target=target;api.stop(.05,.8);if(isBoss)api.message('COMPRESSION / Q 밀어내기 · W 파열',1.1);}
   return true;
  }
- return {hit,release,ready:i=>i===3?api.player.superMeter>=100:api.player.sp>=[12,18,16][i]&&(i!==2||api.player.onGround),labels:['UPHEAVE','RUPTURE','BIND','ZERO POINT']};
+ return {hit,release,counter,counterHit,ready:i=>i===3?api.player.superMeter>=100:api.player.sp>=[12,18,16][i]&&(i!==2||api.player.onGround),labels:['UPHEAVE','RUPTURE','BIND','ZERO POINT']};
 }};
