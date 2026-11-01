@@ -402,11 +402,10 @@
     if(state==='combat'&&boss?.d.type==='surgeon'&&boss.windup>0){
       const b=boss,target=b.target||{x:player.x+9,y:player.y+23},kind=b.move%3;
       ctx.save();ctx.globalAlpha=.22;ctx.fillStyle=RED;
-      if(kind===0)ctx.fillRect(b.dir<0?b.x-82:b.x+25,FLOOR-23,97,20);
       if(kind===1&&!b.counterCast)for(let i=-1;i<=1;i++)ctx.fillRect(clamp(target.x+i*42,15,465)-6,38,12,FLOOR-38);
       ctx.globalAlpha=1;
+      if(kind===0){ctx.globalAlpha=.8+.15*Math.sin(time*12);P.drawOrdnance(ctx,{kind:'needle',telegraph:true,x:b.dir<0?b.x-82:b.x+122,y:FLOOR-13,vx:b.dir,vy:0});ctx.globalAlpha=1;}
       if(kind===1&&b.counterCast){ctx.globalAlpha=.88+.12*Math.sin(time*12);P.drawOrdnance(ctx,{kind:'syringe',counterable:true,x:target.x,y:FLOOR-55});ctx.globalAlpha=1;}
-      if(kind===0){P.line(ctx,b.dir<0?b.x-82:b.x+25,FLOOR-4,b.dir<0?b.x+15:b.x+122,FLOOR-4,RED,2);}
       if(kind===1&&!b.counterCast)for(let i=-1;i<=1;i++){const x=clamp(target.x+i*42,15,465);P.line(ctx,x-8,FLOOR,x+8,FLOOR,RED,2);P.line(ctx,x-5,45,x,51,PALE);P.line(ctx,x,51,x+5,45,PALE);}
       if(kind===2){const ox=b.x+20+b.dir*58,oy=b.y+30,aim=Math.atan2(target.y-oy,target.x-ox);for(let i=-1;i<=1;i++){const a=aim+i*.42;for(let j=1;j<=12;j++)P.rect(ctx,ox+Math.cos(a)*j*12,oy+Math.sin(a)*j*12,2,2,RED);}}
       P.rect(ctx,b.x-3,b.y-9,48,3,'#161b25');P.rect(ctx,b.x-3,b.y-9,48*(1-b.windup/(b.windupMax||1)),3,'#ffc67a');ctx.restore();

@@ -66,7 +66,7 @@ window.EdenPresentation = (() => {
     const f=frames[h.kind];if(!f)return false;
     c.save();c.translate(Math.round(h.x),Math.round(h.y));
     if(h.kind==='needle'||h.kind==='rail')c.rotate(Math.atan2(h.vy||0,h.vx||1));
-    const scale=(h.counterable||h.psiReturn) ? .10 : h.kind==='pillar'?.115:h.kind==='syringe'?.055:h.kind==='rail'?.07:.055;
+    const scale=h.telegraph ? .16 : (h.counterable||h.psiReturn) ? .10 : h.kind==='pillar'?.115:h.kind==='syringe'?.055:h.kind==='rail'?.07:.055;
     const w=f[2]*scale,height=f[3]*scale;
     if(h.kind==='pillar'){
       // Extend from the floor without changing the authored silhouette.
@@ -75,7 +75,7 @@ window.EdenPresentation = (() => {
       c.drawImage(art.ordnance,...f,-w/2,-height,w,height);
     }else{
       // Keep the sharp tip at the collision core, not half a sprite ahead of it.
-      c.filter=h.counterable?'brightness(1.6)':'brightness(1.25)';
+      c.filter=h.telegraph?'brightness(1.8) sepia(1) saturate(4) hue-rotate(305deg)':h.counterable?'brightness(1.6)':'brightness(1.25)';
       const x=h.kind==='syringe'?-w/2:-w+(h.kind==='rail'?8:4);
       const y=h.kind==='syringe'?-height+5:-height/2;
       c.drawImage(art.ordnance,...f,x,y,w,height);

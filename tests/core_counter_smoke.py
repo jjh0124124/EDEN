@@ -50,6 +50,13 @@ with sync_playwright() as p:
  page.keyboard.up('a')
  assert page.evaluate('coreTest.b.target.x') == locked
  assert page.evaluate('coreTest.p.hp') == 100
+ page.evaluate('coreTest.setup();coreTest.p.x=coreTest.b.x-45;coreTest.b.t=999;coreTest.b.psiGuard=.15;coreTest.b.dir=-1')
+ page.wait_for_function('coreTest.b.windup>0 && coreTest.b.windup<.38')
+ page.screenshot(path='/tmp/eden24-guard-counter.png')
+ page.keyboard.press('Space')
+ page.wait_for_function('coreTest.b.release>0')
+ page.wait_for_timeout(350)
+ assert page.evaluate('coreTest.p.hp') == 100
  assert not errors, errors
- print('PASS: rendered core warning; keyboard Q reflection into E→W; E→Q spacing; locked-target dodge; no JS errors')
+ print('PASS: rendered core warning; Q reflection into E→W; E→Q spacing; core dodge; guard counter jump; no JS errors')
  browser.close()

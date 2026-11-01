@@ -92,3 +92,26 @@ test('E compression offers Q for grounded spacing instead of W damage, without p
   assert.ok(g.boss.x>=45&&g.boss.x<=395);assert.equal(g.boss.y,126);
  }
 });
+
+test('SURGEON follows a nearby completed guard with a readable counter that can be jumped or parried',()=>{
+ for(const response of ['none','jump','parry']){
+  const g=duel();g.boss.psiGuard=.1;g.boss.dir=-1;until(g,()=>g.boss.windup>0);
+  assert.ok(g.boss.windup>=.7);assert.equal(g.boss.move,0);
+  if(response==='jump'){until(g,()=>g.boss.windup>0&&g.boss.windup<.37);g.press(' ');}
+  if(response==='parry'){until(g,()=>g.boss.release>0);g.press('k');}
+  if(response==='none')until(g,()=>g.player.hp<100);else {frames(g,45);assert.equal(g.player.hp,100);if(response==='parry')assert.ok(g.player.superMeter>=14);}
+  assert.ok(g.boss.recovery>0);
+ }
+});
+test('breaking guard with E or leaving its range prevents the guard counter',()=>{
+ const g=duel();g.boss.psiGuard=.65;g.boss.dir=-1;g.press('e');until(g,()=>g.boss.psiCompression>0);frames(g,35);assert.ok(g.boss.windup<=0);
+ const h=duel();h.player.x=80;h.boss.psiGuard=.1;until(h,()=>h.boss.psiGuard===0);assert.ok(h.boss.windup<=0);
+});
+
+test('guard counter remains jumpable at both walls at 30 and 60 fps',()=>{
+ for(const dt of [1/30,1/60])for(const [bossX,playerX] of [[45,90],[395,350]]){
+  const g=game(true);g.engage();g.boss.x=bossX;g.player.x=playerX;g.player.face=Math.sign(bossX-playerX);g.boss.psiGuard=.1;
+  until(g,()=>g.boss.windup>0,dt);until(g,()=>g.boss.windup>0&&g.boss.windup<.37,dt);g.press(' ');until(g,()=>g.boss.release>0,dt);frames(g,10,dt);
+  assert.equal(g.player.hp,100);
+ }
+});
