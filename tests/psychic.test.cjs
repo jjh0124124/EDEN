@@ -191,3 +191,58 @@ test('cross-stitch keeps its three lanes distinct near either wall',()=>{
 test('the surgical operation returns once in phase two with a shorter warning',()=>{
  const g=operationDuel();g.boss.endOperation(true);g.freeze(0);g.boss.recovery=0;g.boss.phase=2;g.boss.protocolUsed=true;g.boss.hp=g.boss.maxHp*.29;g.boss.t=0;g.step();assert.ok(g.boss.operation);assert.ok(g.boss.operation.time<=5.8);assert.ok(g.boss.phase2OperationUsed);
 });
+
+test('close E to J consumes compression once for SP and meter instead of W damage',()=>{
+ for(const dt of [1/30,1/60])for(const side of [-1,1]){
+  const g=game(true);g.engage();g.boss.x=240;g.player.x=g.boss.x+side*32;g.player.face=-side;g.player.sp=40;g.press('e');until(g,()=>g.boss.psiCompression>0,dt);g.freeze(0);
+  const hp=g.boss.hp,sp=g.player.sp,meter=g.player.superMeter;assert.ok(g.player.attack>0);g.press('j');assert.equal(g.player.weaponMode,'psiJab');until(g,()=>g.boss.psiCompression===0,dt);
+  assert.ok(g.player.sp>=sp+12);assert.ok(g.player.superMeter>=meter+10);assert.ok(hp-g.boss.hp<30);
+  const after=g.player.sp;g.boss.t=999;until(g,()=>g.player.attack<=0,dt);g.press('j');frames(g,15,dt);assert.ok(g.player.sp<after+9,'no second compression refund');
+ }
+ const h=duel();h.player.x=65;h.press('e');frames(h,15);h.freeze(0);const serial=h.player.attackSerial;h.press('j');assert.equal(h.player.attackSerial,serial,'whiff does not cancel into J');
+});
+
+test('successful K parry permits one free directional shift; ordinary or expired steps still cost SP',()=>{
+ for(const dt of [1/30,1/60])for(const side of [-1,1]){
+  const g=game(true);g.engage();g.boss.x=240;g.player.x=g.boss.x+side*45;g.player.face=-side;g.player.sp=30;g.boss.move=0;g.boss.dir=side;g.boss.act();until(g,()=>g.slashes.some(s=>s.delay<=.04),dt);g.press('k');until(g,()=>g.player.parryFollow>0,dt);g.freeze(0);
+  const before=g.player.sp;g.keys.add(side<0?'a':'d');g.press('shift');assert.ok(g.player.dash>0);assert.equal(g.player.dashDir,side);assert.equal(g.player.parryFollow,0);assert.ok(g.player.sp>=before);
+  until(g,()=>g.player.driveLock<=0,dt);g.freeze(0);const next=g.player.sp;g.press('shift');assert.ok(g.player.sp<next-9);
+ }
+ const g=duel();g.player.sp=8;g.press('shift');assert.equal(g.player.dash,0);g.player.parryFollow=.02;frames(g,3);const sp=g.player.sp;g.press('shift');assert.equal(g.player.dash,0);assert.ok(g.player.sp>=sp);
+});
+
+function scheduledPattern(number,playerX=120,bossX=330,dt=1/60){
+ const g=game(true);g.engage();g.player.x=playerX;g.player.face=Math.sign(bossX-playerX);g.boss.x=bossX;g.boss.patternCount=number-1;g.boss.t=0;g.step(dt);return g;
+}
+test('the first retreat counter uses the field and alternates with the needle counter',()=>{
+ const g=duel();g.boss.counterReady=true;g.step();assert.equal(g.boss.move,6);assert.ok(g.boss.windup>=.9);
+ g.boss.windup=0;g.boss.release=0;g.boss.recovery=0;g.boss.counterReady=true;g.step();assert.equal(g.boss.move,2);assert.ok(g.boss.windup>=.65);
+});
+test('sterile field locks and marks player position; moving escapes at both walls',()=>{
+ for(const dt of [1/30,1/60])for(const [px,bx,direction] of [[8,130,'d'],[453,330,'a'],[180,330,'a']]){
+  const g=scheduledPattern(4,px,bx,dt);assert.equal(g.boss.move,6);assert.ok(g.boss.windup>=.75);const target=g.boss.target.x;g.keys.add(direction);until(g,()=>g.hazards.some(h=>h.sterileField),dt);g.keys.clear();
+  const h=g.hazards.find(h=>h.sterileField);assert.equal(h.x,target);assert.ok(h.life>2);frames(g,50,dt);assert.equal(g.player.hp,100);
+ }
+ const g=scheduledPattern(4);until(g,()=>g.player.hp<100);assert.equal(g.player.hp,84);
+});
+
+test('dissection rewards staying grounded for the high needle then jumping or parrying the low one',()=>{
+ for(const dt of [1/30,1/60])for(const side of [-1,1])for(const response of ['idle','jump','parry','earlyJump']){
+  const g=scheduledPattern(2,side<0?120:350,side<0?330:120,dt);assert.equal(g.boss.move,5);assert.ok(g.boss.windup>=.75);until(g,()=>g.hazards.filter(h=>h.dissection).length===2,dt);
+  let acted=false;for(let i=0;i<220;i++){
+   const high=g.hazards.find(h=>h.dissection&&h.y===175),low=g.hazards.find(h=>h.dissection&&h.y===212);
+   const threat=response==='earlyJump'?high:low,dist=threat?Math.abs(threat.x-(g.player.x+9)):999;
+   if(!acted&&threat&&threat.delay<=0&&dist<(response==='parry'?27:48)){if(response==='jump'||response==='earlyJump')g.press(' ');else if(response==='parry')g.press('k');else g.step(dt);acted=true;}
+   else g.step(dt);
+   if(!g.hazards.some(h=>h.dissection))break;
+  }
+  if(response==='jump'||response==='parry'){assert.equal(g.player.hp,100,`${dt} ${side} ${response}`);assert.ok(acted);}
+  else assert.ok(g.player.hp<100,`${dt} ${side} ${response}`);
+ }
+});
+test('new boss hazards clear on death and do not leak into retry',()=>{
+ for(const [number,property] of [[2,'dissection'],[4,'sterileField']]){
+  const g=scheduledPattern(number);until(g,()=>g.hazards.some(h=>h[property]));g.boss.hurt(5000);assert.equal(g.boss.dead,true);assert.ok(g.hazards.every(h=>!h[property]));
+  frames(g,200);assert.equal(g.state,'ending');g.startBoss();assert.ok(g.hazards.every(h=>!h[property]));assert.equal(g.boss.patternCount,undefined);
+ }
+});

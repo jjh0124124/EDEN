@@ -3,10 +3,11 @@ import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
-driver='''window.sliceTest={get state(){return state},get hp(){return player.hp},get phase(){return boss?.phase},get seconds(){return battleSeconds},setup(){releaseInputs();dialogue=null;startBoss(0);state='combat';},tick(){
+driver='''window.sliceTest={get state(){return state},get hp(){return player.hp},get phase(){return boss?.phase},get seconds(){return battleSeconds},get seen(){return window.sliceSeen},setup(){window.sliceSeen=[];releaseInputs();dialogue=null;startBoss(0);state='combat';},tick(){
  if(state!=='combat')return;
  for(let i=0;i<4&&state==='combat';i++){
   const p=player,b=boss,dist=b.x-p.x,dir=Math.sign(dist)||1;keys.clear();
+  for(const [name,seen] of [['field',hazards.some(h=>h.sterileField)],['dissection',hazards.some(h=>h.dissection)]])if(seen&&!window.sliceSeen.includes(name))window.sliceSeen.push(name);
   if(!b.dead){let move=Math.abs(dist)>43?dir:0;
    if(b.windup>0&&b.move%3===1&&Math.abs(p.x+9-b.target.x)<70)move=p.x<350?1:-1;
    if(move)keys.add(move>0?'d':'a');
@@ -34,5 +35,5 @@ with sync_playwright() as p:
  assert page.evaluate('sliceTest.hp')>0
  page.screenshot(path='/tmp/eden-surgeon-clear.png')
  assert not errors,errors
- print('PASS: production renderer and normal-stat input bot clear both SURGEON phases to victory, no JS errors; HP:',page.evaluate('sliceTest.hp'),'seconds:',round(page.evaluate('sliceTest.seconds'),1))
+ print('PASS: production renderer and normal-stat input bot clear both SURGEON phases to victory, no JS errors; HP:',page.evaluate('sliceTest.hp'),'seconds:',round(page.evaluate('sliceTest.seconds'),1),'new patterns:',page.evaluate('sliceTest.seen'))
  browser.close()

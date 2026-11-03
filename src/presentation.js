@@ -73,7 +73,7 @@ window.EdenPresentation = (() => {
     const w=f[2]*scale,height=f[3]*scale;
     if(h.kind==='pillar'){
       // Extend from the floor without changing the authored silhouette.
-      const extension=h.delay>0?1:Math.min(1,Math.max(.15,(.45-h.life)/.06),h.life/.09);
+      const extension=h.delay>0?1:Math.min(1,Math.max(.15,((h.maxLife||.45)-h.life)/.06),h.life/.09);
       c.beginPath();c.rect(-w/2,-height*extension,w,height*extension);c.clip();
       c.drawImage(art.ordnance,...f,-w/2,-height,w,height);
     }else{

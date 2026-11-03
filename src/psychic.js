@@ -11,8 +11,9 @@ window.EdenPsychic={install(api){
  Fighter.prototype.duelInput=function(move){
   if(!this.duelMode)return old.input.call(this,move);
   if(this.ultimateT>0)return;
-  if(pressedShift()&&this.driveLock<=0&&this.sp>=10){const dir=this.shiftIntent||move||this.face;this.shiftIntent=null;pose(this,'psiMove',.18);this.dashDir=dir;this.face=dir;this.dash=.18;this.inv=.15;this.driveLock=.38;this.sp-=10;this.vx=dir*300;fx('boost',this.x+9,this.y+30,-dir,.16,.45);return;}
-  const key=this.buffer?.key;if(!key||this.dash>0||this.charging||this.attack>0&&!(key!=='j'&&this.linkWindow>0))return;
+  const freeStep=this.parryFollow>0,stepCost=freeStep?0:10;
+  if(pressedShift()&&this.driveLock<=0&&this.sp>=stepCost){const dir=this.shiftIntent||move||this.face;this.shiftIntent=null;pose(this,'psiMove',.18);this.parryFollow=0;this.dashDir=dir;this.face=dir;this.dash=.18;this.inv=.15;this.driveLock=.38;this.sp-=stepCost;this.vx=dir*300;fx('boost',this.x+9,this.y+30,-dir,.16,.45);if(freeStep)api.message('PARRY STEP / SP 무소모 이동',.65);return;}
+  const key=this.buffer?.key,linked=key!=='j'||this.weaponMode==='psiGrab';if(!key||this.dash>0||this.charging||this.attack>0&&!(linked&&this.linkWindow>0))return;
   if(key==='k'){if(this.parryLock<=0&&this.onGround){cancel(this);this.charging=true;this.parryTimer=.3;this.parryWindow=.14;this.parryLock=.55;this.vx=0;}return;}
   if(key==='j'){this.strike(false);return;}
   this.duelSkill(['q','w','e','r'].indexOf(key));
@@ -68,8 +69,10 @@ window.EdenPsychic={install(api){
   if(s.superStarter)p.confirmSuper(target);
   const detonate=s.kind==='psiPalm'&&target.psiCompression>0;
   const repulse=isBoss&&s.kind==='psiRise'&&target.psiCompression>0;
-  if(detonate||repulse)target.psiCompression=0;
+  const reclaim=isBoss&&s.kind==='psiJab'&&target.psiCompression>0;
+  if(detonate||repulse||reclaim)target.psiCompression=0;
   api.damage(target,s.dmg+(detonate?18:0),s.interrupt);
+  if(reclaim){p.sp=Math.min(100,p.sp+12);p.superMeter=Math.min(100,p.superMeter+10);fx('psiBind',target.x+target.w/2,target.y+target.h*.55,s.dir,.24,.55);sound.tone(520,.1,'triangle',.035,820);api.message('RECLAIM / SP +12 · R +10',.9);}
   if(s.superHit&&s.psiStage===2){api.stop(.075,1.5);sound.noise(.12,.04);sound.tone(55,.15,'triangle',.05,24);}
   if(detonate){const effect=fx('psiFinal',target.x+target.w/2,target.y+target.h*.55,s.dir,.25,.75);effect.frameStart=2;api.stop(.07,1.5);sound.tone(48,.13,'triangle',.05,22);}
   if(target.dead||target.hp<=0)return true;
@@ -78,7 +81,7 @@ window.EdenPsychic={install(api){
   if(isBoss&&s.kind==='psiRise'&&target.recovery>0&&target.psiLaunchLock<=0){target.psiStagger=.4;target.psiLaunchLock=3;target.recovery=Math.max(.65,target.recovery);target.t=Math.max(.95,target.t);target.recoil=s.dir*5;}
   if(repulse&&target.tele<=0){target.psiPush=32;target.psiPushDir=s.dir;target.psiStagger=.5;target.recovery=Math.max(target.recovery||0,1.05);target.t=Math.max(target.t,1.4);fx('psiRupture',target.x+target.w/2,target.y+target.h*.7,s.dir,.2,.55);api.message('REPULSE / 압축 해방 — 거리 확보',.9);sound.tone(110,.12,'triangle',.035,45);}
   if(s.kind==='psiPalm'){api.stop(.065,1.4);target.recoil=s.dir*5;}
-  if(s.kind==='psiGrab'){const e=fx('psiBind',target.x+target.w/2,target.y+target.h*.55,s.dir,.55,.9);e.target=target;api.stop(.05,.8);if(isBoss)api.message('COMPRESSION / Q 밀어내기 · W 파열',1.1);}
+  if(s.kind==='psiGrab'){const e=fx('psiBind',target.x+target.w/2,target.y+target.h*.55,s.dir,.55,.9);e.target=target;api.stop(.05,.8);if(isBoss)api.message('COMPRESSION / 근접 J 회수 · Q 밀기 · W 파열',1.3);}
   return true;
  }
  return {hit,release,cooldowns,ready:i=>i===3?api.player.superMeter>=100&&!api.boss?.operation:api.player.cool[i]<=0&&api.player.sp>=[12,18,16][i]&&(i!==2||api.player.onGround),labels:['UPHEAVE','RUPTURE','BIND','ZERO POINT']};
