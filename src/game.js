@@ -408,9 +408,19 @@
       if(h.delay<=0&&h.sterileField){spriteEffect('hit',h.x,FLOOR-8,1,.18,.55);audio.tone(95,.12,'triangle',.03,45);}
       if(h.delay<=0&&h.dissection)audio.tone(h.y<FLOOR-30?220:140,.08,'triangle',.025,70);
       continue;}h.life-=dt;h.x+=(h.vx||0)*dt;h.y+=(h.vy||0)*dt;if(h.kind==='ember')h.vy+=250*dt;if(h.kind==='drone'){h.vy+=(player.y-h.y)*dt*2;h.vx+=(player.x-h.x)*dt*.3;}
+      if(h.sterileField)h.passGrace=Math.max(0,(h.passGrace||0)-dt);
       const pillarHeight=62*Math.min(1,Math.max(.15,((h.maxLife||.45)-h.life)/.06),h.life/.09);
       let box=h.kind==='pillar'?{x:h.x-9,y:FLOOR-pillarHeight,w:18,h:pillarHeight}:h.kind==='beam'?{x:h.x,y:h.y,w:h.w,h:h.h}:{x:h.x-(h.r||4),y:h.y-(h.r||4),w:(h.r||4)*2,h:(h.r||4)*2};
-      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player.hurtbox())){const parried=player.duelMode&&h.kind==='needle'&&player.tryParry({kind:'scalpel',projectile:true,parryable:true,owner:'b',dir:h.vx>0?1:-1});if(!parried){if(player.dash>0){player.recoverDrive();player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}player.damage(h.dmg,h.x<player.x?1:-1);}h.done=true;}if(h.owner==='p'&&boss&&hit(box,boss)){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&boss.inv<=0&&!boss.dead&&player.hp>0;const accepted=boss.inv<=0&&!boss.dead&&player.hp>0;boss.hurt(h.dmg);if(accepted)confirmRecoil(h,boss);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;confirmRecoil(h,d);contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}}
+      if(h.kind!=='warn'&&!h.done){if(h.owner==='b'&&hit(box,player.hurtbox())){
+        const parried=player.duelMode&&h.kind==='needle'&&player.tryParry({kind:'scalpel',projectile:true,parryable:true,owner:'b',dir:h.vx>0?1:-1});
+        if(!parried){
+          const fieldDodge=h.sterileField&&player.dash>0&&player.inv>0;
+          if(fieldDodge)h.passGrace=.12;
+          if(player.dash>0&&(!h.sterileField||fieldDodge&&!h.evadeRewarded)){if(fieldDodge)h.evadeRewarded=true;player.recoverDrive();player.sp=Math.min(100,player.sp+7);message('PERFECT EVADE // 신경 가속',.65);audio.tone(620,.1,'sine',.025);}
+          if(!h.sterileField||!h.passGrace)player.damage(h.dmg,h.x<player.x?1:-1);
+        }
+        if(!h.sterileField)h.done=true;
+      }if(h.owner==='p'&&boss&&hit(box,boss)){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&boss.inv<=0&&!boss.dead&&player.hp>0;const accepted=boss.inv<=0&&!boss.dead&&player.hp>0;boss.hurt(h.dmg);if(accepted)confirmRecoil(h,boss);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));h.done=true;confirmRecoil(h,d);contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}}
     }
     hazards=hazards.filter(h=>h.life>0&&!h.done&&h.x>-50&&h.x<W+50&&h.y<H+50);
     particles.forEach(p=>{p.life-=dt;if(p.sprite){if(p.target){if(p.target.hp<=0){p.life=0;return;}p.x=p.target.x+p.target.w/2;p.y=p.target.y+p.target.h*.55;}if(p.follow){p.x=player.x+9;p.y=player.y+player.h-10;}return;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.vx*=.97;});particles=particles.filter(p=>p.life>0);

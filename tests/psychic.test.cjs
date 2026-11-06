@@ -246,3 +246,11 @@ test('new boss hazards clear on death and do not leak into retry',()=>{
   frames(g,200);assert.equal(g.state,'ending');g.startBoss();assert.ok(g.hazards.every(h=>!h[property]));assert.equal(g.boss.patternCount,undefined);
  }
 });
+test('a sterile field remains after an evade or hit, and awards the evade only once',()=>{
+ for(const dt of [1/30,1/60])for(const side of [-1,1]){
+  const g=scheduledPattern(4);until(g,()=>g.hazards.some(h=>h.sterileField&&h.delay<=0),dt);const h=g.hazards.find(h=>h.sterileField);g.boss.t=999;g.player.x=h.x+side*35;g.player.face=-side;g.player.sp=40;g.keys.add(side<0?'d':'a');g.press('shift');
+  until(g,()=>side*(g.player.x-h.x)<-10,dt);g.keys.clear();assert.equal(g.player.hp,100);assert.ok(g.hazards.includes(h));assert.equal(h.evadeRewarded,true);assert.ok(g.player.sp<40,'repeated overlap cannot farm SP');
+  until(g,()=>!h.passGrace,dt);g.player.x=h.x-7;g.player.vx=0;g.player.dash=0;g.player.inv=0;g.step(dt);assert.equal(g.player.hp,84);assert.ok(g.hazards.includes(h));frames(g,8,dt);assert.equal(g.player.hp,84,'normal damage invulnerability prevents repeated hits');
+  until(g,()=>!g.hazards.includes(h),dt);
+ }
+});

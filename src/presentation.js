@@ -2,7 +2,7 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={},loads={};
-  const assetPaths={psiWalk:'characters/zero/zero-walk-v25.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
+  const assetPaths={psiWalk:'characters/zero/zero-walk-v28.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
   for(const [key,path] of Object.entries(assetPaths)){
     loads[key]=new Promise(resolve=>{const image=new Image();image.onload=()=>{art[key]=image;resolve(true);};image.onerror=()=>resolve(false);image.src='assets/'+path;});
   }
@@ -250,14 +250,11 @@ window.EdenPresentation = (() => {
   }
   function drawPsychicWalk(c,p,frame){
     const row=Math.floor(frame/4),col=frame%4,sx=[0,443,887,1330][col],width=[443,444,443,444][col];
-    const top=[0,443][row],baseline=[439,857][row],anchor=[[242,687,1119,1563],[226,670,1128,1573]][row][col];
+    const top=[0,443][row],baseline=[417,860][row],anchor=[237,681,1124,1568][col];
     c.save();c.translate(Math.round(p.x+9),Math.round(p.y+p.h));c.scale(p.face,1);
     if(p.inv>0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.6;
-    // The original idle upper body stays in guard while the eight leg poses advance.
-    c.save();c.beginPath();c.moveTo(-7,-23);c.lineTo(8,-23);c.lineTo(8,-18.7);c.lineTo(100,-18.7);c.lineTo(100,40);c.lineTo(-100,40);c.lineTo(-100,-18.7);c.lineTo(-7,-18.7);c.closePath();c.clip();c.scale(.9,1);
-    sprite(c,art.psiWalk,[sx,top,width,baseline-top+1,anchor],.123,baseline);c.restore();
-    c.save();c.beginPath();c.moveTo(-100,-100);c.lineTo(100,-100);c.lineTo(100,-27);c.lineTo(6,-25);c.lineTo(6,-21.6);c.lineTo(-100,-21.6);c.closePath();c.clip();
-    sprite(c,art.psychic,[0,0,350,281,185],.19,280);c.restore();c.restore();
+    // Each walk pose is a complete sprite, aligned to the idle head and floor.
+    sprite(c,art.psiWalk,[sx,top,width,baseline-top+1,anchor],.13,baseline);c.restore();
   }
   function drawZero(c,p,t){
     if(globalThis.EdenPsychic&&p.duelMode&&art.psychic){

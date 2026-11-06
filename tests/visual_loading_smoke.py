@@ -34,7 +34,7 @@ async def main():
   await page.wait_for_function('visualTest.p.ultimateT<.3 && visualTest.p.ultimateT>0');await page.screenshot(path='/tmp/eden25-super-final.png')
   await page.evaluate('visualTest.setupExplore()');await page.keyboard.press('r');await page.wait_for_function('visualTest.p.ultimateT>1.3');await page.wait_for_timeout(110);await page.screenshot(path='/tmp/eden25-super-explore.png')
   assert not errors,errors
-  failed=await browser.new_page();await failed.route('**/zero-walk-v25.png',lambda route:route.abort())
+  failed=await browser.new_page();await failed.route('**/zero-walk-v28.png',lambda route:route.abort())
   await failed.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4176')+'/',wait_until='domcontentloaded')
   await failed.wait_for_function("document.querySelector('#boot').textContent.includes('불러오지 못했습니다')")
   assert await failed.locator('#advance').is_disabled()
