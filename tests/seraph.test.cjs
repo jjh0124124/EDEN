@@ -119,3 +119,18 @@ test('descent warning stays centered on its actual landing at either wall',()=>{
   until(g,()=>g.slashes.some(s=>s.seraph&&!s.parryable));const landing=g.slashes.find(s=>s.seraph&&!s.parryable);assert.equal(landing.w,116);assert.equal(landing.x+landing.w/2,expected);
  }
 });
+
+test('wing servos sound during preparation and return to the open idle pose after recovery',()=>{
+ for(const dt of [1/30,1/60]){
+  const g=setup('halo'),start=g.sounds.length;until(g,()=>g.boss.windup===0,dt);
+  const clicks=g.sounds.slice(start).filter(e=>e[0]==='tone'&&e[3]==='square'&&e[4]===.012);assert.equal(clicks.length,2);
+  Object.assign(g.boss,{windup:0,release:0,recovery:.26,seraphFrameClock:2,seraphWasActing:true,t:999});g.step(dt);assert.ok(g.boss.seraphFrameClock>=8&&g.boss.seraphFrameClock<9);
+ }
+});
+
+test('wing hurtboxes follow the folded and open poses on either side',()=>{
+ for(const [x,face] of [[160,1],[344,-1]])for(const [frame,damage] of [[0,0],[8,12]]){
+  const g=game(true);g.engage();Object.assign(g.boss,{phase:2,x:240,y:116,tele:0,inv:0,t:999,seraphFrameClock:frame});Object.assign(g.player,{x,y:130,vy:0,onGround:false,face});g.press('j');for(let i=0;i<25;i++)g.step();
+  assert.equal(g.boss.maxHp-g.boss.hp,damage,`frame ${frame}, face ${face}`);
+ }
+});

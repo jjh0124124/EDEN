@@ -6,6 +6,9 @@
   ctx.imageSmoothingEnabled = false;
   const W = 480, H = 270, FLOOR = 226;
   const SERAPH_CLEAVE_REACH=150, SERAPH_DESCENT_RADIUS=58, SERAPH_HOVER=10;
+  // Inner wing reach follows the folded/open idle art; actions use their existing range.
+  const SERAPH_WING_LEFT=[43,45,47,50,53,55,58,61,61,57,53,51,48,45,45,45];
+  const SERAPH_WING_RIGHT=[38,42,47,48,53,56,58,58,57,55,51,46,44,40,38,37];
   ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
   const RED = '#e30b32', PALE = '#d9d6d2', DARK = '#080a0c';
 
@@ -19,7 +22,9 @@
   function bossDamageZone(attack,b){
     if(slashHit(attack,b))return b;
     if(!psychic||b.d.type!=='surgeon'||b.phase!==2)return null;
-    const wings=[{x:b.x-32,y:b.y-8,w:32,h:64},{x:b.x+b.w,y:b.y-8,w:32,h:64}];
+    const idle=!(b.windup>0||b.release>0||b.recovery>.25||b.seraphDive),frame=Math.floor(b.seraphFrameClock||0)%16;
+    const left=idle?(b.dir<0?SERAPH_WING_LEFT[frame]:SERAPH_WING_RIGHT[frame])-b.w/2:32,right=idle?(b.dir<0?SERAPH_WING_RIGHT[frame]:SERAPH_WING_LEFT[frame])-b.w/2:32;
+    const wings=[{x:b.x-left,y:b.y-8,w:left,h:64},{x:b.x+b.w,y:b.y-8,w:right,h:64}];
     return wings.find(wing=>slashHit(attack,wing))||null;
   }
   function bossImpactPoint(b,attack,zone){
@@ -262,7 +267,7 @@
     checkPhase(){
       if(this.hp<=this.maxHp*.5&&this.phase===1&&!(this.superLock>0)){this.phase=2;this.inv=psychic&&this.d.type==='surgeon'?7:1.6;this.tele=this.inv;this.windup=0;this.t=psychic&&this.d.type==='surgeon'?1.1:1.8;hazards=[];if(this.d.type==='surgeon'){slashes=slashes.filter(s=>s.owner!=='b');this.operation=null;this.followup=null;this.release=0;this.recovery=0;this.retreat=null;this.pressure=0;this.counterReady=false;this.rearCounterPending=false;this.rearChecks=0;this.psiGuard=this.psiGuardWarn=0;this.psiGuardPending=false;this.seraphCycle=0;this.seraphFinalUsed=false;this.seraphDive=null;}message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,18,110);audio.tone(38,.7,'sawtooth',.07,15);}
     }
-    update(dt){if(psychic&&this.phase===2&&this.d.type==='surgeon'&&this.tele>0&&EdenPresentation.seraphStatus&&EdenPresentation.seraphStatus!=='ready')return;this.anim+=dt;this.speechT=Math.max(0,(this.speechT||0)-dt);this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);const oldTele=this.tele;this.tele=Math.max(0,this.tele-dt);if(psychic&&this.phase===2&&this.d.type==='surgeon'&&oldTele>0){this.updateSeraphTransition(oldTele);if(!this.tele)this.y=FLOOR-this.h-SERAPH_HOVER;}if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(this.superLock>0){this.superLock=Math.max(0,this.superLock-dt);if(!this.superLock)this.checkPhase();return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0&&!(this.d.type==='surgeon'&&this.release>0))this.dir=player.x<this.x?-1:1;
+    update(dt){if(psychic&&this.phase===2&&this.d.type==='surgeon'&&this.tele>0&&EdenPresentation.seraphStatus&&EdenPresentation.seraphStatus!=='ready')return;this.anim+=dt;this.speechT=Math.max(0,(this.speechT||0)-dt);this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);const oldTele=this.tele;this.tele=Math.max(0,this.tele-dt);if(psychic&&this.phase===2&&this.d.type==='surgeon'&&oldTele>0){this.updateSeraphTransition(oldTele);if(!this.tele){this.y=FLOOR-this.h-SERAPH_HOVER;this.seraphFrameClock=8;}}if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(this.superLock>0){this.superLock=Math.max(0,this.superLock-dt);if(!this.superLock)this.checkPhase();return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0&&!(this.d.type==='surgeon'&&this.release>0))this.dir=player.x<this.x?-1:1;
       if(psychic&&this.phase===2&&this.d.type==='surgeon')this.updateSeraph(dt);else this.updateSurgeon(dt);
     }
     cancelProtocol(){
@@ -346,7 +351,7 @@
       this.seraphLockAt={cleave:.55,feathers:.65,halo:.70,final:.85}[move]||0;this.seraphLocked=move==='descent';
       this.speechT=0;
       const hint={cleave:'SERAPHIC CLEAVE / 날개 절단 — 점프 또는 정면 K',descent:'DIVINE DESCENT / 낙하 지점에서 벗어나기',feathers:'CRIMSON FEATHERS / 상단 다음 하단 — 이동 또는 점프',halo:'HALO JUDGMENT / 광선 — 점프 또는 뒤로 이동',final:'FINAL REVELATION / 하단 광선 — 점프 또는 뒤로 이동'}[move];
-      message(hint,move==='final'?2.1:1.5);audio.tone(move==='final'?65:280,.12,'triangle',.03,move==='final'?170:140);
+      message(hint,move==='final'?2.1:1.5);audio.tone(move==='final'?65:280,.12,'triangle',.03,move==='final'?170:140);audio.tone(110,.06,'square',.012,155);
     }
     performSeraph(){
       const dir=this.dir,origin=this.x+21,move=this.seraphMove;this.release=.4;this.t=.4;
@@ -379,6 +384,9 @@
       this.seraphLastMove=chosen;this.seraphCycle=(this.seraphCycle||0)+1;return chosen;
     }
     updateSeraph(dt){
+      const posing=!!this.seraphDive||this.windup>0||this.release>0||this.recovery>.25;
+      if(this.seraphWasActing&&!posing)this.seraphFrameClock=8;
+      this.seraphWasActing=posing;
       this.seraphFrameClock=(this.seraphFrameClock||0)+dt*(this.seraphMoving?10:8);
       this.seraphMoving=false;
       if(this.seraphDive){
@@ -395,7 +403,8 @@
           const side=Math.sign(player.x+9-this.x-21);if(side)this.dir=side;
           if(this.windup-dt<=this.seraphLockAt){this.seraphLocked=true;audio.tone(480,.045,'triangle',.02,350);}
         }
-        this.windup=Math.max(0,this.windup-dt);
+        const previous=this.windup;this.windup=Math.max(0,this.windup-dt);
+        for(const at of [.75,.25])if(previous>this.windupMax*at&&this.windup<=this.windupMax*at)audio.tone(at>.5?165:245,.05,'square',.012,at>.5?110:330);
         if(!this.windup)this.performSeraph();return;
       }
       if(this.recovery>0||this.release>0)return;
