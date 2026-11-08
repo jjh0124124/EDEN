@@ -5,6 +5,7 @@
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   const W = 480, H = 270, FLOOR = 226;
+  const SERAPH_CLEAVE_REACH=150, SERAPH_DESCENT_RADIUS=58, SERAPH_HOVER=10;
   ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
   const RED = '#e30b32', PALE = '#d9d6d2', DARK = '#080a0c';
 
@@ -13,6 +14,18 @@
   const rnd = (a,b) => a+Math.random()*(b-a);
   const hit = (a,b) => a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
   const slashHit=(s,b)=>{if(!s.radius)return hit(s,b);const x=s.x+s.radius,y=s.y+s.radius,dx=x-clamp(x,b.x,b.x+b.w),dy=y-clamp(y,b.y,b.y+b.h);return dx*dx+dy*dy<=s.radius*s.radius;};
+  // The inner mechanical wings are part of SERAPH's body, but each attack
+  // still hits the boss only once, even when several regions overlap it.
+  function bossDamageZone(attack,b){
+    if(slashHit(attack,b))return b;
+    if(!psychic||b.d.type!=='surgeon'||b.phase!==2)return null;
+    const wings=[{x:b.x-32,y:b.y-8,w:32,h:64},{x:b.x+b.w,y:b.y-8,w:32,h:64}];
+    return wings.find(wing=>slashHit(attack,wing))||null;
+  }
+  function bossImpactPoint(b,attack,zone){
+    if(zone===b)return null;
+    return {x:clamp(attack.x+attack.w/2,zone.x,zone.x+zone.w),y:clamp(attack.y+attack.h/2,zone.y,zone.y+zone.h)};
+  }
   const keys = new Set(), pressed = new Set();
   const inputSources=new Map();
   function inputDown(source,k){if(k==='shift')player.shiftIntent=(keys.has('d')?1:0)-(keys.has('a')?1:0);inputSources.set(source,k);if(!keys.has(k))pressed.add(k);keys.add(k);}
@@ -82,7 +95,7 @@
     const tier=power>=50?2:power>=22?1:0,dir=target.x>=player.x?1:-1;
     hitstop=Math.max(hitstop,(player.duelMode?[.045,.05,.065]:[.022,.042,.065])[tier]);shake=Math.max(shake,[.65,1.2,1.8][tier]);
     target.recoil=dir*(player.duelMode?[3,3.5,4.5]:[1.5,2.5,3.5])[tier];target.contactFlash=.07;target.hitFlash=.07;
-    const x=player.duelMode?clamp(player.x+9+player.face*28,target.x+4,target.x+target.w-4):target.x+target.w*.5,y=player.duelMode?clamp(player.y+(globalThis.EdenPsychic?12:25),target.y+8,target.y+target.h-8):target.y+target.h*.6;
+    const x=target.impactPoint?.x??(player.duelMode?clamp(player.x+9+player.face*28,target.x+4,target.x+target.w-4):target.x+target.w*.5),y=target.impactPoint?.y??(player.duelMode?clamp(player.y+(globalThis.EdenPsychic?12:25),target.y+8,target.y+target.h-8):target.y+target.h*.6);
     if(player.duelMode)spriteEffect('hit',x,y,dir,.18+tier*.025,.7+tier*.18);else{impact(x,y,power);burst(x,y,tier?'#ffd7a0':PALE,4+tier*2,45+tier*15);}
     damageNumbers.push({x:x+(chain%3-1)*7,y:target.y-4,life:.55,text:damage,strong:tier>0});damageNumbers=damageNumbers.slice(-8);
     audio.noise(.025+tier*.015,.025+tier*.006);audio.tone([145,85,58][tier],.055+tier*.025,'triangle',.035+tier*.008,[65,48,30][tier]);
@@ -249,7 +262,7 @@
     checkPhase(){
       if(this.hp<=this.maxHp*.5&&this.phase===1&&!(this.superLock>0)){this.phase=2;this.inv=psychic&&this.d.type==='surgeon'?7:1.6;this.tele=this.inv;this.windup=0;this.t=psychic&&this.d.type==='surgeon'?1.1:1.8;hazards=[];if(this.d.type==='surgeon'){slashes=slashes.filter(s=>s.owner!=='b');this.operation=null;this.followup=null;this.release=0;this.recovery=0;this.retreat=null;this.pressure=0;this.counterReady=false;this.rearCounterPending=false;this.rearChecks=0;this.psiGuard=this.psiGuardWarn=0;this.psiGuardPending=false;this.seraphCycle=0;this.seraphFinalUsed=false;this.seraphDive=null;}message(PHASE_LINES[bossIndex],3);burst(this.x+20,this.y+25,RED,18,110);audio.tone(38,.7,'sawtooth',.07,15);}
     }
-    update(dt){if(psychic&&this.phase===2&&this.d.type==='surgeon'&&this.tele>0&&EdenPresentation.seraphStatus&&EdenPresentation.seraphStatus!=='ready')return;this.anim+=dt;this.speechT=Math.max(0,(this.speechT||0)-dt);this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);const oldTele=this.tele;this.tele=Math.max(0,this.tele-dt);if(psychic&&this.phase===2&&this.d.type==='surgeon'&&oldTele>0){this.updateSeraphTransition(oldTele);if(!this.tele)this.y=FLOOR-this.h-15;}if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(this.superLock>0){this.superLock=Math.max(0,this.superLock-dt);if(!this.superLock)this.checkPhase();return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0&&!(this.d.type==='surgeon'&&this.release>0))this.dir=player.x<this.x?-1:1;
+    update(dt){if(psychic&&this.phase===2&&this.d.type==='surgeon'&&this.tele>0&&EdenPresentation.seraphStatus&&EdenPresentation.seraphStatus!=='ready')return;this.anim+=dt;this.speechT=Math.max(0,(this.speechT||0)-dt);this.breakLock=Math.max(0,(this.breakLock||0)-dt);this.recovery=Math.max(0,(this.recovery||0)-dt);this.release=Math.max(0,this.release-dt);this.guardBroken=Math.max(0,(this.guardBroken||0)-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);this.inv=Math.max(0,this.inv-dt);const oldTele=this.tele;this.tele=Math.max(0,this.tele-dt);if(psychic&&this.phase===2&&this.d.type==='surgeon'&&oldTele>0){this.updateSeraphTransition(oldTele);if(!this.tele)this.y=FLOOR-this.h-SERAPH_HOVER;}if(this.dead){this.deathAge+=dt;this.deathOpacity=Math.max(.05,1-this.deathAge/2.6);return;}if(this.superLock>0){this.superLock=Math.max(0,this.superLock-dt);if(!this.superLock)this.checkPhase();return;}if(player.hp<=0||this.tele>0)return;if(this.windup<=0&&!(this.d.type==='surgeon'&&this.release>0))this.dir=player.x<this.x?-1:1;
       if(psychic&&this.phase===2&&this.d.type==='surgeon')this.updateSeraph(dt);else this.updateSurgeon(dt);
     }
     cancelProtocol(){
@@ -328,7 +341,7 @@
       }
     }
     beginSeraph(move){
-      this.seraphMove=move;this.seraphTarget={x:clamp(player.x+9,30,450),y:player.y+24};this.dir=this.seraphTarget.x<this.x+21?-1:1;
+      this.seraphMove=move;this.seraphVX=0;this.seraphTarget={x:clamp(player.x+9,move==='descent'?66:30,move==='descent'?416:450),y:player.y+24};this.dir=this.seraphTarget.x<this.x+21?-1:1;
       this.windup=this.windupMax={cleave:.95,descent:1.2,feathers:1.1,halo:1.3,final:2.15}[move];
       this.seraphLockAt={cleave:.55,feathers:.65,halo:.70,final:.85}[move]||0;this.seraphLocked=move==='descent';
       this.speechT=0;
@@ -338,8 +351,8 @@
     performSeraph(){
       const dir=this.dir,origin=this.x+21,move=this.seraphMove;this.release=.4;this.t=.4;
       if(move==='cleave'){
-        this.recovery=1.25;spriteEffect('seraphSweep',origin+dir*48,FLOOR-34,dir,.42,1);
-        slashes.push({kind:'scalpel',seraph:true,seraphImpact:true,owner:'b',parryable:true,x:dir>0?origin:origin-120,y:FLOOR-27,w:120,h:24,life:.16,delay:.09,dmg:16,dir});
+        this.recovery=1.25;spriteEffect('seraphSweep',origin+dir*SERAPH_CLEAVE_REACH/2,FLOOR-15,dir,.42,1);
+        slashes.push({kind:'scalpel',seraph:true,seraphImpact:true,owner:'b',parryable:true,x:dir>0?origin:origin-SERAPH_CLEAVE_REACH,y:FLOOR-27,w:SERAPH_CLEAVE_REACH,h:24,life:.16,delay:.09,dmg:16,dir});
       }else if(move==='descent'){
         this.recovery=1.6;this.seraphDive={time:.34,from:this.x,fromY:this.y,to:clamp(this.seraphTarget.x-21,45,395)};
         audio.tone(310,.12,'triangle',.028,80);
@@ -356,17 +369,27 @@
         if(!final)audio.tone(130,.12,'triangle',.025,65);
       }
     }
+    chooseSeraphMove(){
+      const distance=Math.abs(player.x+player.w/2-this.x-this.w/2);
+      const preference=distance<95?{cleave:5,descent:3,feathers:2,halo:1}:distance<185?{cleave:2,descent:5,feathers:3,halo:2}:{cleave:1,descent:3,feathers:4,halo:5};
+      const moves=['cleave','descent','feathers','halo'],age=this.seraphMoveAge??={cleave:0,descent:0,feathers:0,halo:0};
+      let chosen=null,score=-Infinity;
+      for(const move of moves){if(move===this.seraphLastMove)continue;const next=preference[move]+age[move]*1.6;if(next>score){chosen=move;score=next;}}
+      for(const move of moves)age[move]=move===chosen?0:Math.min(5,age[move]+1);
+      this.seraphLastMove=chosen;this.seraphCycle=(this.seraphCycle||0)+1;return chosen;
+    }
     updateSeraph(dt){
+      this.seraphFrameClock=(this.seraphFrameClock||0)+dt*(this.seraphMoving?10:8);
       this.seraphMoving=false;
       if(this.seraphDive){
         const d=this.seraphDive;d.time=Math.max(0,d.time-dt);const u=1-d.time/.34;
         this.x=lerp(d.from,d.to,u*u*(3-2*u));this.y=lerp(d.fromY,FLOOR-this.h,u);
         if(!d.hit&&hit({x:this.x-4,y:this.y+55,w:this.w+8,h:45},player.hurtbox())){d.hit=true;const cut={kind:'scalpel',owner:'b',parryable:true,dir:this.dir};if(player.tryParry(cut))d.parried=true;else player.damage(16,this.dir);}
-        if(!d.time){this.seraphDive=null;const x=this.x+21;spriteEffect('seraphImpact',x,FLOOR-6,1,.48,1);if(!d.parried)slashes.push({kind:'scalpel',seraph:true,owner:'b',parryable:false,x:x-44,y:FLOOR-27,w:88,h:25,life:.16,delay:.04,dmg:18,dir:this.dir});shake=Math.max(shake,1.8);audio.noise(.08,.03);audio.tone(65,.12,'triangle',.04,28);}
+        if(!d.time){this.seraphDive=null;const x=this.x+21;spriteEffect('seraphImpact',x,FLOOR-6,1,.48,1);if(!d.parried)slashes.push({kind:'scalpel',seraph:true,owner:'b',parryable:false,x:x-SERAPH_DESCENT_RADIUS,y:FLOOR-27,w:SERAPH_DESCENT_RADIUS*2,h:25,life:.16,delay:.04,dmg:18,dir:this.dir});shake=Math.max(shake,1.8);audio.noise(.08,.03);audio.tone(65,.12,'triangle',.04,28);}
         return;
       }
       const ascent=this.windup>0&&this.seraphMove==='descent'?25*(1-this.windup/this.windupMax):0;
-      const hover=FLOOR-this.h-15-Math.sin(this.anim*2.8)*2-ascent;this.y=lerp(this.y,hover,clamp(dt*7,0,1));
+      const hover=FLOOR-this.h-SERAPH_HOVER-Math.sin(this.anim*2.8)*2-ascent;this.y=lerp(this.y,hover,clamp(dt*7,0,1));
       if(this.windup>0){
         if(!this.seraphLocked){
           const side=Math.sign(player.x+9-this.x-21);if(side)this.dir=side;
@@ -377,9 +400,15 @@
       }
       if(this.recovery>0||this.release>0)return;
       this.t-=dt;
-      if(this.t>0){const gap=player.x-this.x;if(Math.abs(gap)>130){this.seraphMoving=true;this.x=clamp(this.x+Math.sign(gap)*48*dt,45,395);}return;}
+      if(this.t>0){
+        const gap=player.x+player.w/2-this.x-this.w/2,distance=Math.abs(gap),velocity=this.seraphVX||0;
+        const desired=distance>145?Math.sign(gap)*48:distance<130||Math.sign(gap)!==Math.sign(velocity)?0:velocity;
+        this.seraphVX=lerp(velocity,desired,clamp(dt*6,0,1));
+        this.x=clamp(this.x+this.seraphVX*dt,45,395);this.seraphMoving=Math.abs(this.seraphVX)>2;return;
+      }
+      this.seraphVX=0;
       if(this.hp<=this.maxHp*.25&&!this.seraphFinalUsed){this.seraphFinalUsed=true;this.beginSeraph('final');return;}
-      const cycle=['cleave','feathers','descent','halo'];const move=cycle[this.seraphCycle%cycle.length];this.seraphCycle++;this.beginSeraph(move);
+      this.beginSeraph(this.chooseSeraphMove());
     }
     updateSurgeon(dt){
       this.retreatCooldown=Math.max(0,(this.retreatCooldown||0)-dt);
@@ -479,13 +508,16 @@
       if(s.followStartup&&(s.delay>0||s.attached&&!s.done)){s.x=s.dir>0?player.x+s.origin:player.x-s.w;s.y=player.y+(s.offsetY??-5);}
       if(s.follow&&s.delay>0){s.x=s.dir>0?player.x+14:player.x-s.w;s.y=player.y-8;}
       if(s.target&&(s.target.hp<=0||player.hp<=0)){s.life=0;continue;}
-      if(s.delay>0){s.delay-=dt;if(s.delay<=0&&s.seraphImpact){const x=s.dir>0?s.x+85:s.x+s.w-85;spriteEffect('seraphImpact',x,FLOOR-7,s.dir,.35,.65);audio.noise(.07,.026);audio.tone(130,.09,'triangle',.03,60);}if(s.delay<=0&&player.duelMode&&s.owner==='p'){if(psychic)psychic.release(s);if(s.kind==='kick'||s.kind==='hook')spriteEffect('sweep',s.dir>0?s.x:s.x+s.w,s.y+32,s.dir,.14,s.kind==='hook'?.8:[.42,.58,.88][(s.combo||1)-1]);if(s.superHit&&!psychic)spriteEffect('superburst',s.target.x+21,player.y+24,s.dir,.24,s.dmg>=50?1.1:.8);}continue;}
+      if(s.delay>0){s.delay-=dt;if(s.delay<=0&&s.seraphImpact){const x=s.dir>0?s.x+s.w*.7:s.x+s.w*.3;spriteEffect('seraphImpact',x,FLOOR-7,s.dir,.35,.65);audio.noise(.07,.026);audio.tone(130,.09,'triangle',.03,60);}if(s.delay<=0&&player.duelMode&&s.owner==='p'){if(psychic)psychic.release(s);if(s.kind==='kick'||s.kind==='hook')spriteEffect('sweep',s.dir>0?s.x:s.x+s.w,s.y+32,s.dir,.14,s.kind==='hook'?.8:[.42,.58,.88][(s.combo||1)-1]);if(s.superHit&&!psychic)spriteEffect('superburst',s.target.x+21,player.y+24,s.dir,.24,s.dmg>=50?1.1:.8);}continue;}
       s.life-=dt;if(s.done)continue;
       const box={x:s.x,y:s.y,w:s.w,h:s.h},multi=!!s.radius||s.kind==='psiFinalWave';if(multi&&!s.hitTargets)s.hitTargets=new Set();
       if(s.owner==='p'){
         if(multi){while(hitOperationNode(s,box)){} }else if(hitOperationNode(s,box))s.done=true;
-        if(!s.done&&boss&&!boss.dead&&!s.hitTargets?.has(boss)&&slashHit(s,boss)&&boss.inv<=0){
+        const zone=!s.done&&boss&&!boss.dead&&!s.hitTargets?.has(boss)&&boss.inv<=0&&bossDamageZone(s,boss);
+        if(zone){
+          boss.impactPoint=bossImpactPoint(boss,s,zone);
           if(psychic&&player.duelMode)psychic.hit(s,boss);else{if(s.superStarter&&player.hp>0)player.confirmSuper(boss);boss.hurt(s.dmg,s.interrupt);confirmHit(s,boss);}
+          boss.impactPoint=null;
           if(multi)s.hitTargets.add(boss);else s.done=true;
         }
         if(!s.done&&room&&state==='explore')for(const drone of room.drones){if(drone.hp>0&&!s.hitTargets?.has(drone)&&slashHit(s,drone)){
@@ -517,7 +549,7 @@
           if(!h.sterileField||!h.passGrace)player.damage(h.dmg,h.x<player.x?1:-1);
         }
         if(!h.sterileField)h.done=true;
-      }if(h.owner==='p'&&h.kind==='psiShard'&&hitOperationNode(h,box))h.done=true;if(h.owner==='p'&&!h.done&&boss&&hit(box,boss)&&boss.inv<=0){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&!boss.dead&&player.hp>0;const accepted=!boss.dead&&player.hp>0;if(h.kind==='psiShard'&&psychic)psychic.hit(h,boss);else boss.hurt(h.dmg);if(accepted)confirmRecoil(h,boss);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&!h.done&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){if(h.kind==='psiShard'&&psychic)psychic.hit(h,d);else{d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));confirmRecoil(h,d);contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}h.done=true;break;}}
+      }if(h.owner==='p'&&h.kind==='psiShard'&&hitOperationNode(h,box))h.done=true;const zone=h.owner==='p'&&!h.done&&boss&&boss.inv<=0&&bossDamageZone(box,boss);if(zone){const anchors=h.kind==='pillar'&&boss.d.type==='surgeon'&&!boss.dead&&player.hp>0;const accepted=!boss.dead&&player.hp>0;boss.impactPoint=bossImpactPoint(boss,box,zone);if(h.kind==='psiShard'&&psychic)psychic.hit(h,boss);else boss.hurt(h.dmg);boss.impactPoint=null;if(accepted)confirmRecoil(h,boss);if(anchors)boss.anchor();h.done=true;}if(h.owner==='p'&&!h.done&&state==='explore'&&room)for(const d of room.drones)if(d.hp>0&&hit(box,d)){if(h.kind==='psiShard'&&psychic)psychic.hit(h,d);else{d.hp-=Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12));confirmRecoil(h,d);contactFeedback(d,h.dmg,Math.round(h.dmg*(1+upgrade*.08+augments[0]*.12)));}h.done=true;break;}}
     }
     hazards=hazards.filter(h=>h.life>0&&!h.done&&h.x>-50&&h.x<W+50&&h.y<H+50);
     particles.forEach(p=>{p.life-=dt;if(p.cancelWithAttack&&(p.castId!==player.attackSerial||player.stun>0||player.hp<=0||player.attack<=0)){p.life=0;return;}if(p.trackPlayer){p.x=player.x+9;p.y=player.y+22;}if(p.sprite){if(p.target){if(p.target.hp<=0||p.requiresCompression&&!(p.target.psiCompression>0)){p.life=0;return;}p.x=p.target.x+p.target.w/2;p.y=p.target.y+p.target.h*.55-psychicLift(p.target);}if(p.follow){p.x=player.x+9;p.y=player.y+player.h-10;}return;}p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=210*dt;p.vx*=.97;});particles=particles.filter(p=>p.life>0);
@@ -548,7 +580,9 @@
     ctx.restore();
   }
 
-  function drawBoss(b){const lift=psychicLift(b);ctx.save();ctx.translate(b.recoil||0,-lift);if(b.contactFlash>0)ctx.filter='brightness(1.65)';EdenPresentation.boss(ctx,b,time);ctx.restore();
+  function drawBoss(b){const lift=psychicLift(b);
+    if(psychic&&b.d.type==='surgeon'&&b.phase===2&&!b.dead){const rise=b.tele>0?clamp((7-b.tele-4.4)/1.6,0,1)*SERAPH_HOVER:Math.max(0,FLOOR-b.y-b.h);ctx.save();ctx.globalAlpha=.2;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(b.x+b.w/2,FLOOR-1,Math.max(12,24-rise*.2),2.5,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+    ctx.save();ctx.translate(b.recoil||0,-lift);if(b.contactFlash>0)ctx.filter='brightness(1.65)';EdenPresentation.boss(ctx,b,time);ctx.restore();
     if(b.speechT>0&&!b.dead){const x=clamp(b.x+b.w/2,80,400),y=b.y-11-lift;ctx.save();ctx.globalAlpha=clamp(b.speechT*3,0,1);ctx.fillStyle='rgba(5,8,13,.82)';ctx.fillRect(x-76,y-9,152,12);ctx.fillStyle='#e1c1c5';ctx.font='6px sans-serif';ctx.textAlign='center';ctx.fillText('SURGEON / '+b.speech,x,y,148);ctx.restore();}
   }
 
@@ -586,12 +620,12 @@
     }
     if(psychic&&state==='combat'&&boss?.phase===2&&boss.tele<=0&&boss.windup>0){
       const b=boss,dir=b.dir,origin=b.x+21,move=b.seraphMove;ctx.save();ctx.fillStyle=RED;ctx.globalAlpha=.20;
-      if(move==='cleave')ctx.fillRect(dir>0?origin:origin-120,FLOOR-27,120,24);
-      if(move==='descent')ctx.fillRect(b.seraphTarget.x-44,FLOOR-27,88,24);
+      if(move==='cleave')ctx.fillRect(dir>0?origin:origin-SERAPH_CLEAVE_REACH,FLOOR-27,SERAPH_CLEAVE_REACH,24);
+      if(move==='descent')ctx.fillRect(b.seraphTarget.x-SERAPH_DESCENT_RADIUS,FLOOR-27,SERAPH_DESCENT_RADIUS*2,24);
       if(move==='halo'||move==='final')ctx.fillRect(dir>0?origin:8,FLOOR-(move==='final'?34:27),dir>0?472-origin:origin-8,move==='final'?34:20);
       ctx.globalAlpha=.65;
       if(move==='feathers'){const left=dir>0?origin:8,right=dir>0?472:origin;P.line(ctx,left,FLOOR-76,right,FLOOR-76,RED,1);P.line(ctx,left,FLOOR-14,right,FLOOR-14,RED,1);}
-      if(move==='descent')P.line(ctx,b.seraphTarget.x-44,FLOOR-3,b.seraphTarget.x+44,FLOOR-3,RED,2);
+      if(move==='descent')P.line(ctx,b.seraphTarget.x-SERAPH_DESCENT_RADIUS,FLOOR-3,b.seraphTarget.x+SERAPH_DESCENT_RADIUS,FLOOR-3,RED,2);
       P.rect(ctx,b.x-3,b.y-9,48,3,'#161b25');P.rect(ctx,b.x-3,b.y-9,48*(1-b.windup/b.windupMax),3,b.seraphLocked?'#ffc67a':'#97a5b7');ctx.restore();
     }
     if(psychic&&player.ultimateT>0){const x=player.face>0?player.x+12:player.x-230;ctx.save();ctx.globalAlpha=.13;ctx.fillStyle=RED;ctx.fillRect(x,player.y-12,230,72);ctx.restore();}
