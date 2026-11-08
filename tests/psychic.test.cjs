@@ -214,8 +214,8 @@ test('successful K parry permits one free directional shift; ordinary or expired
 function scheduledPattern(number,playerX=120,bossX=330,dt=1/60){
  const g=game(true);g.engage();g.player.x=playerX;g.player.face=Math.sign(bossX-playerX);g.boss.x=bossX;g.boss.patternCount=number-1;g.boss.t=0;g.step(dt);return g;
 }
-test('the first retreat counter uses the field and alternates with the needle counter',()=>{
- const g=duel();g.boss.counterReady=true;g.step();assert.equal(g.boss.move,6);assert.ok(g.boss.windup>=.9);
+test('the first retreat counter uses PINCER and alternates with the needle counter',()=>{
+ const g=duel();g.boss.counterReady=true;g.step();assert.equal(g.boss.move,7);assert.ok(g.boss.windup>=1);assert.ok(Math.abs(g.boss.pincerX-(g.player.x+9))>=35);
  g.boss.windup=0;g.boss.release=0;g.boss.recovery=0;g.boss.counterReady=true;g.step();assert.equal(g.boss.move,2);assert.ok(g.boss.windup>=.65);
 });
 test('sterile field locks and marks player position; moving escapes at both walls',()=>{
@@ -241,7 +241,7 @@ test('dissection rewards staying grounded for the high needle then jumping or pa
  }
 });
 test('new boss hazards clear on death and do not leak into retry',()=>{
- for(const [number,property] of [[2,'dissection'],[4,'sterileField']]){
+ for(const [number,property] of [[2,'dissection'],[3,'pincerField'],[3,'pincerShot'],[4,'sterileField']]){
   const g=scheduledPattern(number);until(g,()=>g.hazards.some(h=>h[property]));g.boss.hurt(5000);assert.equal(g.boss.dead,true);assert.ok(g.hazards.every(h=>!h[property]));
   frames(g,200);assert.equal(g.state,'ending');g.startBoss();assert.ok(g.hazards.every(h=>!h[property]));assert.equal(g.boss.patternCount,undefined);
  }
@@ -253,4 +253,49 @@ test('a sterile field remains after an evade or hit, and awards the evade only o
   until(g,()=>!h.passGrace,dt);g.player.x=h.x-7;g.player.vx=0;g.player.dash=0;g.player.inv=0;g.step(dt);assert.equal(g.player.hp,84);assert.ok(g.hazards.includes(h));frames(g,8,dt);assert.equal(g.player.hp,84,'normal damage invulnerability prevents repeated hits');
   until(g,()=>!g.hazards.includes(h),dt);
  }
+});
+
+test('PINCER telegraphs a safe offset at both walls, and a jump or K avoids its shot',()=>{
+ for(const dt of [1/30,1/60])for(const [px,bx] of [[130,330],[350,120],[8,130],[453,330]])for(const response of ['none','jump','parry']){
+  const g=scheduledPattern(3,px,bx,dt);assert.equal(g.boss.move,7);assert.ok(g.boss.windup>.8);assert.ok(Math.abs(g.boss.pincerX-(px+9))>=35);
+  until(g,()=>g.hazards.some(h=>h.pincerShot),dt);let acted=false;
+  for(let i=0;i<220;i++){
+   const h=g.hazards.find(x=>x.pincerShot);if(!h)break;
+   const dx=h.x-(g.player.x+9),distance=Math.abs(dx);
+   if(!acted&&h.delay<=0&&distance<(response==='parry'?30:75)){
+    if(response==='jump')g.press(' ');else if(response==='parry')g.press('k');else g.step(dt);acted=true;
+   }else g.step(dt);
+   if(h.delay<=0&&dx*Math.sign(h.vx)>30)break;
+  }
+  if(response==='none')assert.equal(g.player.hp,84,`${dt} ${px} ${response}`);
+  else{assert.equal(g.player.hp,100,`${dt} ${px} ${response}`);assert.ok(acted);}
+  if(response==='parry'){assert.ok(g.player.superMeter>=14);assert.ok(g.hazards.every(h=>!h.pincerField));assert.ok(g.boss.recovery>1.1);}
+ }
+});
+
+test('E compression is consumed by confirmed R for one stronger final impact',()=>{
+ const totals=[];
+ for(const compressed of [false,true]){
+  const g=duel();g.player.superMeter=100;
+  if(compressed){g.press('e');until(g,()=>g.boss.psiCompression>0);g.freeze(0);g.player.superMeter=100;}
+  const hp=g.boss.hp;g.press('r');until(g,()=>g.player.ultimateT>0);assert.equal(g.player.superCompressed,compressed);assert.equal(g.boss.psiCompression||0,0);frames(g,140);totals.push(hp-g.boss.hp);assert.equal(g.player.ultimateT,0);
+ }
+ assert.equal(totals[1]-totals[0],20);
+ const g=duel();g.player.superMeter=100;g.player.x=65;g.player.superCompressed=true;g.press('r');frames(g,40);assert.equal(g.player.superCompressed,false);assert.equal(g.player.ultimateT,0);
+});
+test('a confirmed R cancels both parts of an active PINCER',()=>{
+ const g=scheduledPattern(3,225,260);until(g,()=>g.hazards.some(h=>h.pincerShot));g.player.superMeter=100;g.press('r');until(g,()=>g.player.ultimateT>0);
+ assert.ok(g.hazards.every(h=>!h.pincerShot&&!h.pincerField));assert.ok(g.boss.superLock>0);assert.equal(g.player.hp,100);
+});
+test('repeated rear hits during a cast trigger a warned, avoidable two-sided response',()=>{
+ for(const dt of [1/30,1/60])for(const [bx,px] of [[240,285],[240,195],[45,8],[395,453]])for(const response of ['none','jump','parry']){
+  const g=game(true);g.engage();g.boss.x=bx;g.player.x=px;g.player.face=Math.sign(bx-px);g.boss.dir=g.player.face;g.boss.windup=g.boss.windupMax=2;g.boss.move=0;
+  g.press('j');until(g,()=>g.boss.hp<g.boss.maxHp,dt);until(g,()=>g.player.attack<=0,dt);g.freeze(0);g.press('j');until(g,()=>g.boss.rearCounterPending,dt);
+  assert.ok(g.boss.windup>0,'the original attack keeps its windup');until(g,()=>g.boss.move===8&&g.boss.windup>0,dt);assert.ok(g.boss.windup>=1);
+  if(response==='jump'){until(g,()=>g.boss.windup<.34,dt);g.press(' ');}
+  if(response==='parry'){until(g,()=>g.hazards.some(h=>h.rearSweep&&Math.sign(h.vx)===Math.sign(px-bx)&&h.delay<=0&&Math.abs(h.x-(g.player.x+9))<30),dt);g.press('k');}
+  if(response==='none')until(g,()=>g.hazards.some(h=>h.rearSweep),dt);
+  frames(g,65,dt);assert.equal(g.player.hp,response==='none'?86:100,`${dt} ${px} ${response}`);if(response==='parry')assert.ok(g.player.superMeter>=14);
+ }
+ const g=duel();g.boss.rearCounterPending=true;g.boss.windup=1;g.boss.dir=-1;g.player.superMeter=100;g.press('r');until(g,()=>g.player.ultimateT>0);assert.equal(g.boss.rearCounterPending,false);
 });

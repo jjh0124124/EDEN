@@ -2,11 +2,11 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={},loads={};
-  const assetPaths={psiWalk:'characters/zero/zero-walk-v28.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiMotion:'characters/zero/zero-motion.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
+  const assetPaths={psiWalk:'characters/zero/zero-walk-v28.png',psiJabs:'characters/zero/zero-jab-v29.png',psiControl:'effects/psi-control-v29.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
   for(const [key,path] of Object.entries(assetPaths)){
     loads[key]=new Promise(resolve=>{const image=new Image();image.onload=()=>{art[key]=image;resolve(true);};image.onerror=()=>resolve(false);image.src='assets/'+path;});
   }
-  const required=['psiWalk','ultimateCutin','psiMotion','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
+  const required=['psiWalk','psiJabs','psiControl','ultimateCutin','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
   const ready=Promise.race([Promise.all(required.map(key=>loads[key])).then(results=>results.every(Boolean)),new Promise(resolve=>setTimeout(()=>resolve(false),20000))]);
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
   // have a reliable uniform grid. Never use concept-sheet fragments as sprites.
@@ -39,6 +39,12 @@ window.EdenPresentation = (() => {
     hit:[[100,590,260,300,190],[400,590,365,300,520],[785,590,365,300,925],[1180,590,355,300,1350]]
   };
   function drawCombatVFX(c,p){
+    if((p.sprite==='psiHold'||p.sprite==='psiCrush')&&art.psiControl){
+      const row=p.sprite==='psiCrush'?1:0,col=Math.min(3,Math.floor(Math.max(0,1-p.life/p.max)*4));
+      const sx=[0,443,887,1330][col],top=[0,443][row],width=[443,444,443,444][col],height=[443,444][row];
+      c.save();c.translate(Math.round(p.x),Math.round(p.y));c.scale(p.dir||1,1);c.globalAlpha*=row ? .72 : .60;
+      sprite(c,art.psiControl,[sx,top,width,height,sx+width/2],(row ? .26 : .20)*(p.effectScale||1),top+height/2);c.restore();return;
+    }
     const psiRows={psiRupture:0,psiBind:1,psiUp:2,psiFinal:3};
     if(p.sprite in psiRows&&art.psiVFX){
       const row=psiRows[p.sprite],start=p.frameStart||0,count=p.frameCount||4-start,col=Math.min(3,start+Math.floor((1-p.life/p.max)*count)),image=art.psiVFX;
@@ -259,10 +265,10 @@ window.EdenPresentation = (() => {
   function drawZero(c,p,t){
     if(globalThis.EdenPsychic&&p.duelMode&&art.psychic){
       const elapsed=(p.attackDuration||.3)-(p.attack||0);let frame=0;
-      if(p.hp>0&&p.stun<=0&&!p.charging&&p.parryFlash<=0&&art.psiWalk&&art.psiMotion&&art.psiSkills){
+      if(p.hp>0&&p.stun<=0&&!p.charging&&p.parryFlash<=0&&art.psiWalk&&art.psiJabs&&art.psiSkills){
         let sheet=null,row=0,col=0,baseline=0,top=0,anchor=0,width=350;
         if(p.attack>0&&p.weaponMode==='psiJab'){
-          sheet=art.psiMotion;row=2+(p.psiHand||0);col=elapsed<.035?0:elapsed<.055?1:elapsed<.14?2:3;
+          sheet=art.psiJabs;row=p.psiHand||0;col=elapsed<.035?0:elapsed<.055?1:elapsed<.14?2:3;
         }else if(p.attack>0&&['psiRise','psiPalm','psiGrab','psiSuper'].includes(p.weaponMode)){
           sheet=art.psiSkills;row=['psiRise','psiPalm','psiGrab','psiSuper'].indexOf(p.weaponMode);
           if(row===3){const progress=1-p.ultimateT/(p.ultimateDuration||1.3);col=p.ultimateT>0?(progress<.3?0:progress<.56?1:progress<.82?2:3):0;}
@@ -270,7 +276,7 @@ window.EdenPresentation = (() => {
         }else if(p.onGround&&p.attack<=0&&p.dash<=0&&Math.abs(p.vx)>25){drawPsychicWalk(c,p,Math.floor(p.stridePhase)%8);return;}
         if(sheet){
           let sourceX=col*350,scale=.18;
-          if(sheet===art.psiMotion){top=[0,304,599,878][row];baseline=[300,594,875,1110][row];anchor=[[185,535,882,1235],[185,535,882,1235],[185,520,860,1220],[170,515,860,1220]][row][col];}
+          if(sheet===art.psiJabs){sourceX=[0,443,887,1330][col];width=[443,444,443,444][col];top=[0,443][row];baseline=[411,854][row];anchor=[227,671,1114,1560][col];scale=.13;}
           else{top=[0,329,591,851][row];baseline=[322,582,846,1108][row];anchor=[[200,565,925,1245],[190,555,925,1270],[180,565,900,1255],[195,540,875,1235]][row][col];if(col===2)width=390;if(row===2&&col===0)width=365;if(row===1&&col===3){sourceX=1090;width=312;}if(row===2&&col===1){sourceX=365;width=335;}if(row===2&&col===3){sourceX=1080;width=322;}}
           c.save();c.translate(Math.round(p.x+9),Math.round(p.y+p.h));c.scale(p.face,1);if(p.inv>0&&p.ultimateT<=0&&Math.floor(p.inv*24)%3===0)c.globalAlpha*=.6;
           sprite(c,sheet,[sourceX,top,Math.min(width,sheet.width-sourceX),baseline-top+1,anchor],scale,baseline);c.restore();return;

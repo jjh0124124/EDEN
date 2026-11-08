@@ -7,7 +7,7 @@ driver='''window.sliceTest={get state(){return state},get hp(){return player.hp}
  if(state!=='combat')return;
  for(let i=0;i<4&&state==='combat';i++){
   const p=player,b=boss,dist=b.x-p.x,dir=Math.sign(dist)||1;keys.clear();
-  for(const [name,seen] of [['field',hazards.some(h=>h.sterileField)],['dissection',hazards.some(h=>h.dissection)]])if(seen&&!window.sliceSeen.includes(name))window.sliceSeen.push(name);
+  for(const [name,seen] of [['field',hazards.some(h=>h.sterileField)],['dissection',hazards.some(h=>h.dissection)],['pincer',hazards.some(h=>h.pincerShot)]])if(seen&&!window.sliceSeen.includes(name))window.sliceSeen.push(name);
   if(!b.dead){let move=Math.abs(dist)>43?dir:0;
    if(b.windup>0&&b.move%3===1&&Math.abs(p.x+9-b.target.x)<70)move=p.x<350?1:-1;
    if(move)keys.add(move>0?'d':'a');

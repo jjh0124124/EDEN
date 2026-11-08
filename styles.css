@@ -20,6 +20,10 @@ canvas { display:block; width:100%; aspect-ratio:16/9; image-rendering:pixelated
 .controls button:focus-visible,canvas:focus-visible { outline:2px solid #f02146; outline-offset:2px; }
 #advance { border-left:3px solid #f02146; }
 #control-status { color:#a4b0c0; font:12px/1.5 sans-serif; }
+.combat-guide { margin-top:10px; color:#aab4c3; font:12px/1.6 sans-serif; }
+.combat-guide summary { width:max-content; max-width:100%; cursor:pointer; color:#d9d6d2; }
+.combat-guide p { margin:6px 0; }
+.combat-guide b { color:#f2d49b; }
 canvas { touch-action:none; }
 footer { display:flex; gap:18px; flex-wrap:wrap; padding:8px; border-top:1px solid #191c1e; font:9px monospace; letter-spacing:.08em; color:#696e72; }
 @media(max-width:650px){.shell{padding:0}.masthead{height:42px}.masthead h1{font-size:28px}.masthead p{font-size:7px;letter-spacing:0}.serial{display:none}footer{gap:8px;font-size:8px}}

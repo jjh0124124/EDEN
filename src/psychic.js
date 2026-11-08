@@ -22,25 +22,28 @@ window.EdenPsychic={install(api){
  Fighter.prototype.duelSkill=function(i){
   if(!this.duelMode)return old.skill.call(this,i);
   if(i<0||i>3||this.ultimateT>0||this.stun>0||this.hp<=0)return;
-  if(i===3){if(this.superMeter<100||api.boss?.operation){this.buffer=null;if(api.boss?.operation)api.message('수술 장치 해제 후 궁극기 사용',.9);return;}this.superMeter=0;pose(this,'psiSuper',.55);contact(this,'psiSuper',8,.22,80,64,{superStarter:true});sound.tone(75,.18,'triangle',.04,210);return;}
-  if(i===2&&!this.onGround){this.buffer=null;return;}
-  const cost=[12,18,16][i];if(this.sp<cost||this.cool[i]>0){this.buffer=null;return;}this.sp-=cost;this.cool[i]=cooldowns[i];pose(this,['psiRise','psiPalm','psiGrab'][i],[.42,.50,.48][i]);
+  if(i===3){if(this.superMeter<100||api.boss?.operation){this.buffer=null;api.message(api.boss?.operation?'수술 장치 해제 후 R 사용':'R / 게이지 100% 필요',.9);return;}this.superMeter=0;this.superCompressed=false;pose(this,'psiSuper',.55);contact(this,'psiSuper',8,.22,80,64,{superStarter:true});sound.tone(75,.18,'triangle',.04,210);return;}
+  if(i===2&&!this.onGround){this.buffer=null;api.message('E / 착지 후 속박 가능',.7);return;}
+  const cost=[12,18,16][i];if(this.sp<cost||this.cool[i]>0){this.buffer=null;api.message(this.cool[i]>0?'기술 재사용 대기 중':'SP 부족 / 잠시 기다리기',.65);return;}this.sp-=cost;this.cool[i]=cooldowns[i];pose(this,['psiRise','psiPalm','psiGrab'][i],[.42,.50,.48][i]);
   if(i===0){if(!this.onGround)this.vy=Math.max(35,this.vy);contact(this,'psiRise',23,.14,60,110,{offsetY:-62});}
   if(i===1)contact(this,'psiPalm',32,.20,72);
   if(i===2)contact(this,'psiGrab',18,.22,60);
  };
  Fighter.prototype.confirmSuper=function(target){
   if(!this.duelMode)return old.super.call(this,target);
+  const compressed=target.d?.type==='surgeon'&&target.psiCompression>0;this.superCompressed=compressed;
+  if(compressed){target.speech='내 도구를 거꾸로 움직이다니.';target.speechT=1.55;}
   this.superTarget=target;this.ultimateT=this.ultimateDuration=1.55;this.attack=this.attackDuration=1.55;this.vx=0;this.stepRemaining=0;this.inv=1.63;
-  target.superLock=1.59;target.windup=0;target.approach=null;target.retreat=null;target.followup=null;target.psiCompression=0;
+  target.superLock=1.59;target.windup=0;target.approach=null;target.retreat=null;target.followup=null;target.psiCompression=0;target.rearCounterPending=false;target.rearChecks=0;
   if(target.protocol)target.cancelProtocol();target.recovery=1.85;target.t=2.15;api.clearHostile();
-  for(const [delay,dmg,psiStage] of [[.4,12,0],[.78,20,1],[1.24,64,2]])api.slash({owner:'p',kind:'psiSuper',target,dir:this.face,x:target.x,y:target.y,w:target.w,h:target.h,life:.12,delay,dmg,superHit:true,psiStage});
-  const e=fx('psiFinal',target.x+target.w/2,target.y+target.h*.5,this.face,1.05,.85);e.target=target;e.frameCount=2;
+  for(const [delay,dmg,psiStage] of [[.4,12,0],[.78,20,1],[1.24,64+(compressed?16:0),2]])api.slash({owner:'p',kind:'psiSuper',target,dir:this.face,x:target.x,y:target.y,w:target.w,h:target.h,life:.12,delay,dmg,superHit:true,psiStage});
+  const e=fx('psiCrush',target.x+target.w/2,target.y+target.h*.5,this.face,1.42,target.d?(compressed?1.05:.85):.38);e.target=target;
+  api.message(compressed?'E → R / 압축 폭주 — 최종 타격 강화':'ZERO POINT / 염동 압쇄 시작',1.15);
   api.stop(.045,.5);sound.tone(42,.32,'triangle',.05,180);
  };
  function release(s){
   const p=api.player;
-  if(s.superHit){const final=s.psiStage===2;const effect=fx(final?'psiFinal':'psiBind',s.target.x+s.target.w/2,s.target.y+s.target.h*.5,s.dir,final?.36:.24,final?1.3:.8);if(final)effect.frameStart=2;else sound.tone(180,.15,'triangle',.05,60);return;}
+  if(s.superHit){const final=s.psiStage===2,lift=p.superCompressed&&p.ultimateT>0?8*Math.sin(Math.PI*Math.max(0,Math.min(1,1-p.ultimateT/(p.ultimateDuration||1.55)))):0;const effect=fx(final?'psiFinal':'psiBind',s.target.x+s.target.w/2,s.target.y+s.target.h*.5-lift,s.dir,final?.36:.24,final?(p.superCompressed?1.5:1.3):.8);if(final){effect.frameStart=2;if(p.superCompressed){api.stop(.09,1.7);sound.tone(35,.16,'triangle',.045,18);}}else sound.tone(180,.15,'triangle',.05,60);return;}
   if(s.kind==='psiPalm')fx('psiRupture',p.x+9+s.dir*42,p.y+12,s.dir,.25,.85);
   if(s.kind==='psiRise')fx('psiUp',p.x+9+s.dir*26,p.y+p.h,s.dir,.30,1);
   if(s.kind==='psiGrab')fx('psiBind',p.x+9+s.dir*42,p.y+12,s.dir,.28,.7);
@@ -48,7 +51,7 @@ window.EdenPsychic={install(api){
  Boss.prototype.update=function(dt){
   if(this.d.type!=='surgeon')return old.update.call(this,dt);
   this.psiCompression=Math.max(0,(this.psiCompression||0)-dt);this.psiStagger=Math.max(0,(this.psiStagger||0)-dt);
-  this.psiGrabLock=Math.max(0,(this.psiGrabLock||0)-dt);this.psiGuardLock=Math.max(0,(this.psiGuardLock||0)-dt);this.psiLaunchLock=Math.max(0,(this.psiLaunchLock||0)-dt);
+  this.psiGrabLock=Math.max(0,(this.psiGrabLock||0)-dt);this.psiGuardLock=Math.max(0,(this.psiGuardLock||0)-dt);this.psiLaunchLock=Math.max(0,(this.psiLaunchLock||0)-dt);this.rearCounterLock=Math.max(0,(this.rearCounterLock||0)-dt);
   if(this.dead||this.tele>0||this.superLock>0||api.player.hp<=0){this.psiGuard=0;this.psiGuardWarn=0;this.psiGuardPending=false;this.psiPush=0;if(this.dead||this.tele>0){this.psiLift=0;this.psiCompression=0;this.y=226-this.h;}old.update.call(this,dt);return;}
   if(this.psiPush>0){const step=Math.min(this.psiPush,180*dt);this.x=Math.max(45,Math.min(395,this.x+this.psiPushDir*step));this.psiPush-=step;}
   if(this.psiGuard>0||this.psiGuardWarn>0){this.anim+=dt;this.inv=Math.max(0,this.inv-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);if(this.psiGuardWarn>0){this.psiGuardWarn=Math.max(0,this.psiGuardWarn-dt);if(!this.psiGuardWarn)this.psiGuard=.65;}else{this.psiGuard=Math.max(0,this.psiGuard-dt);if(!this.psiGuard){const p=api.player;if(Math.abs(p.x+p.w/2-this.x-this.w/2)<100){this.target={x:p.x+9,y:p.y+23};this.dir=this.target.x<this.x+this.w/2?-1:1;this.move=0;this.counterCast=false;this.windup=this.windupMax=.75;this.recovery=0;this.t=0;api.message('COUNTER INCISION / 방어 후 절개 — 점프 또는 K',1);sound.tone(310,.09,'triangle',.03,150);}else{this.recovery=.32;this.t=.65;}}}return;}
@@ -61,10 +64,10 @@ window.EdenPsychic={install(api){
   if(target.dead||target.hp<=0||p.hp<=0||target.inv>0)return false;
   if(isBoss&&target.operation)return false;
   if(isBoss&&s.kind==='psiGrab'){
-   if(target.psiGrabLock>0||target.windup>0||target.release>0||target.tele>0||target.protocol||target.superLock>0){sound.tone(95,.05,'triangle',.018);return false;}
+   if(target.psiGrabLock>0||target.windup>0||target.release>0||target.tele>0||target.protocol||target.superLock>0){api.message(target.psiGrabLock>0?'E 실패 / 재속박 대기 중':'E 실패 / 공격 종료 후 속박 가능',.85);sound.tone(95,.05,'triangle',.018);return false;}
    target.psiGuard=target.psiGuardWarn=0;target.psiGuardPending=false;target.psiGrabLock=3.5;target.psiCompression=2.4;target.recovery=.70;target.t=.9;target.approach=null;target.retreat=null;
   }else if(isBoss&&target.psiGuard>0&&s.dir===-target.dir){
-   api.stop(.025,.45);target.hitFlash=.035;p.stepRemaining=7;p.stepDir=-s.dir;p.stepSpeed=120;fx('hit',s.dir>0?target.x:target.x+target.w,p.y+24,s.dir,.12,.45);sound.tone(520,.04,'triangle',.025,270);return false;
+   api.stop(.025,.45);target.hitFlash=.035;p.stepRemaining=7;p.stepDir=-s.dir;p.stepSpeed=120;fx('hit',s.dir>0?target.x:target.x+target.w,p.y+24,s.dir,.12,.45);sound.tone(520,.04,'triangle',.025,270);api.message(s.superStarter?'정면 방어 / R 게이지 소모':'정면 방어 / E 속박 또는 뒤로 이동',.9);return false;
   }
   if(s.superStarter)p.confirmSuper(target);
   const detonate=s.kind==='psiPalm'&&target.psiCompression>0;
@@ -74,14 +77,15 @@ window.EdenPsychic={install(api){
   api.damage(target,s.dmg+(detonate?18:0),s.interrupt);
   if(reclaim){p.sp=Math.min(100,p.sp+12);p.superMeter=Math.min(100,p.superMeter+10);fx('psiBind',target.x+target.w/2,target.y+target.h*.55,s.dir,.24,.55);sound.tone(520,.1,'triangle',.035,820);api.message('RECLAIM / SP +12 · R +10',.9);}
   if(s.superHit&&s.psiStage===2){api.stop(.075,1.5);sound.noise(.12,.04);sound.tone(55,.15,'triangle',.05,24);}
-  if(detonate){const effect=fx('psiFinal',target.x+target.w/2,target.y+target.h*.55,s.dir,.25,.75);effect.frameStart=2;api.stop(.07,1.5);sound.tone(48,.13,'triangle',.05,22);}
+  if(detonate){const effect=fx('psiFinal',target.x+target.w/2,target.y+target.h*.55,s.dir,.25,.75);effect.frameStart=2;api.stop(.07,1.5);sound.tone(48,.13,'triangle',.05,22);api.message('W 파열 / 압축 소모 · 추가 피해',.9);}
   if(target.dead||target.hp<=0)return true;
+  if(isBoss&&!s.superHit&&!s.superStarter&&s.dir===target.dir&&(target.windup>0||target.release>0)&&target.rearCounterLock<=0){target.rearChecks=(target.rearChecks||0)+1;if(target.rearChecks>=2){target.rearChecks=0;target.rearCounterPending=true;}}
   if(['psiJab','psiRise','psiGrab'].includes(s.kind)){p.linkWindow=.24;if(s.kind==='psiRise')p.finishWindow=.28;}
   if(isBoss&&s.kind==='psiJab'&&!(target.recovery>0)&&target.psiGuardLock<=0){target.psiChecks=(target.psiChecks||0)+1;if(target.psiChecks>=2){target.psiChecks=0;target.psiGuardPending=true;}}
-  if(isBoss&&s.kind==='psiRise'&&target.recovery>0&&target.psiLaunchLock<=0){target.psiStagger=.4;target.psiLaunchLock=3;target.recovery=Math.max(.65,target.recovery);target.t=Math.max(.95,target.t);target.recoil=s.dir*5;}
+  if(isBoss&&s.kind==='psiRise'&&target.recovery>0&&target.psiLaunchLock<=0){target.psiStagger=.4;target.psiLaunchLock=3;target.recovery=Math.max(.65,target.recovery);target.t=Math.max(.95,target.t);target.recoil=s.dir*5;api.message('Q 적중 / 자세 붕괴 — 후속 공격',.8);}
   if(repulse&&target.tele<=0){target.psiPush=32;target.psiPushDir=s.dir;target.psiStagger=.5;target.recovery=Math.max(target.recovery||0,1.05);target.t=Math.max(target.t,1.4);fx('psiRupture',target.x+target.w/2,target.y+target.h*.7,s.dir,.2,.55);api.message('REPULSE / 압축 해방 — 거리 확보',.9);sound.tone(110,.12,'triangle',.035,45);}
   if(s.kind==='psiPalm'){api.stop(.065,1.4);target.recoil=s.dir*5;}
-  if(s.kind==='psiGrab'){const e=fx('psiBind',target.x+target.w/2,target.y+target.h*.55,s.dir,.55,.9);e.target=target;api.stop(.05,.8);if(isBoss)api.message('COMPRESSION / 근접 J 회수 · Q 밀기 · W 파열',1.3);}
+  if(s.kind==='psiGrab'){const e=fx('psiHold',target.x+target.w/2,target.y+target.h*.55,s.dir,isBoss?2.4:.65,isBoss ? .7 : .35);e.target=target;e.requiresCompression=isBoss;api.stop(.05,.8);if(isBoss)api.message('E 압축 / J 회수 · Q 밀기 · W 파열 · R 강화',1.3);}
   return true;
  }
  return {hit,release,cooldowns,ready:i=>i===3?api.player.superMeter>=100&&!api.boss?.operation:api.player.cool[i]<=0&&api.player.sp>=[12,18,16][i]&&(i!==2||api.player.onGround),labels:['UPHEAVE','RUPTURE','BIND','ZERO POINT']};
