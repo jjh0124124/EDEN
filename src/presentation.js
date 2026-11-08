@@ -2,11 +2,11 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={},loads={};
-  const assetPaths={titleArt:'environments/eden-title-v30.png',psiWalk:'characters/zero/zero-walk-v28.png',psiJabs:'characters/zero/zero-jab-v29.png',psiControl:'effects/psi-control-v29.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
+  const assetPaths={psiArsenal:'effects/psi-arsenal-v31.png',psiKinetic:'effects/psi-kinetic-v31.png',psiCounterArt:'characters/zero/zero-counter-v31.png',titleArt:'environments/eden-title-v30.png',psiWalk:'characters/zero/zero-walk-v28.png',psiJabs:'characters/zero/zero-jab-v29.png',psiControl:'effects/psi-control-v29.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
   for(const [key,path] of Object.entries(assetPaths)){
     loads[key]=new Promise(resolve=>{const image=new Image();image.onload=()=>{art[key]=image;resolve(true);};image.onerror=()=>resolve(false);image.src='assets/'+path;});
   }
-  const required=['titleArt','psiWalk','psiJabs','psiControl','ultimateCutin','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
+  const required=['psiArsenal','psiKinetic','psiCounterArt','titleArt','psiWalk','psiJabs','psiControl','ultimateCutin','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
   const ready=Promise.race([Promise.all(required.map(key=>loads[key])).then(results=>results.every(Boolean)),new Promise(resolve=>setTimeout(()=>resolve(false),20000))]);
   function titleBackground(c){if(!art.titleArt)return false;c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(art.titleArt,0,0,480,270);c.restore();return true;}
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
@@ -40,6 +40,18 @@ window.EdenPresentation = (() => {
     hit:[[100,590,260,300,190],[400,590,365,300,520],[785,590,365,300,925],[1180,590,355,300,1350]]
   };
   function drawCombatVFX(c,p){
+    if(['psiGather','psiWave','psiCounterFx'].includes(p.sprite)&&art.psiKinetic){
+      const row={psiGather:0,psiWave:1,psiCounterFx:2}[p.sprite],col=Math.min(3,Math.floor(Math.max(0,1-p.life/p.max)*4));
+      const sx=col*362,top=row*362,anchor=sx+(row===1?75:181);
+      c.save();c.translate(Math.round(p.x),Math.round(p.y));c.scale(p.dir||1,1);c.globalAlpha*=row===0?.65:.85;
+      sprite(c,art.psiKinetic,[sx,top,362,362,anchor],[.22,.22,.30][row]*(p.effectScale||1),top+181);c.restore();return;
+    }
+    if((p.sprite==='psiPulse'||p.sprite==='psiBeam')&&art.psiArsenal){
+      const beam=p.sprite==='psiBeam',row=beam?2:1,col=Math.min(3,Math.floor(Math.max(0,1-p.life/p.max)*4)),sx=col*362,top=row*362;
+      c.save();c.translate(Math.round(p.x),Math.round(p.y));c.scale(p.dir||1,1);c.globalAlpha*=beam?.76:.8;
+      if(beam){c.beginPath();c.rect(-20,-53,250,106);c.clip();}
+      sprite(c,art.psiArsenal,[sx,top,362,362,sx+(beam?35:181)],(beam?.65:.40)*(p.effectScale||1),top+181);c.restore();return;
+    }
     if((p.sprite==='psiHold'||p.sprite==='psiCrush')&&art.psiControl){
       const row=p.sprite==='psiCrush'?1:0,col=Math.min(3,Math.floor(Math.max(0,1-p.life/p.max)*4));
       const sx=[0,443,887,1330][col],top=[0,443][row],width=[443,444,443,444][col],height=[443,444][row];
@@ -71,6 +83,7 @@ window.EdenPresentation = (() => {
   }
   // Four isolated RGBA sprites; shared renderer keeps telegraphs aligned with threats.
   function drawOrdnance(c,h){
+    if(h.kind==='psiShard'&&art.psiArsenal){const col=h.large?3:(h.shardIndex||0)%3,sx=col*362,scale=h.large?.13:.09;c.save();c.translate(Math.round(h.x),Math.round(h.y));c.scale(h.dir||1,1);c.drawImage(art.psiArsenal,sx,0,362,362,-300*scale,-181*scale,362*scale,362*scale);c.restore();return true;}
     if(!art.ordnance)return false;
     const frames={syringe:[245,30,140,565],needle:[655,260,565,115],pillar:[235,650,160,550],rail:[645,860,590,150]};
     const f=frames[h.heavyLance?'rail':h.kind];if(!f)return false;
@@ -268,12 +281,16 @@ window.EdenPresentation = (() => {
       const elapsed=(p.attackDuration||.3)-(p.attack||0);let frame=0;
       if(p.hp>0&&p.stun<=0&&!p.charging&&p.parryFlash<=0&&art.psiWalk&&art.psiJabs&&art.psiSkills){
         let sheet=null,row=0,col=0,baseline=0,top=0,anchor=0,width=350;
+        if(p.attack>0&&p.weaponMode==='psiCounter'&&art.psiCounterArt){const col=elapsed<.05?0:elapsed<.12?1:elapsed<.30?2:3,sx=col*543;c.save();c.translate(Math.round(p.x+9),Math.round(p.y+p.h));c.scale(p.face,1);sprite(c,art.psiCounterArt,[sx,0,543,638,[278,822,1365,1907][col]],.09,637);c.restore();return;}
         if(p.attack>0&&p.weaponMode==='psiJab'){
           sheet=art.psiJabs;row=p.psiHand||0;col=elapsed<.035?0:elapsed<.055?1:elapsed<.14?2:3;
-        }else if(p.attack>0&&['psiRise','psiPalm','psiGrab','psiSuper'].includes(p.weaponMode)){
-          sheet=art.psiSkills;row=['psiRise','psiPalm','psiGrab','psiSuper'].indexOf(p.weaponMode);
-          if(row===3){const progress=1-p.ultimateT/(p.ultimateDuration||1.3);col=p.ultimateT>0?(progress<.3?0:progress<.56?1:progress<.82?2:3):0;}
-          else{const active=[.14,.20,.22][row];col=elapsed<active*.4?0:elapsed<active-.018?1:elapsed<active+.13?2:3;if(row===2)col=[0,2,1,3][col];}
+        }else if(p.attack>0&&['psiShock','psiBarrage','psiBlast','psiSuper'].includes(p.weaponMode)){
+          sheet=art.psiSkills;row=['psiShock','psiBarrage','psiBlast','psiSuper'].indexOf(p.weaponMode);row=[1,2,3,3][row];
+          if(p.weaponMode==='psiSuper'){
+            const first=p.ultimateDuration>3,shot=first?2.1:.18,shotEnd=first?3.4:.9,final=first?4.2:1.2;
+            if(elapsed<(first?.45:.08)){row=3;col=0;}else if(elapsed<shot){row=3;col=1;}else if(elapsed<shotEnd){row=2;col=2;}else if(elapsed<final){row=3;col=1;}else if(elapsed<final+.32){row=2;col=2;}else{row=3;col=3;}
+          }else if(p.weaponMode==='psiBarrage'){col=elapsed<.10?1:elapsed>=.88?3:elapsed>=.75?2:(elapsed-.10)% .16<.09?2:1;}
+          else{const active=p.weaponMode==='psiShock'?.055:.04;col=elapsed<active*.5?0:elapsed<active?1:elapsed<active+.13?2:3;}
         }else if(p.onGround&&p.attack<=0&&p.dash<=0&&Math.abs(p.vx)>25){drawPsychicWalk(c,p,Math.floor(p.stridePhase)%8);return;}
         if(sheet){
           let sourceX=col*350,scale=.18;

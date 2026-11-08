@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#07090b">
   <title>EDEN // 특수전투개체 00</title>
-  <link rel="stylesheet" href="styles.css?v=30">
+  <link rel="stylesheet" href="styles.css?v=31">
 </head>
 <body>
   <main class="shell">
     <header class="masthead" aria-label="게임 제목">
       <div><span class="serial">PROJECT // 00</span><h1>EDEN</h1></div>
-      <p>BUILD 30 · OPENING IMAGE</p>
+      <p>BUILD 31 · PSYCHIC ARSENAL</p>
     </header>
     <section class="frame">
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="EDEN 게임 화면"></canvas>
@@ -25,13 +25,12 @@
         <button data-key="q" type="button">기술 Q</button><button data-key="w" type="button">기술 W</button><button data-key="e" type="button">기술 E</button><button data-key="r" type="button">기술 R</button>
       </div>
       <details class="combat-guide">
-        <summary>전투 가이드 / 연계 확인</summary>
-        <p>전투 중에는 Esc로 일시정지할 수 있습니다. 적중 후 금색으로 빛나는 기술은 남은 공격 동작을 빠르게 이어갑니다.</p>
-        <p><b>J 적중 → Q / W / E / R</b> · <b>Q 적중 → W / E / R</b> · 지상에서는 K 패링도 연결됩니다. 기술의 SP와 재사용 시간이 준비돼야 합니다.</p>
-        <p><b>E로 SURGEON 압축 → 근접 J</b> SP·궁극기 회수 / <b>Q</b> 밀기 / <b>W</b> 추가 피해 / <b>R</b> 강화 압쇄. E는 SURGEON이 공격 중이거나 재속박 대기 중이면 실패합니다.</p>
-        <p><b>Shift</b> SP 10으로 공격을 중단하고 회피할 수 있습니다. 궁극기 연출 중에는 사용할 수 없습니다. <b>K</b> 정면 패링 성공 직후에는 Shift 1회 SP 면제. 수술 팔 봉쇄의 주사를 K로 막으면 고정 침이 해제되고 반격 기회가 생깁니다.</p>
-        <p><b>SURGEON 후방 반격</b> 공격 중인 보스를 뒤에서 두 번 맞히면, 보스가 공격을 마친 뒤 양옆 절개를 예고합니다. 점프하거나 정면 K로 막으세요.</p>
-        <p><b>R</b> 게이지 100 필요. 빗나가거나 정면 방어에 막히면 게이지를 소모합니다. 수술 장치가 작동 중일 때는 사용되지 않습니다.</p>
+        <summary>전투 가이드 / 기술 확인</summary>
+        <p><b>J</b> 기본 공격 · <b>Shift</b> 회피. J가 적중하면 Q/W/E/R을 이어 사용할 수 있습니다.</p>
+        <p><b>K</b> 정면 패링 후 다시 K: 강력한 염동 반격. 또는 Shift: SP 없이 한 번 회피합니다.</p>
+        <p><b>Q 염동 충격</b> 빠른 전방 단발 (3초) · <b>W 염동 난무</b> 전방 파편 연사와 마지막 큰 파편 (9초) · <b>E 염동 폭발</b> 주위 근거리 공격 (12초).</p>
+        <p><b>R 초염동 폭쇄</b> 게이지 100 필요. 전방 표식 범위로 파편을 쏘고 마지막 충격파를 발사합니다. 시전 중에도 이동·점프할 수 있고 적도 공격합니다. Shift로 중단해 회피할 수 있습니다. 수술 장치 작동 중에는 사용되지 않습니다.</p>
+        <p>SURGEON의 공격 예고를 피하고 회복 중에 공격하세요. 수술 장치의 파괴 위치가 안전지대가 됩니다.</p>
       </details>
     </section>
     <footer>
@@ -39,8 +38,8 @@
       <span>J 견제 · K 패링</span><span>Q W E R 기술</span><span>F 조사</span><span>M 음소거</span><span>ESC 일시정지</span>
     </footer>
   </main>
-  <script src="src/presentation.js?v=30"></script>
-  <script src="src/psychic.js?v=30"></script>
-  <script src="src/game.js?v=30"></script>
+  <script src="src/presentation.js?v=31"></script>
+  <script src="src/psychic.js?v=31"></script>
+  <script src="src/game.js?v=31"></script>
 </body>
 </html>

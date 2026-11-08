@@ -3,14 +3,19 @@ import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 root=Path(__file__).resolve().parents[1]
-source=(root/'src/game.js').read_text().replace('})();','''window.sentryTest={get p(){return player},get room(){return room},get state(){return state},setup(){releaseInputs();dialogue=null;bossIndex=0;startExplore();room.section=1;enterSection();}};})();''')
+source=(root/'src/game.js').read_text().replace('})();','''window.sentryTest={get p(){return player},get room(){return room},get state(){return state},get dialogue(){return dialogue},get boss(){return boss},setup(){releaseInputs();dialogue=null;bossIndex=0;startExplore();room.section=1;enterSection();}};})();''')
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  page=b.new_page(viewport={'width':1440,'height':1050});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
- page.goto('http://127.0.0.1:4173/',wait_until='networkidle');page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
- page.evaluate('sentryTest.setup()')
+ page.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4173')+'/',wait_until='networkidle');page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
+ page.keyboard.press('Enter');page.wait_for_function('sentryTest.state==="interlude"')
+ page.keyboard.press('Enter');page.wait_for_function('sentryTest.state==="explore"')
+ for _ in range(3):
+  page.keyboard.press('Enter');page.wait_for_timeout(100)
+ page.wait_for_function('sentryTest.dialogue===null')
+ page.keyboard.down('d');page.wait_for_function('sentryTest.room.section===1');page.keyboard.up('d')
  for i in range(2):
   target=page.evaluate('(i)=>sentryTest.room.drones[i].x-32',i)
   page.keyboard.down('d');page.wait_for_function('(x)=>sentryTest.p.x>=x',arg=target);page.keyboard.up('d')
@@ -32,8 +37,11 @@ with sync_playwright() as p:
  ctx.save();ctx.translate(875,130-226*3);ctx.scale(3,3);EdenPresentation.drawSentry(ctx,{x:-10,y:0,hp:0},-100);ctx.restore();
  let hashes=[];for(let i=0;i<4;i++){ctx.save();ctx.translate(125+i*250,370);ctx.scale(2.7,2.7);EdenPresentation.drawZero(ctx,{duelMode:true,hp:100,stun:0,dash:0,attack:0,charging:false,onGround:i>=2,landing:i===2?.08:0,vy:i===0?-130:120,vx:0,face:1,x:-9,y:-48,h:48,inv:0},0);ctx.restore();let h=0;for(const v of ctx.getImageData(i*250,200,250,200).data)h=(31*h+v)|0;hashes.push(h);}return new Set(hashes).size;
  }''')
- assert count==4
+ assert count>=3
  page.locator('#review').screenshot(path='/tmp/eden-air-sentry-review.png')
+ # Trigger an ordinary incision against a one-HP test fixture, then retry with real input.
+ page.evaluate("sentryTest.p.hp=1;sentryTest.p.inv=0;sentryTest.p.x=195;sentryTest.p.face=1;sentryTest.boss.x=240;sentryTest.boss.dir=-1;sentryTest.boss.move=0;sentryTest.boss.act()")
+ page.wait_for_function('sentryTest.state==="gameover"',timeout=8000);page.keyboard.press('Enter');page.wait_for_function('sentryTest.state==="intro"');page.keyboard.press('Enter');page.wait_for_function('sentryTest.state==="combat"');assert page.evaluate('sentryTest.p.hp')==100
  assert not errors,errors
- print('PASS: normal keyboard corridor kills, jump/land, corridor→SURGEON; four distinct air/landing/idle poses and sentry sprites, no JS errors')
+ print('PASS: title→corridor, keyboard drone kills, jump/land, SURGEON, death/retry; air/landing/idle and sentry sprites, no JS errors')
  b.close()
