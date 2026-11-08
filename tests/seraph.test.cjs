@@ -1,0 +1,59 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {game}=require('./game-harness.cjs');
+function until(g,fn,dt=1/60,max=1000){for(let i=0;i<max&&!fn();i++)g.step(dt);assert.ok(fn(),'expected event did not occur');}
+function setup(move,side=-1){const g=game(true);g.engage();g.boss.phase=2;g.boss.tele=0;g.boss.inv=0;g.boss.x=240;g.boss.y=111;g.boss.t=999;g.boss.seraphCycle=0;g.player.x=g.boss.x+side*45;g.player.face=-side;g.boss.beginSeraph(move);return g;}
+
+test('first-phase threshold launches a seven-second protected transformation and a new combat phase',()=>{
+ const g=game(true);g.engage();g.boss.hp=900;g.boss.checkPhase();assert.equal(g.boss.phase,2);assert.equal(g.boss.tele,7);assert.equal(g.boss.inv,7);
+ for(let i=0;i<350;i++)g.step(1/60);assert.ok(g.boss.tele>1);assert.equal(g.hazards.length,0);const hp=g.boss.hp;g.boss.hurt(50);assert.equal(g.boss.hp,hp);
+ until(g,()=>g.boss.tele===0);assert.equal(g.boss.inv,0);until(g,()=>g.boss.seraphMove==='cleave'&&g.boss.windup>0);assert.equal(g.boss.d.type,'surgeon');
+});
+
+test('first-phase SURGEON still selects the existing surgical incision',()=>{
+ const g=game(true);g.engage();g.boss.x=240;g.player.x=195;g.boss.t=0;g.step();assert.equal(g.boss.phase,1);assert.equal(g.boss.move,0);assert.ok(g.boss.windup>0);assert.equal(g.boss.seraphMove,undefined);
+});
+
+test('Seraphic Cleave is announced and can be parried from both sides',()=>{
+ for(const dt of [1/30,1/60])for(const side of [-1,1]){const g=setup('cleave',side);assert.ok(g.boss.windup>=.9);until(g,()=>g.slashes.some(s=>s.seraph&&s.delay<=.04),dt);g.press('k');until(g,()=>g.player.parryFollow>0,dt);assert.equal(g.player.hp,100);assert.ok(g.boss.recovery>0);}
+});
+
+test('Divine Descent targets a fixed position, rises and can be escaped',()=>{
+ for(const dt of [1/30,1/60]){const g=setup('descent');const x=g.boss.seraphTarget.x;g.keys.add('a');let minY=126;for(let i=0;i<Math.ceil(2/dt);i++){g.step(dt);minY=Math.min(minY,g.boss.y);}g.keys.clear();assert.ok(minY<100);assert.equal(g.boss.seraphTarget.x,x);assert.equal(g.player.hp,100);assert.ok(g.boss.recovery>0);}
+});
+
+test('Crimson Feathers fires three readable groups and can be jumped',()=>{
+ for(const dt of [1/30,1/60]){const g=setup('feathers');until(g,()=>g.hazards.filter(h=>h.seraphFeather).length===24,dt);let jumped=false;
+  for(let i=0;i<Math.ceil(3.2/dt);i++){
+   const low=g.hazards.find(h=>h.seraphFeather&&h.y>200&&h.delay<=0&&Math.abs(h.x-(g.player.x+9))<70);
+   if(!jumped&&low){g.press(' ');jumped=true;}else g.step(dt);
+  }
+  assert.ok(jumped);assert.equal(g.player.hp,100,`dt ${dt}`);
+ }
+});
+
+test('Halo Judgment and Final Revelation are telegraphed, jumpable and followed by recovery',()=>{
+ for(const move of ['halo','final'])for(const dt of [1/30,1/60]){const g=setup(move);const start=g.boss.windup;assert.ok(start>=1.3);until(g,()=>g.boss.windup>0&&g.boss.windup<.16,dt);g.press(' ');until(g,()=>g.hazards.some(h=>h.seraphBeam&&h.delay<=0),dt);assert.ok(g.boss.recovery>0);until(g,()=>!g.hazards.some(h=>h.seraphBeam),dt);assert.equal(g.player.hp,100,`${move} ${dt}`);}
+});
+
+test('Final Revelation triggers once below 25 percent, and boss death clears its attack',()=>{
+ const g=setup('halo');g.boss.windup=0;g.boss.recovery=0;g.boss.release=0;g.boss.t=0;g.boss.hp=450;g.step();assert.equal(g.boss.seraphMove,'final');assert.equal(g.boss.seraphFinalUsed,true);until(g,()=>g.hazards.some(h=>h.seraphFinal));g.boss.inv=0;g.boss.hurt(1000);assert.ok(g.boss.dead);assert.equal(g.hazards.length,0);assert.equal(g.slashes.length,0);
+});
+
+test('ZERO can hit airborne SERAPH with the existing J and Q attacks',()=>{
+ for(const key of ['j','q']){const g=setup('cleave');g.boss.windup=0;g.boss.t=999;g.press(key);until(g,()=>g.boss.hp<g.boss.maxHp);assert.equal(g.boss.phase,2);}
+});
+
+test('both beam attacks remain jumpable from either arena wall',()=>{
+ for(const move of ['halo','final'])for(const [bx,px] of [[45,95],[395,345]]){
+  const g=setup(move);g.boss.x=bx;g.player.x=px;g.player.face=bx<px?-1:1;g.boss.beginSeraph(move);
+  until(g,()=>g.boss.windup>0&&g.boss.windup<.16);g.press(' ');until(g,()=>g.hazards.some(h=>h.seraphBeam&&h.delay<=0));until(g,()=>!g.hazards.some(h=>h.seraphBeam));assert.equal(g.player.hp,100,`${move} at ${bx}`);
+ }
+});
+
+test('Divine Descent can connect during its movement, before the landing impact',()=>{
+ const g=setup('descent');until(g,()=>g.player.hp<100);assert.ok(g.boss.seraphDive);assert.equal(g.player.hp,84);
+});
+
+test('a correctly timed K parry of Divine Descent avoids its landing follow-up',()=>{
+ const g=setup('descent');until(g,()=>g.boss.seraphDive&&g.boss.x<230);g.press('k');until(g,()=>g.player.parryFollow>0);for(let i=0;i<45;i++)g.step();assert.equal(g.player.hp,100);
+});

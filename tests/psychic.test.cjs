@@ -38,7 +38,7 @@ test('only K is a parry: offensive skills do not reflect the falling core',()=>{
   assert.equal(g.player.hp,86);assert.ok(g.hazards.every(h=>!h.reflected));
  }
 });
-test('the core locks its target, can be dodged, and phase-two protocol keeps ordinary needles',()=>{
+test('the core locks its target, can be dodged, and the surgical protocol keeps ordinary needles',()=>{
  const g=coreDuel(),locked=g.boss.target.x;g.keys.add('a');frames(g,110);g.keys.clear();
  assert.equal(g.boss.target.x,locked);assert.equal(g.player.hp,100);
  const h=coreDuel();h.boss.beginProtocolCast(0);until(h,()=>h.hazards.some(x=>x.protocol));
@@ -92,21 +92,8 @@ test('SURGEON operation clears on boss death and retry',()=>{
  const g=operationDuel();g.boss.hurt(g.boss.maxHp*2);assert.equal(g.boss.operation,null);frames(g,50);assert.ok(g.slashes.every(s=>s.kind!=='operationWave'));g.startBoss();assert.equal(g.boss.operation,undefined);
 });
 
-function secondCut(dt=1/60,x=120){
- const g=game(true);g.engage();g.boss.phase=2;g.boss.protocolUsed=true;g.boss.operationUsed=true;g.boss.x=330;g.boss.move=0;g.boss.dir=-1;g.boss.windup=.01;g.boss.windupMax=.7;g.player.x=x;g.player.face=1;g.step(dt);assert.ok(g.boss.followup);return g;
-}
-test('phase two follows a low incision with a locked, dodgeable surgical drop',()=>{
- for(const dt of [1/30,1/60]){
-  const g=secondCut(dt);until(g,()=>g.boss.followup&&g.boss.followup.x!==null,dt);const locked=g.boss.followup.x;g.keys.add('d');until(g,()=>g.hazards.some(h=>h.kind==='syringe'),dt);assert.equal(g.hazards.find(h=>h.kind==='syringe').x,locked);frames(g,55,dt);g.keys.clear();assert.equal(g.player.hp,100);
-  const h=secondCut(dt);until(h,()=>h.player.hp<100,dt);assert.equal(h.player.hp,88);
- }
-});
-test('parrying a phase-two low incision cancels its follow-up',()=>{
- const g=secondCut(1/60,290);g.press('k');until(g,()=>!g.boss.followup);assert.equal(g.player.hp,100);assert.ok(g.player.superMeter>=14);frames(g,100);assert.ok(g.hazards.every(h=>h.kind!=='syringe'));
-});
-
-test('both relays can be reached and destroyed using only movement and J from either wall or center in both phases',()=>{
- for(const phase of [1,2])for(const bx of [55,200,395])for(const dt of [1/30,1/60]){
+test('both relays can be reached and destroyed using only movement and J from either wall or center in phase one',()=>{
+ for(const phase of [1])for(const bx of [55,200,395])for(const dt of [1/30,1/60]){
   const g=game(true);g.engage();g.boss.x=bx;g.boss.hp=g.boss.maxHp*(phase===1?.74:.29);g.boss.phase=phase;g.boss.protocolUsed=phase===2;g.boss.operationUsed=phase===2;g.boss.t=0;g.player.x=bx;g.step(dt);let steps=0;
   while(g.boss.operation&&steps++<500){const nodes=g.boss.operation.nodes.filter(n=>n.hp>0);const n=nodes.reduce((a,b)=>Math.abs(a.x-g.player.x)<Math.abs(b.x-g.player.x)?a:b);const dx=n.x+14-(g.player.x+9);g.keys.clear();if(Math.abs(dx)>32)g.keys.add(dx>0?'d':'a');if(Math.abs(dx)<55&&g.player.attack<=0&&g.player.face===(Math.sign(dx)||g.player.face))g.press('j');else g.step(dt);}
   assert.equal(g.boss.operation,null);assert.ok(g.boss.recovery>1.9);assert.equal(g.player.hp,100);
@@ -145,9 +132,7 @@ test('cross-stitch drops the sides before the center and can be escaped after th
 test('cross-stitch keeps its three lanes distinct near either wall',()=>{
  for(const [px,bx] of [[8,130],[453,330]]){const g=game(true);g.engage();g.player.x=px;g.boss.x=bx;g.boss.t=0;g.boss.loomCasts=2;g.step();assert.equal(g.boss.move,4);until(g,()=>g.hazards.some(h=>h.crossStitch));const lanes=g.hazards.filter(h=>h.crossStitch).map(h=>h.x);assert.equal(new Set(lanes).size,3);assert.ok(lanes.every(x=>x>=15&&x<=465));}
 });
-test('the surgical operation returns once in phase two with a shorter warning',()=>{
- const g=operationDuel();g.boss.endOperation(true);g.freeze(0);g.boss.recovery=0;g.boss.phase=2;g.boss.protocolUsed=true;g.boss.hp=g.boss.maxHp*.29;g.boss.t=0;g.step();assert.ok(g.boss.operation);assert.ok(g.boss.operation.time<=5.8);assert.ok(g.boss.phase2OperationUsed);
-});
+
 
 
 test('successful K parry permits one free directional shift; ordinary or expired steps still cost SP',()=>{

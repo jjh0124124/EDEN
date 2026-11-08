@@ -55,7 +55,7 @@ window.EdenPsychic={install(api){
  }
  function projectileRelease(h){fx('psiWave',h.x,h.y,h.dir,.15,h.large?.55:.3);sound.tone(h.large?95:230,.045,'triangle',.018,h.large?45:130);}
  Boss.prototype.update=function(dt){
-  if(this.d.type!=='surgeon')return old.update.call(this,dt);
+  if(this.d.type!=='surgeon'||this.phase===2)return old.update.call(this,dt);
   this.psiStagger=Math.max(0,(this.psiStagger||0)-dt);this.psiGuardLock=Math.max(0,(this.psiGuardLock||0)-dt);this.rearCounterLock=Math.max(0,(this.rearCounterLock||0)-dt);
   if(this.dead||this.tele>0||this.superLock>0||api.player.hp<=0){this.psiGuard=0;this.psiGuardWarn=0;this.psiGuardPending=false;old.update.call(this,dt);return;}
   if(this.psiGuard>0||this.psiGuardWarn>0){this.anim+=dt;this.inv=Math.max(0,this.inv-dt);this.hitFlash=Math.max(0,this.hitFlash-dt);if(this.psiGuardWarn>0){this.psiGuardWarn=Math.max(0,this.psiGuardWarn-dt);if(!this.psiGuardWarn)this.psiGuard=.65;}else{this.psiGuard=Math.max(0,this.psiGuard-dt);if(!this.psiGuard){const p=api.player;if(Math.abs(p.x+p.w/2-this.x-this.w/2)<100){this.target={x:p.x+9,y:p.y+23};this.dir=this.target.x<this.x+this.w/2?-1:1;this.move=0;this.counterCast=false;this.windup=this.windupMax=.75;this.recovery=0;this.t=0;api.message('COUNTER INCISION / 방어 후 절개 — 점프 또는 K',1);sound.tone(310,.09,'triangle',.03,150);}else{this.recovery=.32;this.t=.65;}}}return;}
@@ -71,9 +71,9 @@ window.EdenPsychic={install(api){
   if(s.kind==='psiShock'){fx('psiBind',target.x+target.w/2,target.y+target.h*.5,dir,.20,.6);}
   if(s.kind==='psiFinalWave'){api.stop(.065,1.4);api.invert(.045);sound.noise(.10,.04);}
   if(target.dead||target.hp<=0)return true;
-  if(isBoss&&dir===target.dir&&(target.windup>0||target.release>0)&&target.rearCounterLock<=0){target.rearChecks=(target.rearChecks||0)+1;if(target.rearChecks>=2){target.rearChecks=0;target.rearCounterPending=true;}}
+  if(isBoss&&target.phase===1&&dir===target.dir&&(target.windup>0||target.release>0)&&target.rearCounterLock<=0){target.rearChecks=(target.rearChecks||0)+1;if(target.rearChecks>=2){target.rearChecks=0;target.rearCounterPending=true;}}
   if(['psiJab','psiShock','psiCounter'].includes(s.kind))p.linkWindow=.24;
-  if(isBoss&&s.kind==='psiJab'&&!(target.recovery>0)&&target.psiGuardLock<=0){target.psiChecks=(target.psiChecks||0)+1;if(target.psiChecks>=2){target.psiChecks=0;target.psiGuardPending=true;}}
+  if(isBoss&&target.phase===1&&s.kind==='psiJab'&&!(target.recovery>0)&&target.psiGuardLock<=0){target.psiChecks=(target.psiChecks||0)+1;if(target.psiChecks>=2){target.psiChecks=0;target.psiGuardPending=true;}}
   return true;
  }
  return {hit,release,projectileRelease,cooldowns,ready:i=>i===3?api.player.superMeter>=100&&!api.boss?.operation:api.player.cool[i]<=0&&api.player.sp>=costs[i],labels:['SHOCK','SHARDS','BURST','ZERO POINT']};
