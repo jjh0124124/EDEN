@@ -1,4 +1,4 @@
-# EDEN — BUILD 29 / PSYCHIC SURGERY
+# EDEN — BUILD 30 / OPENING IMAGE
 
 ## 설치 없이 웹에서 플레이
 

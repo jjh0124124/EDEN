@@ -2,12 +2,13 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={},loads={};
-  const assetPaths={psiWalk:'characters/zero/zero-walk-v28.png',psiJabs:'characters/zero/zero-jab-v29.png',psiControl:'effects/psi-control-v29.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
+  const assetPaths={titleArt:'environments/eden-title-v30.png',psiWalk:'characters/zero/zero-walk-v28.png',psiJabs:'characters/zero/zero-jab-v29.png',psiControl:'effects/psi-control-v29.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
   for(const [key,path] of Object.entries(assetPaths)){
     loads[key]=new Promise(resolve=>{const image=new Image();image.onload=()=>{art[key]=image;resolve(true);};image.onerror=()=>resolve(false);image.src='assets/'+path;});
   }
-  const required=['psiWalk','psiJabs','psiControl','ultimateCutin','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
+  const required=['titleArt','psiWalk','psiJabs','psiControl','ultimateCutin','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
   const ready=Promise.race([Promise.all(required.map(key=>loads[key])).then(results=>results.every(Boolean)),new Promise(resolve=>setTimeout(()=>resolve(false),20000))]);
+  function titleBackground(c){if(!art.titleArt)return false;c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(art.titleArt,0,0,480,270);c.restore();return true;}
   // Source rectangles and pelvis anchors are explicit: generated sheets do not
   // have a reliable uniform grid. Never use concept-sheet fragments as sprites.
   const zeroFrames=[
@@ -379,5 +380,5 @@ window.EdenPresentation = (() => {
     c.save();c.globalAlpha=Math.min(1,elapsed/.08,(.48-elapsed)/.12);if(p.face<0){c.translate(480,0);c.scale(-1,1);}
     c.drawImage(art.ultimateCutin,-24+Math.min(24,elapsed*120),54,230,153);c.restore();
   }
-  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,Soundtrack,rect,line,ring,plate,portrait,superCutin,ready,get assetStatus(){return Object.fromEntries(Object.keys(assetPaths).map(key=>[key,!!art[key]]));}};
+  return {zero,drawZero,duelPose,drawCombatVFX,drawOrdnance,drawSentry,zeroStates,boss,background,titleBackground,Soundtrack,rect,line,ring,plate,portrait,superCutin,ready,get assetStatus(){return Object.fromEntries(Object.keys(assetPaths).map(key=>[key,!!art[key]]));}};
 })();

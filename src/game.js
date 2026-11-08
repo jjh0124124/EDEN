@@ -36,7 +36,11 @@
     button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
     button.addEventListener('click',e=>{if(e.detail===0){audio.wake();pressed.add(button===nextButton&&paused?'escape':button.dataset.key);canvas.focus({preventScroll:true});}});
   });
-  canvas.addEventListener('pointerdown',()=>{audio.wake();canvas.focus({preventScroll:true});if(paused)pressed.add('escape');else if(dialogue||['title','interlude','intro','gameover','ending'].includes(state))pressed.add('enter');});
+  canvas.addEventListener('pointerdown',e=>{audio.wake();canvas.focus({preventScroll:true});if(paused)pressed.add('escape');else if(state==='title'){
+    const rect=canvas.getBoundingClientRect(),x=(e.clientX-rect.left)*W/rect.width,y=(e.clientY-rect.top)*H/rect.height,index=Math.floor((y-164)/23),count=load()?2:1;
+    if(x>=310&&x<=455&&y>=164&&index>=0&&index<count)menu=index;
+    pressed.add('enter');
+  }else if(dialogue||['interlude','intro','gameover','ending'].includes(state))pressed.add('enter');});
 
   const BOSSES = [
     {id:'SURGEON', ko:'생명을 집도하는 자', zone:'폐쇄된 수술 성당', hp:1800, color:'#eee9e4', intro:'치유는 실패를 연장할 뿐.\n나는 너를 완성하겠다.', type:'surgeon'}
@@ -610,13 +614,10 @@
     ctx.fillStyle='#a9b7c9';ctx.font='7px sans-serif';ctx.fillText(player.duelMode?(psychic?(player.attack>0&&player.linkWindow>0?(player.weaponMode==='psiGrab'?'E 적중 → 근접 J / 금색 기술 연결':'적중 → 금색 기술로 빠른 연결'):'Shift 회피 / K 패링 / E 속박'):'Shift 추진 / 뒤+Shift 회피 / K 패링'):'J/K → Q   Q 적중 → R   K 0.65초 / 절단',204,252);
   }
   function campaignTitle(){
-    drawBackground(0);ctx.fillStyle='rgba(3,5,9,.64)';ctx.fillRect(0,0,254,H);
-    ctx.save();ctx.translate(303,54);ctx.scale(2.9,2.9);EdenPresentation.drawZero(ctx,{...player,x:0,y:0,face:1,inv:0,vx:0,dash:0,attack:0,onGround:true},time);ctx.restore();
-    ctx.fillStyle='#9ca9bc';ctx.font='7px monospace';ctx.fillText('NEURAL LINK // CONNECTED',28,43);ctx.fillStyle=PALE;ctx.font='52px Georgia';ctx.fillText('EDEN',26,101);ctx.fillStyle=RED;ctx.fillRect(29,113,167,2);
-    ctx.font='10px sans-serif';ctx.fillStyle='#a5adbc';ctx.fillText('낙원은 우리를 기억하지 않는다.',30,135);ctx.font='7px monospace';ctx.fillText('SPECIAL COMBAT ENTITY 00',30,152);
-    const old=load(),items=old?[(old.complete?'엔딩 기록':'계속하기'),'새 작전']:['기동 / 새 작전'];items.forEach((s,i)=>{ctx.fillStyle=i===menu?'#ece5df':'#6d7685';ctx.font='11px sans-serif';ctx.fillText((menu===i?'▸ ':'  ')+s,30,182+i*24);});
-    ctx.fillStyle='#8b95a4';ctx.font='7px monospace';ctx.fillText('↑ ↓ 선택  /  ENTER 접속  /  M 음소거',30,248);
-    ctx.fillStyle=RED;ctx.font='8px monospace';ctx.fillText('ZERO',349,245);
+    if(!EdenPresentation.titleBackground?.(ctx)){drawBackground(0);ctx.fillStyle=PALE;ctx.font='38px Georgia';ctx.fillText('EDEN',315,100);}
+    ctx.fillStyle='rgba(4,6,10,.84)';ctx.fillRect(305,154,153,77);ctx.strokeStyle='rgba(164,145,151,.55)';ctx.strokeRect(305.5,154.5,152,76);ctx.fillStyle=RED;ctx.fillRect(306,155,2,75);
+    const compact=canvas.clientWidth>0&&canvas.clientWidth<600,old=load(),items=old?[(old.complete?'엔딩 기록':'계속하기'),'새 작전']:['기동 / 새 작전'];items.forEach((s,i)=>{const y=176+i*23;if(i===menu){ctx.fillStyle='rgba(170,17,44,.28)';ctx.fillRect(312,y-(compact?15:12),138,compact?20:17);}ctx.fillStyle=i===menu?'#fff3ed':'#a4a8b2';ctx.font=(compact?'15':'11')+'px sans-serif';ctx.fillText((menu===i?'▸ ':'  ')+s,317,y,138);});
+    ctx.fillStyle='#c3c6cc';ctx.font=(compact?'10':'7')+'px sans-serif';ctx.fillText(compact?'↓ 선택 / 시작 버튼':'↑ ↓ 선택  /  ENTER 접속  /  M 음소거',313,222,138);
   }
   function recordScreen(){
     drawBackground(Math.min(bossIndex,6));ctx.fillStyle='rgba(3,5,9,.89)';ctx.fillRect(0,0,W,H);

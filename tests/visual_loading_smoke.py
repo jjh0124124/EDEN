@@ -18,14 +18,15 @@ async def main():
   await page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
   await page.route('**/zero-psychic.png',hold)
   await page.route('**/surgical-cathedral.png',hold)
+  await page.route('**/eden-title-v30.png',hold)
   await page.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4176')+'/',wait_until='domcontentloaded')
   assert await page.locator('#advance').is_disabled()
   assert not await page.locator('#boot').evaluate("e=>e.classList.contains('ready')")
-  assert not await page.evaluate('EdenPresentation.assetStatus.psychic')
+  assert not await page.evaluate('EdenPresentation.assetStatus.psychic || EdenPresentation.assetStatus.titleArt')
   await page.keyboard.press('Enter');gate.set()
   await page.wait_for_function("document.querySelector('#boot').classList.contains('ready')")
   assert await page.evaluate('visualTest.state')=='title'
-  assert await page.evaluate('EdenPresentation.assetStatus.psychic && EdenPresentation.assetStatus.cathedral')
+  assert await page.evaluate('EdenPresentation.assetStatus.psychic && EdenPresentation.assetStatus.cathedral && EdenPresentation.assetStatus.titleArt')
   assert await page.locator('#advance').is_enabled()
   await page.evaluate('visualTest.setup()');await page.wait_for_timeout(100);await page.screenshot(path='/tmp/eden25-idle.png')
   await page.keyboard.down('d');await page.wait_for_function('visualTest.p.vx>80 && visualTest.p.stridePhase>2');await page.screenshot(path='/tmp/eden25-walk.png');await page.keyboard.up('d')
@@ -34,7 +35,7 @@ async def main():
   await page.wait_for_function('visualTest.p.ultimateT<.3 && visualTest.p.ultimateT>0');await page.screenshot(path='/tmp/eden25-super-final.png')
   await page.evaluate('visualTest.setupExplore()');await page.keyboard.press('r');await page.wait_for_function('visualTest.p.ultimateT>1.3');await page.wait_for_timeout(110);await page.screenshot(path='/tmp/eden25-super-explore.png')
   assert not errors,errors
-  for asset in ['zero-walk-v28.png','zero-jab-v29.png','psi-control-v29.png']:
+  for asset in ['eden-title-v30.png','zero-walk-v28.png','zero-jab-v29.png','psi-control-v29.png']:
    failed=await browser.new_page();await failed.route('**/'+asset,lambda route:route.abort())
    await failed.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4176')+'/',wait_until='domcontentloaded')
    await failed.wait_for_function("document.querySelector('#boot').textContent.includes('불러오지 못했습니다')")
