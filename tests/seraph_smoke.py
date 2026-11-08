@@ -12,7 +12,7 @@ with sync_playwright() as p:
  browser=p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH','/usr/bin/chromium'),headless=True,args=['--no-sandbox'])
  page=browser.new_page(viewport={'width':1280,'height':960});errors=[]
  page.on('pageerror',lambda e:errors.append(str(e)))
- page.add_init_script('''window.inversionFrames=0;const fill=CanvasRenderingContext2D.prototype.fillRect;CanvasRenderingContext2D.prototype.fillRect=function(...args){if(this.globalCompositeOperation==='difference')window.inversionFrames++;return fill.call(this,...args)}''')
+ page.add_init_script('''window.inversionFrames=0;window.seraphText=new Set();const fill=CanvasRenderingContext2D.prototype.fillRect;CanvasRenderingContext2D.prototype.fillRect=function(...args){if(this.globalCompositeOperation==='difference')window.inversionFrames++;return fill.call(this,...args)};const text=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(value,...args){if(typeof value==='string'&&(value.includes('CAST / 방향')||value.includes('EXPOSED')||value.includes('ATTACK /')))window.seraphText.add(value);return text.call(this,value,...args)}''')
  page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
  page.goto(os.environ.get('EDEN_TEST_URL','http://127.0.0.1:4176')+'/',wait_until='networkidle');page.wait_for_function('Object.values(EdenPresentation.assetStatus).every(Boolean)')
  page.evaluate('seraphTest.first()');page.keyboard.press('j');page.wait_for_function('seraphTest.b.phase===2 && seraphTest.b.tele>6.7');assert page.evaluate('seraphTest.b.inv')>6.7
@@ -21,8 +21,16 @@ with sync_playwright() as p:
  page.wait_for_function('seraphTest.b.tele<2.4');page.locator('#game').screenshot(path='/tmp/seraph32-wings.png')
  page.wait_for_function('seraphTest.b.tele<1.0');page.locator('#game').screenshot(path='/tmp/seraph32-reveal.png')
  page.wait_for_function('seraphTest.b.tele===0');assert page.evaluate('seraphTest.b.hp')<901
- # Count separate wing draws, rather than judging six wings from a single static picture.
- count=page.evaluate('''()=>{const c=document.createElement('canvas');c.width=480;c.height=270;const ctx=c.getContext('2d'),orig=ctx.drawImage.bind(ctx);let wings=0;ctx.drawImage=(im,...a)=>{if(im.src?.includes('seraph-parts-v32')&&a[1]===0)wings++;return orig(im,...a)};EdenPresentation.boss(ctx,seraphTest.b,1.7);return wings}''');assert count==6,count
+ # Actual rendering uses the complete animated body-and-wing poses at each stage.
+ frames=page.evaluate('''()=>{const c=document.createElement('canvas');c.width=480;c.height=270;const ctx=c.getContext('2d'),orig=ctx.drawImage.bind(ctx);let kind='',seen=new Set();ctx.drawImage=(im,...a)=>{if(im.src?.includes(kind))seen.add(a[0]+','+a[1]);return orig(im,...a)};kind='seraph-transform-v33';for(let i=0;i<16;i++)EdenPresentation.boss(ctx,{...seraphTest.b,tele:7-(i+.1)*7/16},0);const transition=seen.size;kind='seraph-inbetween-v33';seen=new Set();for(let i=0;i<16;i++)EdenPresentation.boss(ctx,{...seraphTest.b,tele:7-(i+.6)*7/16},0);const between=seen.size;kind='seraph-idle-v33';seen=new Set();for(let i=0;i<8;i++)EdenPresentation.boss(ctx,{...seraphTest.b,tele:0,windup:0,release:0,recovery:0,seraphDive:null,seraphMoving:false},(i+.1)/8);return [transition,between,seen.size]}''');assert frames==[16,16,8],frames
+ # The discarded surgical arms appear only during the opening of the transformation.
+ arms=page.evaluate('''()=>{const c=document.createElement('canvas'),ctx=c.getContext('2d'),orig=ctx.drawImage.bind(ctx);let n=0;ctx.drawImage=(im,...a)=>{if(im.src?.includes('seraph-parts-v32')&&a[0]===444&&a[1]===444)n++;return orig(im,...a)};function draw(tele){n=0;EdenPresentation.boss(ctx,{...seraphTest.b,tele},2);return n}return [draw(6),draw(3)]}''');assert arms==[2,0],arms
+ # Every attack uses its own body-and-wing animation, through startup, hit and recovery.
+ actions=page.evaluate('''()=>{const c=document.createElement('canvas'),ctx=c.getContext('2d'),orig=ctx.drawImage.bind(ctx),out={};let name='',seen=new Set();ctx.drawImage=(im,...a)=>{if(im.src?.includes('seraph-'+name+'-v33'))seen.add(a[0]+','+a[1]);return orig(im,...a)};for(const [move,file] of [['cleave','cut'],['descent','dive'],['feathers','feathers'],['halo','beam']]){name=file;seen=new Set();for(const [windup,release,recovery] of [[.85,0,0],[.15,0,0],[0,.35,1],[0,0,.5]])EdenPresentation.boss(ctx,{...seraphTest.b,tele:0,seraphMove:move,seraphDive:null,windupMax:1,windup,release,recovery},2);out[move]=seen.size}return out}''');assert all(value==4 for value in actions.values()),actions
+ # The exposed core appears only during safe recovery; the HUD distinguishes the active attack.
+ counts=page.evaluate('''()=>{const c=document.createElement('canvas'),ctx=c.getContext('2d'),orig=ctx.drawImage.bind(ctx);let n=0;ctx.drawImage=(im,...a)=>{if(im.src?.includes('seraph-vfx-v33')&&a[0]===1086&&a[1]===724)n++;return orig(im,...a)};function draw(release){n=0;EdenPresentation.boss(ctx,{...seraphTest.b,tele:0,recovery:1,release,windup:0,seraphDive:null},2);return n}return [draw(.2),draw(0)]}''');assert counts==[0,1],counts
+ page.evaluate("seraphTest.phase('cleave');seraphTest.b.windup=0;seraphTest.b.recovery=1;seraphTest.b.release=.3;seraphTest.b.t=999")
+ page.wait_for_function('Array.from(seraphText).some(s=>s.includes("ATTACK / 공격 중"))');page.wait_for_function('Array.from(seraphText).some(s=>s.includes("EXPOSED / 피해 +25%"))');page.locator('#game').screenshot(path='/tmp/seraph33-recovery.png')
  # K follows the normal live incision collision; the second K uses the existing counter input.
  page.evaluate("seraphTest.phase('cleave')");page.wait_for_function("seraphTest.slashes.some(s=>s.seraph && s.delay<=.05)");page.keyboard.press('k');page.wait_for_function('seraphTest.p.parryFollow>0');page.keyboard.press('k');page.wait_for_function('seraphTest.p.weaponMode==="psiCounter"');page.wait_for_function('seraphTest.b.hp<900');assert page.evaluate('seraphTest.p.hp')==100
  # Actual input during the low beam; the same jump response also covers the larger ultimate.
@@ -31,9 +39,15 @@ with sync_playwright() as p:
   page.wait_for_function('seraphTest.hazards.some(h=>h.seraphBeam && h.delay<=0)');page.locator('#game').screenshot(path='/tmp/seraph32-'+move+'.png')
   page.wait_for_function('!seraphTest.hazards.some(h=>h.seraphBeam)');assert page.evaluate('seraphTest.p.hp')==100,move
  assert page.evaluate('inversionFrames')>0
+ # Move through the boss while it tracks, then cross back during the locked warning.
+ page.evaluate("seraphTest.phase('final')");page.keyboard.down('d')
+ page.wait_for_function('seraphTest.p.x+9>seraphTest.b.x+21 && seraphTest.b.dir===1 && !seraphTest.b.seraphLocked');page.keyboard.up('d')
+ page.wait_for_function('seraphTest.b.seraphLocked');page.wait_for_function('Array.from(seraphText).some(s=>s.includes("CAST / 방향 고정"))');assert page.evaluate('Array.from(seraphText).some(s=>s.includes("CAST / 방향 추적"))')
+ page.keyboard.down('a');page.wait_for_function('seraphTest.p.x+9<seraphTest.b.x+21');page.keyboard.up('a');assert page.evaluate('seraphTest.b.dir')==1
+ page.wait_for_function('seraphTest.hazards.some(h=>h.seraphFinal && h.delay<=0)');page.wait_for_function('!seraphTest.hazards.some(h=>h.seraphFinal)');assert page.evaluate('seraphTest.p.hp')==100
  # Existing player damage and normal boss death end the fight.
  page.evaluate("seraphTest.phase('cleave');seraphTest.b.windup=0;seraphTest.b.t=999;seraphTest.b.hp=20")
  page.keyboard.press('q');page.wait_for_function('seraphTest.b.dead');page.wait_for_function('seraphTest.state==="ending"',timeout=8000)
  assert not errors,errors
- print('PASS: real J triggers seven-second transformation; six individually drawn wings, K parry/counter, jumpable halo/ultimate, inversion and victory; no browser errors')
+ print('PASS: real J triggers seven-second transformation; 32 transformation frames and 8 idle frames, K parry/counter, jumpable halo/ultimate, tracking/locked directions, inversion and victory; no browser errors')
  browser.close()

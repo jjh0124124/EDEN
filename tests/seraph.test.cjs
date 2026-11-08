@@ -6,7 +6,7 @@ function setup(move,side=-1){const g=game(true);g.engage();g.boss.phase=2;g.boss
 test('first-phase threshold launches a seven-second protected transformation and a new combat phase',()=>{
  const g=game(true);g.engage();g.boss.hp=900;g.boss.checkPhase();assert.equal(g.boss.phase,2);assert.equal(g.boss.tele,7);assert.equal(g.boss.inv,7);
  for(let i=0;i<350;i++)g.step(1/60);assert.ok(g.boss.tele>1);assert.equal(g.hazards.length,0);const hp=g.boss.hp;g.boss.hurt(50);assert.equal(g.boss.hp,hp);
- until(g,()=>g.boss.tele===0);assert.equal(g.boss.inv,0);until(g,()=>g.boss.seraphMove==='cleave'&&g.boss.windup>0);assert.equal(g.boss.d.type,'surgeon');
+ until(g,()=>g.boss.tele===0);assert.equal(g.boss.inv,0);assert.ok(g.boss.y<=113,'hover hitbox should match the end of the transformation');until(g,()=>g.boss.seraphMove==='cleave'&&g.boss.windup>0);assert.equal(g.boss.d.type,'surgeon');
 });
 
 test('first-phase SURGEON still selects the existing surgical incision',()=>{
@@ -56,4 +56,24 @@ test('Divine Descent can connect during its movement, before the landing impact'
 
 test('a correctly timed K parry of Divine Descent avoids its landing follow-up',()=>{
  const g=setup('descent');until(g,()=>g.boss.seraphDive&&g.boss.x<230);g.press('k');until(g,()=>g.player.parryFollow>0);for(let i=0;i<45;i++)g.step();assert.equal(g.player.hp,100);
+});
+
+test('SERAPH tracks early movement, then locks its direction with a readable dodge window',()=>{
+ for(const move of ['cleave','feathers','halo','final'])for(const dt of [1/30,1/60])for(const side of [-1,1]){
+  const g=setup(move,side);assert.equal(g.boss.seraphLocked,false);g.player.x=g.boss.x-side*60;g.step(dt);assert.equal(g.boss.dir,-side);
+  until(g,()=>g.boss.seraphLocked,dt);const lockedDir=g.boss.dir,remaining=g.boss.windup;assert.ok(remaining>=g.boss.seraphLockAt-dt-.001);
+  g.player.x=g.boss.x+side*60;g.step(dt);assert.equal(g.boss.dir,lockedDir);
+ }
+});
+
+test('players can still move behind a locked halo or ultimate beam',()=>{
+ for(const move of ['halo','final'])for(const dt of [1/30,1/60]){
+  const g=setup(move);until(g,()=>g.boss.seraphLocked,dt);const dir=g.boss.dir;g.keys.add('d');until(g,()=>g.boss.release>0,dt);assert.equal(g.boss.dir,dir);
+  for(let i=0;i<Math.ceil(.65/dt);i++)g.step(dt);assert.equal(g.player.hp,100,`${move} ${dt}`);
+ }
+});
+
+test('cleave impact art and sound wait for the active attack',()=>{
+ const g=setup('cleave');g.boss.windup=0;g.boss.performSeraph();const initial=g.feedback.particles,sounds=g.sounds.length;g.step(.03);assert.equal(g.feedback.particles,initial);assert.equal(g.sounds.length,sounds);
+ until(g,()=>g.slashes.some(s=>s.seraphImpact&&s.delay<=0));assert.equal(g.feedback.particles,initial+1);assert.ok(g.sounds.length>sounds);
 });

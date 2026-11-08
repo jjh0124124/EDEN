@@ -16,7 +16,7 @@ with sync_playwright() as p:
  page.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'))
  page.goto(base,wait_until='networkidle');page.wait_for_function('titleTest.state==="title" && titleDraws>0')
  assert page.evaluate('EdenPresentation.assetStatus.titleArt')
- assert 'BUILD 32' in page.locator('.masthead').inner_text()
+ assert 'BUILD 33' in page.locator('.masthead').inner_text()
  page.screenshot(path='/tmp/eden30-title-new.png')
  page.locator('#advance').click();page.wait_for_function('titleTest.state==="interlude"')
 
