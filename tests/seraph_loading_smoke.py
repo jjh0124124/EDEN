@@ -16,7 +16,7 @@ async def main():
   gate=asyncio.Event()
   async def hold(route):
    await gate.wait();await route.continue_()
-  await page.route('**/seraph-inbetween-v33.png',hold)
+  await page.route('**/seraph-inbetween-v36.png',hold)
   await page.goto(base,wait_until='domcontentloaded');await page.wait_for_function("document.querySelector('#boot').classList.contains('ready')")
   assert await page.evaluate("EdenPresentation.seraphStatus==='loading'")
   await page.evaluate('seraphLoadTest.first()');await page.keyboard.press('j');await page.wait_for_function('seraphLoadTest.p.attackSerial>0');assert await page.evaluate('seraphLoadTest.b.phase')==1
@@ -26,7 +26,7 @@ async def main():
   gate.set();await page.wait_for_function("EdenPresentation.seraphStatus==='ready'");await page.wait_for_function('seraphLoadTest.b.tele<6.9')
   assert not errors,errors
   failed=await browser.new_page();await failed.add_init_script('''window.loadTexts=new Set();const f=CanvasRenderingContext2D.prototype.fillText;CanvasRenderingContext2D.prototype.fillText=function(v,...a){if(typeof v==='string'&&v.includes('SERAPH 이미지'))loadTexts.add(v);return f.call(this,v,...a)}''')
-  await failed.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'));await failed.route('**/seraph-inbetween-v33.png',lambda r:r.abort())
+  await failed.route('**/src/game.js*',lambda r:r.fulfill(body=source,content_type='application/javascript'));await failed.route('**/seraph-inbetween-v36.png',lambda r:r.abort())
   await failed.goto(base,wait_until='domcontentloaded');await failed.wait_for_function("document.querySelector('#boot').classList.contains('ready')");await failed.wait_for_function("EdenPresentation.seraphStatus==='failed'")
   await failed.evaluate('seraphLoadTest.first();seraphLoadTest.transform()');await failed.wait_for_timeout(300)
   assert await failed.evaluate('seraphLoadTest.b.tele')==7

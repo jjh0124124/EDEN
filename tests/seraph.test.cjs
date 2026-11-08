@@ -129,7 +129,7 @@ test('wing servos sound during preparation and return to the open idle pose afte
 });
 
 test('wing hurtboxes follow the folded and open poses on either side',()=>{
- for(const [x,face] of [[160,1],[344,-1]])for(const [frame,damage] of [[0,0],[8,12]]){
+ for(const [x,face] of [[165,1],[343,-1]])for(const [frame,damage] of [[0,0],[8,12]]){
   const g=game(true);g.engage();Object.assign(g.boss,{phase:2,x:240,y:116,tele:0,inv:0,t:999,seraphFrameClock:frame});Object.assign(g.player,{x,y:130,vy:0,onGround:false,face});g.press('j');for(let i=0;i<25;i++)g.step();
   assert.equal(g.boss.maxHp-g.boss.hp,damage,`frame ${frame}, face ${face}`);
  }

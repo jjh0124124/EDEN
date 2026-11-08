@@ -2,9 +2,9 @@
 window.EdenPresentation = (() => {
   const C = { ink:'#080b10', edge:'#181f29', steel:'#555f6e', light:'#afbac5', white:'#ece8df', red:'#f02146', blood:'#730d28', blue:'#637e8b' };
   const art={},loads={};
-  const assetPaths={seraphArm:'characters/bosses/seraph-parts-v32.png',seraphInbetween:'characters/bosses/seraph-inbetween-v33.png',seraphTransform:'characters/bosses/seraph-transform-v33.png',seraphIdle:'characters/bosses/seraph-idle-v35.png',seraphThruster:'effects/seraph-thruster-v35.png',seraphCut:'characters/bosses/seraph-cut-v34.png',seraphDive:'characters/bosses/seraph-dive-v33.png',seraphFeathers:'characters/bosses/seraph-feathers-v34.png',seraphBeam:'characters/bosses/seraph-beam-v34.png',seraphVFX:'effects/seraph-vfx-v33.png',seraphSlash:'effects/seraph-slash-v34.png',psiArsenal:'effects/psi-arsenal-v31.png',psiKinetic:'effects/psi-kinetic-v31.png',psiCounterArt:'characters/zero/zero-counter-v31.png',titleArt:'environments/eden-title-v30.png',psiWalk:'characters/zero/zero-walk-v28.png',psiJabs:'characters/zero/zero-jab-v29.png',psiControl:'effects/psi-control-v29.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
+  const assetPaths={seraphArm:'characters/bosses/seraph-parts-v32.png',seraphInbetween:'characters/bosses/seraph-inbetween-v36.png',seraphTransform:'characters/bosses/seraph-transform-v36.png',seraphIdle:'characters/bosses/seraph-idle-v36.png',seraphThruster:'effects/seraph-thruster-v35.png',seraphShellBreak:'effects/seraph-shell-break-v36.png',seraphCut:'characters/bosses/seraph-melee-v36.png',seraphDive:'characters/bosses/seraph-melee-v36.png',seraphFeathers:'characters/bosses/seraph-ranged-v36.png',seraphBeam:'characters/bosses/seraph-ranged-v36.png',seraphVFX:'effects/seraph-vfx-v33.png',seraphSlash:'effects/seraph-slash-v34.png',psiArsenal:'effects/psi-arsenal-v31.png',psiKinetic:'effects/psi-kinetic-v31.png',psiCounterArt:'characters/zero/zero-counter-v31.png',titleArt:'environments/eden-title-v30.png',psiWalk:'characters/zero/zero-walk-v28.png',psiJabs:'characters/zero/zero-jab-v29.png',psiControl:'effects/psi-control-v29.png',ultimateCutin:'characters/zero/zero-ultimate-cutin.png',psiSkills:'characters/zero/zero-skills.png',psiVFX:'effects/psychic-force.png',psychic:'characters/zero/zero-psychic.png',sweepVFX:'effects/leg-sweep-overdrive.png',mechanisms:'characters/zero/zero-mechanisms.png',sentry:'characters/bosses/surgical-sentry.png',ordnance:'effects/surgical-ordnance.png',zeroDrive:'characters/zero/zero-drive.png',combatVFX:'effects/neural-impact.png',surgeonLow:'characters/bosses/surgeon-low-cut.png',zeroDuel:'characters/zero/zero-duel.png',surgeonDuel:'characters/bosses/surgeon-duel.png',zero:'characters/zero/zero-generated.png',surgeon:'characters/bosses/surgeon-generated.png',cathedral:'environments/surgical-cathedral.png'};
   const required=['psiArsenal','psiKinetic','psiCounterArt','titleArt','psiWalk','psiJabs','psiControl','ultimateCutin','psiSkills','psiVFX','psychic','sentry','ordnance','combatVFX','surgeonLow','surgeonDuel','surgeon','cathedral'];
-  const seraphRequired=['seraphArm','seraphInbetween','seraphTransform','seraphIdle','seraphThruster','seraphCut','seraphDive','seraphFeathers','seraphBeam','seraphVFX','seraphSlash'];
+  const seraphRequired=['seraphArm','seraphInbetween','seraphTransform','seraphIdle','seraphThruster','seraphShellBreak','seraphCut','seraphDive','seraphFeathers','seraphBeam','seraphVFX','seraphSlash'];
   function loadAsset(key){return loads[key]??=(new Promise(resolve=>{const image=new Image();image.onload=()=>{art[key]=image;resolve(true);};image.onerror=()=>resolve(false);image.src='assets/'+assetPaths[key];}));}
   function withinTimeout(promises){return Promise.race([Promise.all(promises).then(results=>results.every(Boolean)),new Promise(resolve=>setTimeout(()=>resolve(false),45000))]);}
   const ready=withinTimeout(required.map(loadAsset));
@@ -43,6 +43,11 @@ window.EdenPresentation = (() => {
     hit:[[100,590,260,300,190],[400,590,365,300,520],[785,590,365,300,925],[1180,590,355,300,1350]]
   };
   function drawCombatVFX(c,p){
+    if(p.sprite==='seraphShellBreak'&&art.seraphShellBreak){
+      const progress=Math.max(0,Math.min(.999,1-p.life/p.max)),frame=2+Math.floor(progress*6),image=art.seraphShellBreak;
+      const x=Math.round(frame%4*image.width/4),right=Math.round((frame%4+1)*image.width/4),top=Math.round(Math.floor(frame/4)*image.height/2),bottom=Math.round((Math.floor(frame/4)+1)*image.height/2),width=right-x,height=bottom-top;
+      c.save();c.translate(Math.round(p.x),Math.round(p.y));c.globalAlpha*=.65*(1-progress*.4);sprite(c,image,[x,top,width,height,x+width/2],55/width*(p.effectScale||1),top+height/2);c.restore();return;
+    }
     if(p.sprite==='seraphSweep'&&art.seraphSlash){
       const progress=Math.max(0,Math.min(.999,1-p.life/p.max)),frame=Math.floor(progress*8),image=art.seraphSlash;
       const x=Math.round(frame%4*image.width/4),right=Math.round((frame%4+1)*image.width/4),top=Math.round(Math.floor(frame/4)*image.height/2),bottom=Math.round((Math.floor(frame/4)+1)*image.height/2),width=right-x,height=bottom-top;
@@ -202,10 +207,11 @@ window.EdenPresentation = (() => {
     c.restore();
   }
   // Each sheet contains complete body-and-wing poses, aligned on the same baseline.
-  const seraphIdleAnchors=[.516,.500,.483,.465,.517,.500,.486,.473,.526,.502,.484,.466,.517,.500,.483,.466];
-  function seraphFrame(c,image,index,rows,size=135){
-    const col=index%4,row=Math.floor(index/4),x=Math.round(col*image.width/4),right=Math.round((col+1)*image.width/4),top=Math.round(row*image.height/rows),bottom=Math.round((row+1)*image.height/rows);
-    const width=right-x,height=bottom-top,idle=image===art.seraphIdle,baseline=(image===art.seraphTransform||image===art.seraphInbetween)? .96 : idle? .944 : .94,anchor=x+width*(idle?seraphIdleAnchors[index]:.5);
+  const seraphIdleAnchors=[.503,.498,.500,.501,.499,.500,.503,.501,.501,.502,.498,.503,.500,.500,.500,.504];
+  const seraphIdleEyes=[.478,.479,.483,.480,.511,.508,.509,.505,.504,.504,.504,.500,.499,.501,.500,.502];
+  function seraphFrame(c,image,index,rows,size=100,transitionBaseline=.9){
+    const source=index+((image===art.seraphDive||image===art.seraphBeam)?8:0),col=source%4,row=Math.floor(source/4),x=Math.round(col*image.width/4),right=Math.round((col+1)*image.width/4),top=Math.round(row*image.height/rows),bottom=Math.round((row+1)*image.height/rows);
+    const width=right-x,height=bottom-top,idle=image===art.seraphIdle,baseline=(image===art.seraphTransform||image===art.seraphInbetween)?transitionBaseline:idle?.4+seraphIdleEyes[index]:.9,anchor=x+width*(idle?seraphIdleAnchors[index]:.5);
     sprite(c,image,[x,top,width,height,anchor],size/height,top+height*baseline);
   }
   function drawSeraph(c,b,t){
@@ -220,7 +226,6 @@ window.EdenPresentation = (() => {
       else if(move==='feathers'&&b.recovery>.75){image=actions.feathers;frame=4+Math.floor(t*9)%3;}
       else if(b.recovery>.25){image=actions[move]||art.seraphIdle;frame=7;}
     }
-    if(!changing&&image!==art.seraphIdle)rows=2;
     const rise=changing?Math.max(0,Math.min(1,(elapsed-4.4)/1.6))*10:0,exposed=!changing&&!b.dead&&b.recovery>0&&b.release<=0&&!b.seraphDive&&b.windup<=0&&!(move==='feathers'&&b.recovery>.75);
     c.save();c.translate(Math.round(b.x+b.w/2),Math.round(b.y+b.h-rise));c.scale(-b.dir,1);
     if(!changing&&b.seraphMoving)c.rotate(-Math.min(1,Math.abs(b.seraphVX||0)/48)*.045);
@@ -229,11 +234,11 @@ window.EdenPresentation = (() => {
     const hover=changing?rise:Math.max(0,226-b.y-b.h);
     if(!b.dead&&hover>3&&art.seraphThruster){
       const jet=art.seraphThruster,w=jet.width/4,h=jet.height/2,thrust=1+Math.min(1,Math.abs(b.seraphVX||0)/48)*.2;
-      for(const side of [-1,1]){const f=(Math.floor(t*11)+(side<0?0:3))%8;c.save();c.translate(side*23,-55);if(b.seraphDive)c.rotate(-.45);c.globalAlpha*=.7*Math.min(1,hover/10);c.drawImage(jet,(f%4)*w,Math.floor(f/4)*h,w,h,-10,0,20,30*thrust);c.restore();}
+      for(const side of [-1,1]){const f=(Math.floor(t*11)+(side<0?0:3))%8;c.save();c.translate(side*19,-43);if(b.seraphDive)c.rotate(-.45);c.globalAlpha*=.7*Math.min(1,hover/10);c.drawImage(jet,(f%4)*w,Math.floor(f/4)*h,w,h,-8,0,16,24*thrust);c.restore();}
     }
-    const progress=Math.max(0,Math.min(1,elapsed/5.5)),size=changing?100+35*progress*progress*(3-2*progress):135;
-    seraphFrame(c,image,frame,rows,size);
-    if(exposed&&art.seraphVFX){const w=art.seraphVFX.width/4,h=art.seraphVFX.height/3;c.save();c.globalAlpha*=.65+.12*Math.sin(t*7);c.filter='brightness(1.4)';c.translate(-2,-60);sprite(c,art.seraphVFX,[w*3,h*2,w,h,w*3.5],16/w,h*2.5);c.restore();}
+    const progress=Math.max(0,Math.min(1,elapsed/5.5)),ease=progress*progress*(3-2*progress),size=changing?75+25*ease:100;
+    seraphFrame(c,image,frame,rows,size,.96-.06*ease);
+    if(exposed&&art.seraphVFX){const w=art.seraphVFX.width/4,h=art.seraphVFX.height/3;c.save();c.globalAlpha*=.65+.12*Math.sin(t*7);c.filter='brightness(1.4)';c.translate(0,-40);sprite(c,art.seraphVFX,[w*3,h*2,w,h,w*3.5],16/w,h*2.5);c.restore();}
     c.restore();
   }
   function boss(c,b,t){
