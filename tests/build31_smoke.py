@@ -23,12 +23,16 @@ with sync_playwright() as p:
   assert page.evaluate("skillTest.p.cool['qwe'.indexOf("+repr(key)+")] > 0")
   page.wait_for_timeout(80)
   if key=='e': page.locator('#game').screenshot(path='/tmp/eden31-e-live.png')
+ # The first-phase scalpel uses eight aligned poses, including the actual low cut.
+ frames=page.evaluate('''()=>{const ctx=document.createElement('canvas').getContext('2d'),draw=ctx.drawImage.bind(ctx),seen=new Set();let old=0;ctx.drawImage=(im,...a)=>{if(im.src?.includes('surgeon-scalpel-v37'))seen.add(a[0]+','+a[1]);if(im.src?.includes('surgeon-low-cut'))old++;return draw(im,...a)};const b={...skillTest.b,phase:1,dead:false,move:0,psiStagger:0,hitFlash:0,psiGuard:0,psiGuardWarn:0,windupMax:1};for(const [windup,release,recovery] of [[.95,0,0],[.65,0,0],[.45,0,0],[.15,0,0],[0,.38,1],[0,.23,1],[0,.08,1],[0,0,1]])EdenPresentation.boss(ctx,{...b,windup,release,recovery},0);EdenPresentation.boss(ctx,{...b,move:3,windup:0,release:.2,recovery:1},0);return [seen.size,old]}''');assert frames==[8,0],frames
+ page.evaluate('skillTest.setup(195,240);Object.assign(skillTest.b,{dir:-1,move:0,windup:.9,windupMax:.9,release:0,recovery:0})');page.wait_for_function('skillTest.b.windup>0 && skillTest.b.windup<.5');page.locator('#game').screenshot(path='/tmp/eden37-scalpel-ready.png')
+ page.wait_for_function('skillTest.b.release>0 && skillTest.b.release<.27');page.locator('#game').screenshot(path='/tmp/eden37-scalpel-swing.png')
  # A genuine boss incision creates a parry opportunity. Both K presses are browser input.
- page.evaluate('skillTest.parrySetup()');page.wait_for_function("skillTest.slashes.some(s=>s.kind==='scalpel' && s.delay<=.04)");page.keyboard.press('k');page.wait_for_function('skillTest.p.parryFollow>0');page.keyboard.press('k');page.wait_for_function('skillTest.p.weaponMode==="psiCounter"');page.wait_for_function('skillTest.b.hp<skillTest.b.maxHp');assert page.evaluate('skillTest.b.maxHp-skillTest.b.hp')==44
+ page.evaluate('skillTest.parrySetup()');page.wait_for_function("skillTest.slashes.some(s=>s.kind==='scalpel' && s.delay<=.04)");page.keyboard.press('k');page.wait_for_function('skillTest.p.parryFollow>0');assert page.evaluate('skillTest.b.psiStagger>0 && skillTest.b.recovery>0');page.keyboard.press('k');page.wait_for_function('skillTest.p.weaponMode==="psiCounter"');page.wait_for_function('skillTest.b.hp<skillTest.b.maxHp');assert page.evaluate('skillTest.b.maxHp-skillTest.b.hp')==55
  # Capture all cinematic phases and verify the real multi-hit contacts.
- page.evaluate('skillTest.setup(145,255);skillTest.p.superMeter=100');page.keyboard.press('r');page.wait_for_function('skillTest.p.ultimateT>4.7');page.locator('#game').screenshot(path='/tmp/eden31-r-cutin.png')
- page.wait_for_function('skillTest.p.ultimateT<2.45 && skillTest.p.ultimateT>1.6',timeout=7000);page.locator('#game').screenshot(path='/tmp/eden31-r-barrage.png')
- page.wait_for_function("skillTest.particles.some(p=>p.sprite==='psiBeam')",timeout=6000);page.locator('#game').screenshot(path='/tmp/eden31-r-final.png')
+ page.evaluate('skillTest.setup(145,255);skillTest.p.superMeter=100');page.keyboard.press('r');page.wait_for_function('skillTest.p.ultimateT>2.2');page.locator('#game').screenshot(path='/tmp/eden37-r-cutin.png')
+ page.wait_for_function("skillTest.particles.some(p=>p.sprite==='psiCrushField') && skillTest.p.ultimateT<1.9");assert not page.evaluate('skillTest.hazards.some(h=>h.superShot)');page.locator('#game').screenshot(path='/tmp/eden37-r-pressure.png')
+ page.wait_for_function("skillTest.slashes.some(s=>s.kind==='psiCrushFinal' && s.delay<=0)",timeout=6000);page.locator('#game').screenshot(path='/tmp/eden37-r-final.png')
  page.wait_for_function('skillTest.p.ultimateT<=0',timeout=4000);assert page.evaluate('skillTest.b.maxHp-skillTest.b.hp')==156
  page.evaluate('skillTest.p.superMeter=100;skillTest.p.sp=100;skillTest.b.inv=0');page.keyboard.press('r');page.wait_for_function('skillTest.p.ultimateT>1.7');assert page.evaluate('skillTest.p.ultimateDuration')==2
  # Measure during the shortened cinematic, including the barrage and finisher.

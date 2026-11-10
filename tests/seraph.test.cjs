@@ -3,6 +3,10 @@ const {game}=require('./game-harness.cjs');
 function until(g,fn,dt=1/60,max=1000){for(let i=0;i<max&&!fn();i++)g.step(dt);assert.ok(fn(),'expected event did not occur');}
 function setup(move,side=-1){const g=game(true);g.engage();g.boss.phase=2;g.boss.tele=0;g.boss.inv=0;g.boss.x=240;g.boss.y=111;g.boss.t=999;g.boss.seraphCycle=0;g.player.x=g.boss.x+side*45;g.player.face=-side;g.boss.beginSeraph(move);return g;}
 
+test('SURGEON cannot be skipped by overkill and SERAPH starts with its own full health',()=>{
+ const g=game(true);g.engage();g.boss.hp=901;g.boss.hurt(2000);assert.equal(g.boss.phase,2);assert.equal(g.boss.hp,900);assert.equal(g.boss.dead,false);assert.equal(g.boss.tele,7);
+});
+
 test('first-phase threshold launches a seven-second protected transformation and a new combat phase',()=>{
  const g=game(true);g.engage();g.boss.hp=900;g.boss.checkPhase();assert.equal(g.boss.phase,2);assert.equal(g.boss.tele,7);assert.equal(g.boss.inv,7);
  for(let i=0;i<350;i++)g.step(1/60);assert.ok(g.boss.tele>1);assert.equal(g.hazards.length,0);const hp=g.boss.hp;g.boss.hurt(50);assert.equal(g.boss.hp,hp);
@@ -35,8 +39,22 @@ test('Halo Judgment and Final Revelation are telegraphed, jumpable and followed 
  for(const move of ['halo','final'])for(const dt of [1/30,1/60]){const g=setup(move);const start=g.boss.windup;assert.ok(start>=1.3);until(g,()=>g.boss.windup>0&&g.boss.windup<.16,dt);g.press(' ');until(g,()=>g.hazards.some(h=>h.seraphBeam&&h.delay<=0),dt);assert.ok(g.boss.recovery>0);until(g,()=>!g.hazards.some(h=>h.seraphBeam),dt);assert.equal(g.player.hp,100,`${move} ${dt}`);}
 });
 
-test('Final Revelation triggers once below 25 percent, and boss death clears its attack',()=>{
- const g=setup('halo');g.boss.windup=0;g.boss.recovery=0;g.boss.release=0;g.boss.t=0;g.boss.hp=450;g.step();assert.equal(g.boss.seraphMove,'final');assert.equal(g.boss.seraphFinalUsed,true);until(g,()=>g.hazards.some(h=>h.seraphFinal));g.boss.inv=0;g.boss.hurt(1000);assert.ok(g.boss.dead);assert.equal(g.hazards.length,0);assert.equal(g.slashes.length,0);
+test('both SERAPH beams can be parried from the front for a stagger and K counter',()=>{
+ for(const move of ['halo','final'])for(const dt of [1/30,1/60])for(const side of [-1,1]){
+  const g=setup(move,side);until(g,()=>g.hazards.some(h=>h.seraphBeam&&h.delay<=.05),dt);g.press('k');until(g,()=>g.player.parryFollow>0,dt);
+  assert.equal(g.player.hp,100,`${move} ${side}`);assert.equal(g.boss.windup,0);assert.ok(g.boss.recovery>=1);assert.ok(!g.hazards.some(h=>h.seraphBeam));
+  const hp=g.boss.hp;g.press('k');until(g,()=>g.boss.hp<hp,dt);assert.equal(g.player.hp,100);
+ }
+});
+
+test('SERAPH awakens once at half of its own health before Final Revelation',()=>{
+ const g=setup('halo');g.boss.windup=0;g.boss.recovery=0;g.boss.release=0;g.boss.t=0;g.boss.hp=450;g.step();assert.equal(g.boss.seraphAwakened,true);assert.ok(g.boss.seraphAwakenT>1);assert.equal(g.boss.seraphFinalUsed,true);assert.equal(g.boss.hp,450);
+ until(g,()=>g.boss.seraphMove==='final'&&g.boss.windup>0);assert.ok(g.boss.windup>=2);until(g,()=>g.hazards.some(h=>h.seraphFinal));g.boss.inv=0;g.boss.hurt(1000);assert.ok(g.boss.dead);assert.equal(g.hazards.length,0);assert.equal(g.slashes.length,0);
+});
+
+test('awakening waits for the current move and slightly accelerates later patterns',()=>{
+ const g=setup('cleave');g.boss.hp=451;g.step();assert.notEqual(g.boss.seraphAwakened,true);g.boss.hp=450;g.step();assert.notEqual(g.boss.seraphAwakened,true);
+ g.boss.windup=0;g.boss.release=0;g.boss.recovery=0;g.step();assert.equal(g.boss.seraphAwakened,true);until(g,()=>g.boss.seraphMove==='final'&&g.boss.windup>0);g.boss.windup=0;g.boss.beginSeraph('cleave');assert.ok(g.boss.windup>.8&&g.boss.windup<.95);
 });
 
 test('ZERO can hit airborne SERAPH with the existing J and Q attacks',()=>{

@@ -21,7 +21,7 @@ test('skills require SP and do not create free effects or attacks on rejected in
 });
 
 test('single-boss victory terminates progression and obsolete saves restart in the first corridor',()=>{
- const g=duel();assert.equal(g.BOSSES.length,1);g.boss.hurt(2000);frames(g,200);assert.equal(g.state,'ending');assert.equal(g.load().boss,0);assert.equal(g.load().complete,true);g.finishBoss();assert.equal(g.upgrade,0);
+ const g=duel();assert.equal(g.BOSSES.length,1);g.boss.hurt(2000);assert.equal(g.boss.phase,2);assert.equal(g.boss.dead,false);g.boss.tele=0;g.boss.inv=0;g.boss.hurt(2000);frames(g,200);assert.equal(g.state,'ending');assert.equal(g.load().boss,0);assert.equal(g.load().complete,true);g.finishBoss();assert.equal(g.upgrade,0);
  for(const old of [{boss:4,stage:'boss',upgrade:5},{boss:1,stage:'reward',complete:true}]){const h=game(true);h.setSave(old);h.title();h.press('enter');assert.equal(h.state,'explore');assert.equal(h.player.hp,100);assert.equal(h.load().boss,0);}
 });
 
@@ -88,8 +88,8 @@ test('SURGEON operation wave damages idle players, but a broken relay or a jump 
   frames(g,35,dt);assert.equal(g.player.hp,response==='none'?76:100,response);
  }
 });
-test('SURGEON operation clears on boss death and retry',()=>{
- const g=operationDuel();g.boss.hurt(g.boss.maxHp*2);assert.equal(g.boss.operation,null);frames(g,50);assert.ok(g.slashes.every(s=>s.kind!=='operationWave'));g.startBoss();assert.equal(g.boss.operation,undefined);
+test('SURGEON operation clears on transformation and retry',()=>{
+ const g=operationDuel();g.boss.hurt(g.boss.maxHp*2);assert.equal(g.boss.operation,null);assert.equal(g.boss.phase,2);frames(g,50);assert.ok(g.slashes.every(s=>s.kind!=='operationWave'));g.startBoss();assert.equal(g.boss.operation,undefined);
 });
 
 test('both relays can be reached and destroyed using only movement and J from either wall or center in phase one',()=>{
@@ -175,7 +175,7 @@ test('dissection rewards staying grounded for the high needle then jumping or pa
 });
 test('new boss hazards clear on death and do not leak into retry',()=>{
  for(const [number,property] of [[2,'dissection'],[3,'pincerField'],[3,'pincerShot'],[4,'sterileField']]){
-  const g=scheduledPattern(number);until(g,()=>g.hazards.some(h=>h[property]));g.boss.hurt(5000);assert.equal(g.boss.dead,true);assert.ok(g.hazards.every(h=>!h[property]));
+  const g=scheduledPattern(number);until(g,()=>g.hazards.some(h=>h[property]));g.boss.hurt(5000);assert.equal(g.boss.phase,2);assert.equal(g.boss.dead,false);assert.ok(g.hazards.every(h=>!h[property]));g.boss.tele=0;g.boss.inv=0;g.boss.hurt(5000);assert.equal(g.boss.dead,true);
   frames(g,200);assert.equal(g.state,'ending');g.startBoss();assert.ok(g.hazards.every(h=>!h[property]));assert.equal(g.boss.patternCount,undefined);
  }
 });
@@ -219,6 +219,14 @@ test('repeated rear hits during a cast trigger a warned, avoidable two-sided res
  const g=duel();g.boss.rearCounterPending=true;g.boss.windup=1;g.boss.dir=-1;g.player.superMeter=100;g.press('r');until(g,()=>g.player.ultimateT>0);assert.equal(g.boss.rearCounterPending,true);
 });
 
+test('SURGEON rear sweep reaches both arena edges at different boss positions and frame rates',()=>{
+ for(const dt of [1/30,1/60])for(const bx of [45,240,395]){
+  const g=game(true);g.engage();g.boss.x=bx;g.boss.t=999;g.boss.move=8;g.player.x=bx+11;g.boss.act();let left=Infinity,right=-Infinity;
+  for(let i=0;i<Math.ceil(2.7/dt);i++){for(const h of g.hazards.filter(h=>h.rearSweep&&h.delay<=0)){if(h.vx<0)left=Math.min(left,h.x);else right=Math.max(right,h.x);}g.step(dt);}
+  assert.ok(left<=8&&right>=472,`boss=${bx} dt=${dt} reached ${left},${right}`);
+ }
+});
+
 test('Q W E have distinct timings, resource costs, cooldowns and reference-scaled damage in both directions',()=>{
  for(const dt of [1/30,1/60])for(const side of [-1,1])for(const [key,mode,dmg,cd,cost] of [['q','psiShock',24,3,12],['w','psiBarrage',58,9,20],['e','psiBlast',32,12,18]]){
   const g=game(true);g.engage();g.boss.x=230;g.player.x=g.boss.x+side*(key==='w'?60:35);g.player.face=-side;g.press(key);
@@ -249,7 +257,7 @@ test('frontal guard blocks psychic attacks, while attacks from behind deal norma
 });
 
 test('K parry followed by K performs one strong frontal counter with no boss displacement or SP cost',()=>{
- for(const side of [-1,1]){const g=duel();g.boss.x=230;g.player.x=g.boss.x+side*45;g.player.face=-side;g.boss.windup=2;g.boss.move=0;g.press('k');assert.ok(g.player.tryParry({owner:'b',kind:'scalpel',parryable:true,dir:side}));g.freeze(0);const sp=g.player.sp,x=g.boss.x;g.press('k');assert.equal(g.player.weaponMode,'psiCounter');frames(g,30);assert.equal(g.boss.maxHp-g.boss.hp,44);assert.equal(g.boss.x,x);assert.ok(g.boss.windup>0);assert.ok(g.player.sp>=sp);}
+ for(const side of [-1,1]){const g=duel();g.boss.x=230;g.player.x=g.boss.x+side*45;g.player.face=-side;g.boss.windup=2;g.boss.move=0;g.press('k');assert.ok(g.player.tryParry({owner:'b',kind:'scalpel',parryable:true,dir:side}));assert.equal(g.boss.windup,0);assert.ok(g.boss.psiStagger>0&&g.boss.recovery>=1.2);g.freeze(0);const sp=g.player.sp,x=g.boss.x;g.press('k');assert.equal(g.player.weaponMode,'psiCounter');frames(g,30);assert.equal(g.boss.maxHp-g.boss.hp,55);assert.equal(g.boss.x,x);assert.ok(g.boss.recovery>0);assert.ok(g.player.sp>=sp);}
 });
 
 test('an early second K is buffered only for a successful parry; a held or missed K never auto-counters',()=>{
@@ -258,10 +266,10 @@ test('an early second K is buffered only for a successful parry; a held or misse
  const held=duel();held.keys.add('k');held.press('k');assert.ok(held.player.tryParry({owner:'b',kind:'scalpel',parryable:true,dir:-1}));frames(held,40);assert.notEqual(held.player.weaponMode,'psiCounter');
 });
 
-test('R emits ten projectiles plus a separate final wave, with 30/70 damage and 5s then 2s casts',()=>{
- const g=duel();g.player.x=g.boss.x-45;g.player.superMeter=100;g.press('r');assert.equal(g.player.ultimateT,5);assert.equal(g.player.superMeter,0);
- assert.deepEqual(Array.from(g.hazards.filter(h=>h.superShot),h=>h.dmg),[5,5,5,5,5,5,5,4,4,4]);assert.equal(g.slashes.find(s=>s.kind==='psiFinalWave').dmg,109);
- frames(g,390);assert.equal(g.boss.maxHp-g.boss.hp,156);assert.equal(g.player.ultimateT,0);assert.equal(g.hazards.filter(h=>h.owner==='p').length,0);
+test('R compresses one fixed area in four hits instead of firing W projectiles',()=>{
+ const g=duel();g.player.x=g.boss.x-45;g.player.superMeter=100;g.press('r');assert.equal(g.player.ultimateT,2.5);assert.equal(g.player.superMeter,0);
+ assert.equal(g.hazards.filter(h=>h.owner==='p').length,0);assert.deepEqual(Array.from(g.slashes.filter(s=>s.kind.startsWith('psiCrush')),s=>s.dmg),[14,16,18,108]);
+ frames(g,210);assert.equal(g.boss.maxHp-g.boss.hp,156);assert.equal(g.player.ultimateT,0);assert.equal(g.hazards.filter(h=>h.owner==='p').length,0);
  g.player.x=g.boss.x-45;g.player.face=1;g.player.superMeter=100;g.player.sp=100;g.player.stun=0;g.boss.inv=0;g.boss.t=999;g.boss.retreat=null;g.boss.pressure=0;const hp=g.boss.hp;g.press('r');assert.equal(g.player.ultimateT,2);frames(g,180);assert.equal(hp-g.boss.hp,156);assert.equal(g.player.ultimateT,0);
 });
 
@@ -287,10 +295,22 @@ test('repeated cancelled ultimates do not accumulate particles, projectiles or s
  frames(g,120);assert.equal(g.hazards.filter(h=>h.owner==='p').length,0);assert.equal(g.feedback.particles,0);
 });
 
-test('full R barrage and finisher remain distinct at near and far ranges at 30 and 60 fps',()=>{
+test('R compression hits at near and far ranges at 30 and 60 fps',()=>{
  for(const dt of [1/30,1/60])for(const gap of [45,205])for(const repeat of [false,true]){
   const g=game(true);g.engage();g.boss.x=300;g.player.x=300-gap;g.boss.retreatCooldown=999;g.player.superMeter=100;g.player.superCinematicPlayed=repeat;g.press('r');frames(g,Math.ceil(7/dt),dt);assert.equal(g.boss.maxHp-g.boss.hp,156,`${dt} ${gap} ${repeat}`);
  }
+});
+
+test('R targets a forward position once and misses an enemy that leaves it',()=>{
+ for(const dt of [1/30,1/60])for(const side of [-1,1]){
+  const g=duel();g.boss.x=240;g.player.x=g.boss.x+side*90;g.player.face=-side;g.player.superMeter=100;g.press('r');
+  const field=g.slashes.find(s=>s.kind==='psiCrushFinal');assert.ok(Math.abs(field.x+field.radius-(g.boss.x+g.boss.w/2))<1);
+  const locked=field.x;g.boss.x+=side*150;frames(g,160,dt);assert.equal(g.boss.hp,g.boss.maxHp);assert.equal(field.x,locked);
+ }
+});
+
+test('R cannot spend its gauge while the boss is transforming',()=>{
+ const g=duel();g.boss.tele=4;g.player.superMeter=100;g.press('r');assert.equal(g.player.superMeter,100);assert.equal(g.player.ultimateT,0);assert.equal(g.slashes.filter(s=>s.kind.startsWith('psiCrush')).length,0);
 });
 
 test('existing surgical-operation stagger expires and the rear counter can resume',()=>{
